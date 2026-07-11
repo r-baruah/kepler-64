@@ -70,15 +70,15 @@ For each candidate move, a short Leapfrog (Verlet) integration projects the King
 
 ```mermaid
 graph LR
-    A[Board] --> B[Mass vector<br/>(64,)]
-    B --> C[Plummer gravity<br/>einsum]
-    B --> D[Potential field<br/>U]
-    C --> E[Force at King<br/>‖F_king‖]
-    D --> F[Tidal tensor<br/>Hessian of U]
-    F --> G[Closed-form eig<br/>λ₁, λ₂]
-    G --> H[η = λ₁·Rg³ / G·M²]
-    E --> I[Sigmoid<br/>tactical penalty]
-    H --> J[Eval = −η_enemy<br/>+ η_self + penalty]
+    A[Board] --> B["Mass vector (64,)"]
+    B --> C["Plummer gravity einsum"]
+    B --> D["Potential field U"]
+    C --> E["Force at King F_king"]
+    D --> F["Tidal tensor Hessian of U"]
+    F --> G["Closed-form eig lambda_1, lambda_2"]
+    G --> H["eta = lambda_1 Rg^3 / (G M^2)"]
+    E --> I["Sigmoid tactical penalty"]
+    H --> J["Eval = -eta_enemy + eta_self + penalty"]
     I --> J
 ```
 
