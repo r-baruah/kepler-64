@@ -10,7 +10,7 @@ from kepler64.core.tidal import eig2x2
 def test_eig2x2_matches_scipy():
     A = jnp.array([[3.0, 1.0], [1.0, 2.0]], dtype=jnp.float32)
     lam1, lam2 = eig2x2(A)
-    ref = np.sort(eigh(np.array(A)).eigenvalues)[::-1]
+    ref = np.sort(eigh(np.array(A))[0])[::-1]
     assert np.allclose(np.array([lam1, lam2]), ref, atol=1e-4)
 
 
