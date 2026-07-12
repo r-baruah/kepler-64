@@ -1,13 +1,17 @@
-"""Loss: logistic on game outcomes + c monotonicity prior.
+"""Loss: outcome prediction + expert-move policy, through the physics engine.
 
-physics: backpropagate through the entire physics engine (Plummer -> tidal ->
-        eta) using a logistic loss on win/draw/loss, so the gravitational
-        constant is genuinely learned by gradient descent. The c prior keeps the
-        retarded-potential story alive and is written with jnp.maximum so it is
-        differentiable when c is a traced constant.
+chess:  two supervisory signals, both derived from REAL games / strong engines
+        (no chess heuristics invented by us):
+          * outcome  — logistic on win/draw/loss (the old signal).
+          * policy   — the physics score should rank the expert's move above
+                       all legal alternatives (behavioural cloning through the
+                       gravity kernel).
+physics: backpropagate through the ENTIRE physics engine (Plummer -> tidal ->
+        eta -> sigmoid) into G, eps, c, roche, AND the disruption scales
+        (bonus, kgain, gamma). Those are the "weights" — real, physical knobs,
+        not a faked evaluation. The `c` monotonicity prior is preserved.
 
-This module is jit-compatible: pass `params` (a jnp array [G, eps, c, roche]),
-`M` (N,64) mass matrix, and `Y` (N,) outcomes in {-1, 0, +1} (White's view).
+`params` layout (jnp array of 7): [G, eps, c, roche, bonus, kgain, gamma].
 """
 
 import jax
@@ -17,16 +21,42 @@ from ..core.evaluate import _score_core
 
 
 @jax.jit
-def loss(params, M, Y):
-    G, eps, c, roche = params[0], params[1], params[2], params[3]
+def _unpack(p):
+    return p[0], p[1], p[2], p[3], p[4], p[5], p[6]
+
+
+@jax.jit
+def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None):
+    """All-scalar, jit-compatible.
+
+    M           : (N,64) mass vectors of positions            (outcome + policy)
+    Y           : (N,) outcomes in {-1,0,+1} from White's view (outcome only)
+    moves_m     : (N, K, 64) mass vectors of each child move   (policy only)
+    expert_idx  : (N,) index of the expert move among the K    (policy only)
+    has_policy  : bool scalar — 0 disables the policy term
+    mask        : (N, K) 1 for real child moves, 0 for padded dummies
+    """
+    G, eps, c, roche, bonus, kgain, gamma = _unpack(params)
+    G = jnp.clip(G, 0.01, 50.0)  # gravity must stay attractive (positive)
     c = jnp.clip(c, 1.0, 10.0)  # monotonicity prior (hard clamp)
 
-    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche))(M)  # (N,)
+    # ---- outcome term ----------------------------------------------------
+    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma))(M)
     y = (Y + 1.0) / 2.0  # 0 (black win) .. 1 (white win)
-    # Numerically stable binary cross-entropy: avoids log(1 - sigmoid(S)) which
-    # is NaN when S is large (sigmoid(S) -> 1, 1 - p -> 0/negative under JIT).
     ce = -jnp.mean(y * jax.nn.log_sigmoid(S) + (1.0 - y) * jax.nn.log_sigmoid(-S))
 
-    # soft monotonicity prior on c (differentiable)
+    # ---- policy term: expert move should score highest -------------------
+    # Score every child move from the side-to-move perspective, mask dummies
+    # to -inf so they can never be selected, then cross-entropy onto expert.
+    def _policy_row(child_m, msk):
+        side = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma))(child_m)
+        side = jnp.where(msk > 0.5, side, -jnp.inf)
+        return jax.nn.log_softmax(side)
+
+    logp = jax.vmap(_policy_row)(moves_m, mask)            # (N, K)
+    policy = -jnp.mean(jnp.take_along_axis(logp, expert_idx[:, None], axis=1))
+    policy = jnp.where(has_policy > 0.0, policy, 0.0)
+
+    # ---- soft monotonicity prior on c ------------------------------------
     prior = 0.1 * jnp.maximum(0.0, 2.0 - c) + 0.1 * jnp.maximum(0.0, c - 10.0)
-    return ce + prior
+    return ce + 0.5 * policy + prior
