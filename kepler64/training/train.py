@@ -1,6 +1,6 @@
 """Training loop — gradient descent through the physics engine.
 
-physics: optimize G, eps, c, roche, bonus, kgain, gamma with plain SGD so the
+physics: optimize G, eps, c, roche, bonus, kgain, gamma, Rg with plain SGD so the
          gravitational "weights" are genuinely learned from real play, not
          hand-picked. `c` is a traced jnp array so jax.grad flows into it (and
          the c-prior in loss.py) — fixing the "c is not differentiable" bug.
@@ -19,7 +19,7 @@ from .loss import loss as loss_fn
 
 
 def _to_arr(c: Constants) -> "jnp.ndarray":
-    return jnp.array([c.G, c.eps, c.c, c.roche, c.bonus, c.kgain, c.gamma],
+    return jnp.array([c.G, c.eps, c.c, c.roche, c.bonus, c.kgain, c.gamma, c.Rg],
                      dtype=jnp.float32)
 
 
@@ -32,6 +32,7 @@ def _from_arr(a) -> Constants:
         bonus=float(jnp.clip(a[4], 0.01, 500.0)),
         kgain=float(jnp.clip(a[5], 0.01, 50.0)),
         gamma=float(jnp.clip(a[6], 0.0, 50.0)),
+        Rg=float(jnp.clip(a[7], 0.1, 10.0)),
     )
 
 
@@ -75,4 +76,5 @@ def train(base: Constants, samples, steps: int = 200, lr: float = 0.05,
         arr = arr.at[4].set(jnp.clip(arr[4], 0.01, 500.0))
         arr = arr.at[5].set(jnp.clip(arr[5], 0.01, 50.0))
         arr = arr.at[6].set(jnp.clip(arr[6], 0.0, 50.0))
+        arr = arr.at[7].set(jnp.clip(arr[7], 0.1, 10.0))
     return _from_arr(arr)

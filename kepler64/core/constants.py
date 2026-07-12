@@ -20,6 +20,7 @@ class Constants:
     bonus: float = 50.0  # magnitude of the king-disruption force term
     kgain: float = 4.0  # sharpness of the disruption force-sigmoid
     gamma: float = 0.25  # weight of the global field-energy material edge
+    Rg: float = 1.0  # king radius of gyration (lattice units); becomes dynamic under accretion/Lorentz
 
     def c_prior(self, lam_fast: float = 0.1, lam_slow: float = 0.1):
         """Monotonicity prior: keep c in [1.0, 10.0] with a sweet spot ~3-6.

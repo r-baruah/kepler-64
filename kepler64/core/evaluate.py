@@ -38,20 +38,25 @@ def _king_idx(masses, sign: float):
     return jnp.argmax(mask.astype(jnp.float32))
 
 
-def _eta(U, king_sq, G: float) -> float:
+def _eta(U, king_sq, G: float, Rg: float) -> float:
     """Tidal-disruption index at a king from the supplied potential field U.
 
-    eta = lambda1 / (G * Mking^2): the dominant tidal eigenvalue (tearing) scaled
-    by the king's self-gravity (binding). Larger eta = closer to disruption.
+    eta = Rg^3 * lambda1 / (G * Mking^2): the dominant tidal eigenvalue
+    (tearing) scaled by the king's self-gravity (binding) and its spatial
+    extent (Rg, radius of gyration). Larger eta = closer to disruption.
+
+    Rg = 1 in lattice units for a point-mass king; becomes dynamic under
+    accretion / Lorentz mass when the king acquires physical extent.
     """
     A = tidal_tensor_at(U, king_sq)
     lam1, _ = eig2x2(A)
     Mking = 1000.0 + 1e-9
-    return lam1 / (G * Mking**2 + 1e-9)
+    return (Rg**3) * lam1 / (G * Mking**2 + 1e-9)
 
 
 def _score_body(masses, G: float, eps: float, c: float, roche: float,
-                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25):
+                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
+                Rg: float = 1.0):
     """Evaluation from White's perspective (positive = good for White)."""
     abs_m = jnp.abs(masses)
     white_m = jnp.where(masses > 0.0, abs_m, 0.0)   # your masses
@@ -67,8 +72,8 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
     bk = _king_idx(masses, -1.0)
 
     # Disruption is caused by the OPPONENT's masses only.
-    eta_w = _eta(U_b, wk, G)   # enemy masses stressing your king : bad for White
-    eta_b = _eta(U_w, bk, G)   # your masses stressing enemy king : good for White
+    eta_w = _eta(U_b, wk, G, Rg)   # enemy masses stressing your king : bad for White
+    eta_b = _eta(U_w, bk, G, Rg)   # your masses stressing enemy king : good for White
 
     # Force-based disruption, flipped around the learned Roche threshold.
     bonus_b = bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
@@ -89,22 +94,24 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
 
 @jax.jit
 def _score_core(masses, G: float, eps: float, c: float, roche: float,
-                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25):
-    """Traced constants — for training (gradient flows into all 7 leaves)."""
-    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma)
+                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
+                Rg: float = 1.0):
+    """Traced constants — for training (gradient flows into all 8 leaves)."""
+    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg)
 
 
 @jax.jit
 def _score_core_static(masses, G: float, eps: float, c: float, roche: float,
-                       bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25):
+                       bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
+                       Rg: float = 1.0):
     """Static constants (compile-time) — fast inference / vmap / search."""
-    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma)
+    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg)
 
 
 def score_white(masses: "jnp.ndarray", constants) -> float:
     return _score_core_static(
         masses, constants.G, constants.eps, constants.c, constants.roche,
-        constants.bonus, constants.kgain, constants.gamma,
+        constants.bonus, constants.kgain, constants.gamma, constants.Rg,
     )
 
 

@@ -8,10 +8,11 @@ chess:  two supervisory signals, both derived from REAL games / strong engines
                        gravity kernel).
 physics: backpropagate through the ENTIRE physics engine (Plummer -> tidal ->
         eta -> sigmoid) into G, eps, c, roche, AND the disruption scales
-        (bonus, kgain, gamma). Those are the "weights" — real, physical knobs,
-        not a faked evaluation. The `c` monotonicity prior is preserved.
+        (bonus, kgain, gamma) and Rg (king extent). Those are the "weights" —
+        real, physical knobs, not a faked evaluation. The `c` monotonicity
+        prior is preserved.
 
-`params` layout (jnp array of 7): [G, eps, c, roche, bonus, kgain, gamma].
+`params` layout (jnp array of 8): [G, eps, c, roche, bonus, kgain, gamma, Rg].
 """
 
 import jax
@@ -22,7 +23,7 @@ from ..core.evaluate import _score_core
 
 @jax.jit
 def _unpack(p):
-    return p[0], p[1], p[2], p[3], p[4], p[5], p[6]
+    return p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]
 
 
 @jax.jit
@@ -36,12 +37,13 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None):
     has_policy  : bool scalar — 0 disables the policy term
     mask        : (N, K) 1 for real child moves, 0 for padded dummies
     """
-    G, eps, c, roche, bonus, kgain, gamma = _unpack(params)
+    G, eps, c, roche, bonus, kgain, gamma, Rg = _unpack(params)
     G = jnp.clip(G, 0.01, 50.0)  # gravity must stay attractive (positive)
     c = jnp.clip(c, 1.0, 10.0)  # monotonicity prior (hard clamp)
+    Rg = jnp.clip(Rg, 0.1, 10.0)  # king extent must stay physical
 
     # ---- outcome term ----------------------------------------------------
-    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma))(M)
+    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg))(M)
     y = (Y + 1.0) / 2.0  # 0 (black win) .. 1 (white win)
     ce = -jnp.mean(y * jax.nn.log_sigmoid(S) + (1.0 - y) * jax.nn.log_sigmoid(-S))
 
@@ -49,7 +51,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None):
     # Score every child move from the side-to-move perspective, mask dummies
     # to -inf so they can never be selected, then cross-entropy onto expert.
     def _policy_row(child_m, msk):
-        side = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma))(child_m)
+        side = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg))(child_m)
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         return jax.nn.log_softmax(side)
 
