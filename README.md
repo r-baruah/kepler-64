@@ -6,15 +6,29 @@
 
 An astrophysical chess engine. Its evaluation is a differentiable [JAX](https://github.com/google/jax) N-body gravitational simulation — pieces are masses, and the King loses by tidal disruption past a learned Roche limit instead of by checkmate. It plays valid chess.
 
+
+> "I'd rather build something that breaks beautifully than something that stays safely ordinary."
+> — R.B.
+
+
+Feynman once said that figuring out physics is like watching a game of chess without knowing the rules. You observe the board long enough, patterns emerge, and eventually you start to guess at the laws underneath.
+
+> "Imagine that the gods are playing some great game like chess... and you don't know the rules of the game, but you're allowed to look at the board... and from these observations you try to figure out what the rules are."
+> — Richard Feynman (1981) · [![YouTube](https://img.shields.io/badge/Watch-red?logo=youtube&logoColor=white)](https://youtu.be/o1dgrvlWML4)
+
+Kepler-64 reverses that completely. It already knows the rules. It's the universe that has to figure out how to play.
+
+This isn't physics as a metaphor for chess. It's the literal equations of astrophysics, handed the rules of chess, and asked to get good at it.
+
 ---
 
 ## The idea
 
-Every chess engine since the 1970s evaluates positions with hand-tuned heuristics — piece-square tables, mobility scores, king safety patterns. Even neural engines like Leela replace heuristics with a black-box network.
+The question that started this was simple enough to be stupid: *what if a chess position were evaluated by gravity?*
 
-What if the evaluation was physics instead?
+Not gravity as a mood. Not "this piece exerts influence over that square." Plummer-softened Newtonian gravity on a 64-square lattice. Tidal tensors computed from the Hessian of the potential field. A Verlet rollout to project whether the King's formation will hold. The gravitational constant $G$ isn't chosen by hand — it's learned via gradient descent from real game outcomes. The whole pipeline is differentiable.
 
-Not a metaphor for physics. Plummer-softened Newtonian gravity on a 64-square lattice, tidal tensors computed from the Hessian of the potential field, a Verlet rollout to project whether the King's formation will hold. The gravitational constant $G$ isn't chosen by hand — it's learned via gradient descent on game outcomes. The whole pipeline is differentiable.
+Every engine since the 1970s has evaluated positions with hand-tuned heuristics — piece-square tables, mobility scores, king safety patterns. Even neural engines like Leela replace heuristics with a black-box network. This replaces heuristics with physics. Not an approximation of physics. Physics.
 
 The result is an engine that doesn't know any chess rules. It discovers positional principles through orbital mechanics.
 
@@ -110,7 +124,7 @@ The sub-millisecond claim refers to this XLA-compiled kernel. The surrounding mo
 
 ---
 
-## Layer 2: when the physics gets strange
+## when the physics gets strange
 
 Layer 1 replaced the heuristic with gravity. Layer 2 does something different: the evaluation function itself becomes physical.
 
@@ -145,6 +159,24 @@ The result: piece shuffling has a real cost. Moving the same piece every opening
 ### Image-seeded universe
 
 The physical constants can be derived from a photograph. The raw bytes are reshaped, FFT'd, and the magnitude spectrum maps to initial values of $[G, \varepsilon, \text{roche}, c]$. An 8×8 crop maps pixel intensity to initial piece masses. The SHA-256 hash of the file provides deterministic seeding. The fundamental constants of the chess universe are, literally, the spectral content of one image.
+
+---
+
+## Does it work?
+
+Yes. Every move it returns is legal. Games terminate by real rules. It will checkmate a careless opponent.
+
+It is not Stockfish. It was never trying to be. It's a differentiable physics simulation that happens to obey chess rules — it doesn't understand chess theory, it understands orbital mechanics and structural collapse, and from those it discovers something that looks a lot like positional thinking.
+
+Look at how it checkmates. It doesn't sacrifice. It doesn't calculate mating nets. It brings the heavy pieces — queens, rooks — towards the enemy King, concentrating mass until the tidal force at that square exceeds the Roche limit and the position structurally collapses.
+
+That's literally what tidal disruption means in this engine. And it's also exactly how humans played chess before modern engines rewired our intuition about the game.
+
+Before Stockfish. Before hypermodern theory. Before anyone showed us that a pawn sacrifice on move 12 can win an endgame 40 moves later. When chess was played the way it *felt* — build mass, apply pressure, the King gets crushed under the weight of everything pointed at it.
+
+The engine doesn't know any of that. It knows gravity. And gravity told it the same thing. Because that's just how concentrated force works — it collapses things. The physics didn't learn this from a chess book. It derived it from first principles. And it turns out the first principles and the pre-computer chess intuition were saying the same thing all along.
+
+It's still being trained: physical constants are learned from real games via a UCI harness against Maia, Stockfish at scaled skill levels, and other engines. We're actively making it stronger without faking the physics. The absurdity is the point, not a limitation. It works. It just plays its own kind of chess.
 
 ---
 
@@ -226,14 +258,6 @@ kepler64/
 
 ---
 
-## Does it work?
-
-Yes. It plays **valid chess** — every move it returns is legal, games terminate by the real rules, and it will deliver a checkmate against a careless opponent. Under the hood the search is alpha-beta over a pure-NumPy board, and the evaluation is the gravity kernel described above.
-
-It is still being trained: the physical constants are learned from real games (via a UCI harness that pits it against Maia, Stockfish at scaled skill levels, and other engines), and we are actively working on making it stronger *without* faking the physics. The absurdity is the point, not a limitation — it works, it just plays its own kind of chess.
-
----
-
 ## Testing
 
 ```bash
@@ -242,19 +266,11 @@ pytest kepler64/tests/ -v
 
 ---
 
-## What this is not
+All my loves in one project: chess, space, maths, physics — and the stubborn refusal to do the sensible thing. There was a question I couldn't leave alone: *what if gravity played chess?* Turns out it was more serious than it sounded.
 
-Kepler-64 is not a competitive chess engine. It is a differentiable physics simulation that happens to play chess. It replaces static evaluation heuristics with a fully vectorized N-body gravitational potential, optimized in JAX. It does not understand chess theory. It understands orbital mechanics and structural collapse.
+There's a quote on my portfolio page — something I wrote a while ago, not thinking about any of this. I didn't write it for Kepler-64. But then I built an engine where the King loses by tidal disruption, where a Queen can become so massive from captures that a single pawn tears it apart, where the gravitational constant of the chess universe is literally learned from real games — and I thought, well. Looks like I meant it the whole time.
 
----
-
-## A note from the author
-
-All my loves, in one project: chess, space, maths, and physics — and the itch to do something a little out of the ordinary. This time, into absurdity. But beautifully.
-
-The goal was never to build yet another engine that grinds out wins. It was to ask a silly, serious question: *what if a chess position were evaluated by gravity?* No piece-square tables, no mobility scores, no black-box network — just masses on a board and the tidal forces between them. The King doesn't get checkmated. It gets torn apart by the physics of its own position.
-
-It's absurd. It's also, against all odds, *real*: a fully differentiable N-body simulation that happens to obey the rules of chess. The gravitational constant isn't hand-picked — it's what gradient descent settled on, learning from real games. That tension — rigour and nonsense held at once — is the whole point. If it makes you smile and then makes you think, it's doing exactly what it was built to do.
+If it makes you smile and then makes you think, it's doing exactly what it was built to do.
 
 ---
 
