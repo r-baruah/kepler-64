@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white)
 ![JAX](https://img.shields.io/badge/JAX-0.4+-orange?logo=google&logoColor=white)
 
-An astrophysical chess engine. Move-generation is handled by [python-chess](https://github.com/python-chess/python-chess); the evaluation function is a differentiable [JAX](https://github.com/google/jax) N-body gravitational simulation. Pieces are masses. The King loses by tidal disruption past a learned Roche limit instead of by checkmate.
+An astrophysical chess engine. Its evaluation is a differentiable [JAX](https://github.com/google/jax) N-body gravitational simulation — pieces are masses, and the King loses by tidal disruption past a learned Roche limit instead of by checkmate. It plays valid chess.
 
 ---
 
@@ -30,6 +30,14 @@ $$F_i = G \sum_j \frac{m_j \, (r_i - r_j)}{\left( |r_i - r_j|^2 + \varepsilon^2 
 
 The $(64, 64)$ pairwise distance matrix is static — the board geometry never changes, only the masses do. The entire force field is one `einsum` over a $(64,)$ mass vector. No Python loops in the hot path.
 
+### In matrix form
+
+Let $\mathbf{m}\in\mathbb{R}^{64}$ be the signed mass vector and $\mathbf{R}\in\mathbb{R}^{64\times 2}$ the fixed square coordinates. The softened, $c$-gated interaction is a matrix $\mathbf{K}(c)$ built once from the static distance matrix, so the force field is simply
+
+$$\mathbf{F} = G\,\mathbf{K}(c)\,\mathbf{m}, \qquad \mathbf{F}\in\mathbb{R}^{64\times 2},$$
+
+and the tidal tensor at the King is the $2\times2$ Hessian $\mathbf{A}=\nabla\nabla U$ — a real symmetric matrix whose largest eigenvalue $\lambda_1$ drives the disruption.
+
 ### Tidal disruption as the win condition
 
 The tidal tensor is the Hessian of the gravitational potential at the King's square. For a 2×2 matrix this has a closed-form eigenvalue decomposition — no LAPACK, about 10 FLOPs:
@@ -42,17 +50,22 @@ $$\eta = \frac{\lambda_1 \cdot R_g^3}{G \cdot M_{\text{king}}^2}$$
 
 This recovers the Hill/Roche scaling from first principles on the board. When $\eta$ exceeds a learned critical threshold, the King's position structurally collapses. The engine tracks $d\eta/dt$ across a short Verlet rollout — an increasing tidal stress is the precursor to failure.
 
-### Differentiable tactical safety
+### Source-attributed disruption (and a field-energy edge)
 
-A boolean `is_checkmate()` check has zero gradient. That kills the learned-$G$ hook. The tactical penalty instead uses a sigmoid on the gravitational force magnitude at the King:
+A boolean `is_checkmate()` check has zero gradient, so it can't feed the learned-$G$ hook. The tactical term instead uses a smooth, differentiable sigmoid on the gravitational force magnitude — but crucially it is **source-attributed**: only your masses stress the *enemy* King, and only the enemy's masses stress *your* King. Capturing an enemy piece therefore removes the mass that was disrupting *their* King and adds the mass that disrupts *yours* — exactly the trade-off a chess player feels, recovered from physics rather than from a material table.
 
-$$\text{penalty} = -M \cdot \sigma\!\left( k \cdot \left( \|F_{\text{king}}\| - 1 \right) \right)$$
+$$\text{bonus} = +M \cdot \sigma\!\left( k \cdot \bigl(\|F_{\text{opp.King}}\| - \text{roche}\bigr) \right), \qquad
+\text{pen} = -M \cdot \sigma\!\left( k \cdot \bigl(\|F_{\text{own.King}}\| - \text{roche}\bigr) \right)$$
 
-Smooth, end-to-end differentiable, expressed in the same force language as the rest of the physics.
+A second, global term is the field-energy edge — the differential gravitational energy of the two armies across the whole board, scaled by a learnable $\gamma$. It rewards mass concentration that bends the potential in your favour:
+
+$$\text{edge} = \gamma \cdot \bigl( E_{\text{white}} - E_{\text{black}} \bigr), \qquad E = \tfrac{1}{2}\sum_{i\neq j} \frac{m_i m_j}{\sqrt{|r_i-r_j|^2+\varepsilon^2}}$$
+
+All of it is smooth and end-to-end differentiable, in the same force language as the rest of the physics.
 
 ### Learned constants
 
-The physical constants of this chess universe — $G$, the Plummer softening $\varepsilon$, the speed of light $c$, and the Roche threshold — are all leaves that `jax.grad` moves. A logistic loss on game outcomes backpropagates through the entire pipeline (Plummer → tidal tensor → eigenvalues → $\eta$) into the constants themselves.
+The physical constants of this chess universe — $G$, the Plummer softening $\varepsilon$, the speed of light $c$, the Roche threshold, plus the disruption scales $k$ (the gain on each tidal sigmoid) and the field-energy weight $\gamma$ — are all leaves that `jax.grad` moves. A logistic loss on game outcomes, optionally with a policy term that ranks the expert's move above the alternatives, backpropagates through the entire pipeline (Plummer → tidal tensor → eigenvalues → $\eta$) into the constants themselves.
 
 The speed of light $c$ carries a monotonicity prior so gradient descent can't collapse the retardation story by pushing $c \to \infty$:
 
@@ -70,16 +83,21 @@ For each candidate move, a short Leapfrog (Verlet) integration projects the King
 
 ```mermaid
 graph LR
-    A[Board] --> B["Mass vector (64,)"]
-    B --> C["Plummer gravity einsum"]
+    A[Board] --> B["Signed mass vector (64,)"]
+    B --> C["Plummer gravity einsum -> F"]
     B --> D["Potential field U"]
-    C --> E["Force at King F_king"]
-    D --> F["Tidal tensor Hessian of U"]
+    C --> Ew["Force on enemy King from YOUR masses"]
+    C --> Eo["Force on your King from ENEMY masses"]
+    D --> F["Tidal tensor = Hessian of U"]
     F --> G["Closed-form eig lambda_1, lambda_2"]
-    G --> H["eta = lambda_1 Rg^3 / (G M^2)"]
-    E --> I["Sigmoid tactical penalty"]
-    H --> J["Eval = -eta_enemy + eta_self + penalty"]
-    I --> J
+    G --> H["eta = lambda_1 / (G M^2), opp. masses only"]
+    Ew --> I["bonus = +M*sigma(k*(||F_w||-roche))"]
+    Eo --> J["pen   = -M*sigma(k*(||F_o||-roche))"]
+    B --> K["Global field-energy edge gamma*(E_w-E_b)"]
+    I --> L["Eval = eta_enemy - eta_self + bonus + pen + edge"]
+    J --> L
+    K --> L
+    H --> L
 ```
 
 ---
@@ -88,7 +106,7 @@ graph LR
 
 Chess has a theoretical maximum of 218 legal moves in any position. Every batch of candidate moves is statically padded to exactly 218, with zero-mass dummy pieces filling the unused slots. XLA traces the $(218, 64, 2)$ shape exactly once, giving a single `vmap` evaluation sweep.
 
-The sub-millisecond claim refers to this XLA-compiled kernel. At v1, the surrounding python-chess move generation is the documented overhead — the pure-JAX board (v1.5) removes it.
+The sub-millisecond claim refers to this XLA-compiled kernel. The surrounding move generation is now a pure-NumPy board (`kepler64/core/fastboard.py`), verified against python-chess, so the search hot path no longer crosses into python-chess at all.
 
 ---
 
@@ -170,25 +188,29 @@ game_gif(engine, out_path="kepler64.gif", max_ply=30)
 kepler64/
 ├── __init__.py            # RocheEngine
 ├── core/
-│   ├── board.py           # board state + signed mass vector
-│   ├── constants.py       # G, ε, c, roche — learnable leaves + c-prior
+│   ├── board.py           # board state + signed mass vector (python-chess adapter)
+│   ├── fastboard.py       # pure-NumPy board + legal move gen (verified vs python-chess)
+│   ├── constants.py       # G, ε, c, roche, k, γ — learnable leaves + c-prior
 │   ├── gravity.py         # static (64,64) distance matrix + Plummer einsum
 │   ├── tidal.py           # Hessian, closed-form 2×2 eig, η
 │   ├── verlet.py          # symplectic Leapfrog rollout
 │   ├── lorentz.py         # relativistic mass escalation
-│   ├── evaluate.py        # Eval = physics + soft sigmoid tactical penalty
+│   ├── evaluate.py        # source-attributed disruption + field-energy edge
 │   └── image_seed.py      # image FFT → constants + initial masses
-├── multiverse/
+├── multiverse/            # Layer 2 (see "when the physics gets strange")
 │   ├── posterior.py       # Bayesian average over (G, ε, c)
 │   ├── observer.py        # in-game KL-anchored posterior update
 │   ├── accretion.py       # captured mass absorbed, not deleted
 │   └── fluid.py           # variance-field Stokes flow
 ├── search/
-│   ├── minimax.py         # alpha-beta + 218-pad vmap sweep
+│   ├── minimax.py         # alpha-beta + batched quiescence + 218-pad vmap sweep
 │   └── openings.py        # quasi-equilibrium opening book
+├── match/
+│   └── uci_harness.py     # UCI engine matches + Elo estimate
 ├── training/
 │   ├── data.py            # game → (mass_vector, outcome) samples
-│   ├── loss.py            # logistic outcome + c-prior
+│   ├── data_uci.py        # Stockfish-skill self-play → expert-move policy batches
+│   ├── loss.py            # logistic outcome + expert-move policy + c-prior
 │   ├── train.py           # jax.grad through the physics engine
 │   └── ablation.py        # G learned vs G=1 comparison
 ├── viz/
@@ -204,27 +226,11 @@ kepler64/
 
 ---
 
-## Status
+## Does it work?
 
-| Component | Status |
-|---|---|
-| Plummer gravity (static einsum) | Done |
-| Closed-form 2×2 tidal eigenvalues | Done |
-| $\eta$ tidal disruption + $d\eta/dt$ tracking | Done |
-| Soft sigmoid tactical penalty | Done |
-| Signed mass vector | Done |
-| Verlet rollout | Done |
-| Alpha-beta search + 218-pad sweep | Done |
-| Accretion on capture | Done |
-| Lorentz mass escalation | Done |
-| Image-seeded universe | Done |
-| Glass Box visualizer | Done |
-| Training loop | Done |
-| Ablation study | Done |
-| Multiverse (posterior avg) | Done |
-| Observer (in-game update) | Done |
-| Variance-field fluid | Done |
-| Pure-JAX board (removes move-gen tax) | v1.5 |
+Yes. It plays **valid chess** — every move it returns is legal, games terminate by the real rules, and it will deliver a checkmate against a careless opponent. Under the hood the search is alpha-beta over a pure-NumPy board, and the evaluation is the gravity kernel described above.
+
+It is still being trained: the physical constants are learned from real games (via a UCI harness that pits it against Maia, Stockfish at scaled skill levels, and other engines), and we are actively working on making it stronger *without* faking the physics. The absurdity is the point, not a limitation — it works, it just plays its own kind of chess.
 
 ---
 
@@ -239,6 +245,16 @@ pytest kepler64/tests/ -v
 ## What this is not
 
 Kepler-64 is not a competitive chess engine. It is a differentiable physics simulation that happens to play chess. It replaces static evaluation heuristics with a fully vectorized N-body gravitational potential, optimized in JAX. It does not understand chess theory. It understands orbital mechanics and structural collapse.
+
+---
+
+## A note from the author
+
+All my loves, in one project: chess, space, maths, and physics — and the itch to do something a little out of the ordinary. This time, into absurdity. But beautifully.
+
+The goal was never to build yet another engine that grinds out wins. It was to ask a silly, serious question: *what if a chess position were evaluated by gravity?* No piece-square tables, no mobility scores, no black-box network — just masses on a board and the tidal forces between them. The King doesn't get checkmated. It gets torn apart by the physics of its own position.
+
+It's absurd. It's also, against all odds, *real*: a fully differentiable N-body simulation that happens to obey the rules of chess. The gravitational constant isn't hand-picked — it's what gradient descent settled on, learning from real games. That tension — rigour and nonsense held at once — is the whole point. If it makes you smile and then makes you think, it's doing exactly what it was built to do.
 
 ---
 
