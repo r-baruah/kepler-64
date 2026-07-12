@@ -2,11 +2,18 @@
 
 chess:  the score tells the search which move keeps your King bound and the
         enemy King disrupted.
-physics: Eval = +eta_enemy - eta_self + bonus(enemy king pressure)
-               - penalty(own king pressure).
-        The tactical terms are sigmoids on local force magnitude, expressed in
-        the force language, so the whole pipeline stays differentiable and the
-        "fully differentiable evaluation" hook survives (no boolean branch).
+physics: Eval = +eta_enemy - eta_self + bonus(your force on enemy king)
+                - penalty(enemy force on your king) + global field-energy edge.
+
+        Disruption is SOURCE-ATTRIBUTED: a king is disrupted by the OPPONENT's
+        masses, not by its own. This is the physically correct reading (a body's
+        own gravity binds it; the enemy's gravity tears it) and it removes the
+        old perverse incentive where capturing an enemy piece looked BAD because
+        it lowered the total force on the enemy king.
+
+        `roche` is the learned disruption threshold: the force-sigmoid flips
+        around it, so gradient descent learns the tidal limit instead of us
+        hand-picking it.
 
 All heavy math is pure JAX. Two wrappers share one body:
   * _score_core_static  — constants are STATIC (compile-time). Fast inference /
@@ -24,6 +31,14 @@ from .constants import Constants
 
 _MAX_MOVES = 218  # theoretical max legal moves in chess
 
+# Disruption force-sigmoid scale and gain (tunable; roche sets the bias/threshold).
+_BONUS = 50.0
+_K = 4.0
+# Global gravitational field-energy edge: rewards having more total disruptive
+# mass/reach across the board (a real field-energy observable, not a material
+# hack). Kept modest so king disruption stays the dominant signal.
+_GAMMA = 0.25
+
 
 def _king_idx(masses, sign: float):
     """Traced index of the king of the given color (sign +1 white, -1 black)."""
@@ -31,26 +46,52 @@ def _king_idx(masses, sign: float):
     return jnp.argmax(mask.astype(jnp.float32))
 
 
-def _eta(masses, U, king_sq, G: float, Rg: float = 1.0) -> float:
+def _eta(U, king_sq, G: float) -> float:
+    """Tidal-disruption index at a king from the supplied potential field U.
+
+    eta = lambda1 / (G * Mking^2): the dominant tidal eigenvalue (tearing) scaled
+    by the king's self-gravity (binding). Larger eta = closer to disruption.
+    """
     A = tidal_tensor_at(U, king_sq)
     lam1, _ = eig2x2(A)
-    Mking = jnp.abs(masses[king_sq]) + 1e-9
-    # eta = lambda1 * Rg^3 / (G * Mking^2)  (Rg^3 kept explicit for generality)
-    return lam1 * (Rg**3) / (G * Mking**2 + 1e-9)
+    Mking = 1000.0 + 1e-9
+    return lam1 / (G * Mking**2 + 1e-9)
 
 
 def _score_body(masses, G: float, eps: float, c: float, roche: float):
     """Evaluation from White's perspective (positive = good for White)."""
     abs_m = jnp.abs(masses)
-    F = force_field(abs_m, eps, G, c)
-    U = potential_field(abs_m, eps, G, c)
+    white_m = jnp.where(masses > 0.0, abs_m, 0.0)   # your masses
+    black_m = jnp.where(masses < 0.0, abs_m, 0.0)   # enemy masses
+
+    # Source-attributed force & potential: white's field vs black's field.
+    F_w = force_field(white_m, eps, G, c)   # force everywhere due to YOUR masses
+    F_b = force_field(black_m, eps, G, c)   # force everywhere due to ENEMY masses
+    U_w = potential_field(white_m, eps, G, c)  # your potential (tears their king)
+    U_b = potential_field(black_m, eps, G, c)  # their potential (tears your king)
+
     wk = _king_idx(masses, 1.0)
     bk = _king_idx(masses, -1.0)
-    eta_w = _eta(masses, U, wk, G)  # own King stress: bad for White
-    eta_b = _eta(masses, U, bk, G)  # enemy King stress: good for White
-    bonus_b = 50.0 * jax.nn.sigmoid(4.0 * (jnp.linalg.norm(F[bk] + 1e-9) - 1.0))
-    pen_w = -50.0 * jax.nn.sigmoid(4.0 * (jnp.linalg.norm(F[wk] + 1e-9) - 1.0))
-    return eta_b - eta_w + bonus_b + pen_w
+
+    # Disruption is caused by the OPPONENT's masses only.
+    eta_w = _eta(U_b, wk, G)   # enemy masses stressing your king : bad for White
+    eta_b = _eta(U_w, bk, G)   # your masses stressing enemy king : good for White
+
+    # Force-based disruption, flipped around the learned Roche threshold.
+    bonus_b = _BONUS * jax.nn.sigmoid(_K * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
+    pen_w = -_BONUS * jax.nn.sigmoid(_K * (jnp.linalg.norm(F_b[wk] + 1e-9) - roche))
+
+    # Global field-energy edge: more total disruptive mass/reach = stronger.
+    # Kings are EXCLUDED — a king's own 1000-mass self-field would otherwise
+    # dwarf every piece and erase the signal. This measures your *piece* reach.
+    is_king = jnp.abs(masses) > 500.0
+    white_p = jnp.where(is_king, 0.0, white_m)
+    black_p = jnp.where(is_king, 0.0, black_m)
+    e_w = jnp.sum(jnp.sum(force_field(white_p, eps, G, c) ** 2, axis=-1))
+    e_b = jnp.sum(jnp.sum(force_field(black_p, eps, G, c) ** 2, axis=-1))
+    global_edge = _GAMMA * (e_w - e_b)
+
+    return eta_b - eta_w + bonus_b + pen_w + global_edge
 
 
 @jax.jit

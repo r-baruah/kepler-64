@@ -43,8 +43,7 @@ def negamax(engine, board: Board, depth: int, alpha: float, beta: float, masses_
     if board.is_game_over():
         return _terminal(board)
     if depth == 0:
-        m = masses_override if masses_override is not None else board.mass_vector()
-        return _score_position(m, engine.constants, board.turn)
+        return _quiesce(engine, board, alpha, beta, masses_override, qdepth=4)
 
     moves = board.legal_moves()
     moves.sort(key=lambda m: 0 if board.is_capture(m) else 1)  # captures first
@@ -62,6 +61,45 @@ def negamax(engine, board: Board, depth: int, alpha: float, beta: float, masses_
         if alpha >= beta:
             break
     return best
+
+
+def _quiesce(engine, board: Board, alpha: float, beta: float, masses_override=None, qdepth: int = 6):
+    """Quiescence search: resolve forcing capture lines so the eval isn't read
+    at a volatile horizon (standard, and fits the theme — extend the gravity
+    sweep along the forcing lines). Capped at `qdepth` to avoid blow-ups."""
+    if board.is_game_over():
+        return _terminal(board)
+    if qdepth <= 0:
+        return _score_position(
+            masses_override if masses_override is not None else board.mass_vector(),
+            engine.constants,
+            board.turn,
+        )
+    stand = _score_position(
+        masses_override if masses_override is not None else board.mass_vector(),
+        engine.constants,
+        board.turn,
+    )
+    if stand >= beta:
+        return beta
+    if stand > alpha:
+        alpha = stand
+    # Only captures (and promotions) keep the line alive. Cap the fan-out so a
+    # capture-rich position can't blow the tree up combinatorially.
+    caps = [m for m in board.legal_moves() if board.is_capture(m)]
+    caps.sort(key=lambda m: 0 if board.is_capture(m) else 1)
+    caps = caps[:12]
+    for m in caps:
+        child = board.apply_move(m)
+        mv = child.mass_vector()
+        if board.is_capture(m):
+            mv = _accreted_mass(mv, board.mass_vector(), m)
+        val = -_quiesce(engine, child, -beta, -alpha, mv, qdepth - 1)
+        if val >= beta:
+            return beta
+        if val > alpha:
+            alpha = val
+    return alpha
 
 
 def best_move(engine, board: Board, depth: int = 3):
