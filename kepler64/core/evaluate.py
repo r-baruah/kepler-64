@@ -31,14 +31,6 @@ from .constants import Constants
 
 _MAX_MOVES = 218  # theoretical max legal moves in chess
 
-# Disruption force-sigmoid scale and gain (tunable; roche sets the bias/threshold).
-_BONUS = 50.0
-_K = 4.0
-# Global gravitational field-energy edge: rewards having more total disruptive
-# mass/reach across the board (a real field-energy observable, not a material
-# hack). Kept modest so king disruption stays the dominant signal.
-_GAMMA = 0.25
-
 
 def _king_idx(masses, sign: float):
     """Traced index of the king of the given color (sign +1 white, -1 black)."""
@@ -58,7 +50,8 @@ def _eta(U, king_sq, G: float) -> float:
     return lam1 / (G * Mking**2 + 1e-9)
 
 
-def _score_body(masses, G: float, eps: float, c: float, roche: float):
+def _score_body(masses, G: float, eps: float, c: float, roche: float,
+                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25):
     """Evaluation from White's perspective (positive = good for White)."""
     abs_m = jnp.abs(masses)
     white_m = jnp.where(masses > 0.0, abs_m, 0.0)   # your masses
@@ -78,8 +71,8 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float):
     eta_b = _eta(U_w, bk, G)   # your masses stressing enemy king : good for White
 
     # Force-based disruption, flipped around the learned Roche threshold.
-    bonus_b = _BONUS * jax.nn.sigmoid(_K * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
-    pen_w = -_BONUS * jax.nn.sigmoid(_K * (jnp.linalg.norm(F_b[wk] + 1e-9) - roche))
+    bonus_b = bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
+    pen_w = -bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_b[wk] + 1e-9) - roche))
 
     # Global field-energy edge: more total disruptive mass/reach = stronger.
     # Kings are EXCLUDED — a king's own 1000-mass self-field would otherwise
@@ -89,25 +82,30 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float):
     black_p = jnp.where(is_king, 0.0, black_m)
     e_w = jnp.sum(jnp.sum(force_field(white_p, eps, G, c) ** 2, axis=-1))
     e_b = jnp.sum(jnp.sum(force_field(black_p, eps, G, c) ** 2, axis=-1))
-    global_edge = _GAMMA * (e_w - e_b)
+    global_edge = gamma * (e_w - e_b)
 
     return eta_b - eta_w + bonus_b + pen_w + global_edge
 
 
 @jax.jit
-def _score_core(masses, G: float, eps: float, c: float, roche: float):
-    """Traced constants — for training (gradient flows into G, eps, c, roche)."""
-    return _score_body(masses, G, eps, c, roche)
+def _score_core(masses, G: float, eps: float, c: float, roche: float,
+                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25):
+    """Traced constants — for training (gradient flows into all 7 leaves)."""
+    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma)
 
 
 @jax.jit
-def _score_core_static(masses, G: float, eps: float, c: float, roche: float):
+def _score_core_static(masses, G: float, eps: float, c: float, roche: float,
+                       bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25):
     """Static constants (compile-time) — fast inference / vmap / search."""
-    return _score_body(masses, G, eps, c, roche)
+    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma)
 
 
 def score_white(masses: "jnp.ndarray", constants) -> float:
-    return _score_core_static(masses, constants.G, constants.eps, constants.c, constants.roche)
+    return _score_core_static(
+        masses, constants.G, constants.eps, constants.c, constants.roche,
+        constants.bonus, constants.kgain, constants.gamma,
+    )
 
 
 def evaluate(board, constants) -> float:
