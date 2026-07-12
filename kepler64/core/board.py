@@ -59,18 +59,24 @@ class Board:
 
         White pieces are +mass, black pieces -mass. The sign identifies color
         for the kernel (gravity itself uses |mass|, so it stays attractive).
+        Vectorized: one JAX gather + one multiply, no per-square Python loop.
         """
         import chess as _chess
 
-        masses = jnp.zeros(64, dtype=jnp.float32)
-        for sq in range(64):
-            pt = int(self.pieces[sq])
-            if pt == 0:
-                continue
-            base = PIECE_MASSES[_chess.PIECE_SYMBOLS[pt].upper()]
-            sign = 1.0 if self._color_at(sq) == 0 else -1.0
-            masses = masses.at[sq].set(sign * base)
-        return masses
+        # LUT indexed by python-chess piece_type: 0=empty,1=P,2=N,3=B,4=R,5=Q,6=K
+        _MASS = jnp.array([0.0, 1.0, 3.0, 3.0, 5.0, 9.0, 1000.0], dtype=jnp.float32)
+        masses = _MASS[self.pieces]
+
+        if self._chess is not None:
+            colors = jnp.array(
+                [0.0 if (pc and pc.color == _chess.WHITE) else 1.0
+                 for pc in (self._chess.piece_at(sq) for sq in range(64))],
+                dtype=jnp.float32,
+            )
+        else:
+            colors = jnp.where(jnp.arange(64) < 16, 0.0, 1.0)
+        signs = jnp.where(colors == 0.0, 1.0, -1.0)
+        return masses * signs
 
     def _color_at(self, sq) -> int:
         if self._chess is not None:
