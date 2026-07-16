@@ -38,25 +38,29 @@ def _king_idx(masses, sign: float):
     return jnp.argmax(mask.astype(jnp.float32))
 
 
-def _eta(U, king_sq, G: float, Rg: float) -> float:
+def _eta(U, king_sq, Rg: float = 1.0, mref: float = 3.5) -> float:
     """Tidal-disruption index at a king from the supplied potential field U.
 
-    eta = Rg^3 * lambda1 / (G * Mking^2): the dominant tidal eigenvalue
-    (tearing) scaled by the king's self-gravity (binding) and its spatial
-    extent (Rg, radius of gyration). Larger eta = closer to disruption.
+    eta = Rg^3 * lambda1 / mref^2: the dominant tidal eigenvalue (tearing)
+    scaled by the king's spatial extent (Rg) and a reference tidal-stress
+    scale (mref).  G is intentionally ABSENT: lambda1 is already proportional
+    to G (the tidal tensor is the Hessian of the potential), so including G in
+    the denominator would cancel it and make eta independent of the field
+    strength — physically the disruption criterion is G-independent, which is
+    correct.  We divide by mref^2 (a minor-piece-scale constant), NOT by
+    Mking^2: the King's own 1000-mass self-gravity would otherwise shrink eta
+    to ~1e-6 and the Roche limit would never be reachable.
 
-    Rg = 1 in lattice units for a point-mass king; becomes dynamic under
-    accretion / Lorentz mass when the king acquires physical extent.
+    Larger eta = closer to disruption.
     """
     A = tidal_tensor_at(U, king_sq)
     lam1, _ = eig2x2(A)
-    Mking = 1000.0 + 1e-9
-    return (Rg**3) * lam1 / (G * Mking**2 + 1e-9)
+    return (Rg**3) * lam1 / (mref**2 + 1e-9)
 
 
 def _score_body(masses, G: float, eps: float, c: float, roche: float,
-                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                Rg: float = 1.0):
+                 bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
+                 Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0):
     """Evaluation from White's perspective (positive = good for White)."""
     abs_m = jnp.abs(masses)
     white_m = jnp.where(masses > 0.0, abs_m, 0.0)   # your masses
@@ -72,8 +76,8 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
     bk = _king_idx(masses, -1.0)
 
     # Disruption is caused by the OPPONENT's masses only.
-    eta_w = _eta(U_b, wk, G, Rg)   # enemy masses stressing your king : bad for White
-    eta_b = _eta(U_w, bk, G, Rg)   # your masses stressing enemy king : good for White
+    eta_w = _eta(U_b, wk, Rg, mref)   # enemy masses stressing your king : bad for White
+    eta_b = _eta(U_w, bk, Rg, mref)   # your masses stressing enemy king : good for White
 
     # Force-based disruption, flipped around the learned Roche threshold.
     bonus_b = bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
@@ -89,29 +93,37 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
     e_b = jnp.sum(jnp.sum(force_field(black_p, eps, G, c) ** 2, axis=-1))
     global_edge = gamma * (e_w - e_b)
 
-    return eta_b - eta_w + bonus_b + pen_w + global_edge
+    # Gravitational material edge: you command more mass -> stronger field.
+    # Rewards captures / winning material; gives the search a clean, varied
+    # gradient instead of the flat equilibrium of the disruption term alone.
+    material = mat_gain * (jnp.sum(white_m) - jnp.sum(black_m))
+
+    return eta_b - eta_w + bonus_b + pen_w + global_edge + material
 
 
 @jax.jit
 def _score_core(masses, G: float, eps: float, c: float, roche: float,
                 bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                Rg: float = 1.0):
+                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0):
     """Traced constants — for training (gradient flows into all 8 leaves)."""
-    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg)
+    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
+                       mref, mat_gain)
 
 
 @jax.jit
 def _score_core_static(masses, G: float, eps: float, c: float, roche: float,
                        bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                       Rg: float = 1.0):
+                       Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0):
     """Static constants (compile-time) — fast inference / vmap / search."""
-    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg)
+    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
+                       mref, mat_gain)
 
 
 def score_white(masses: "jnp.ndarray", constants) -> float:
     return _score_core_static(
         masses, constants.G, constants.eps, constants.c, constants.roche,
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
+        constants.mref, constants.mat_gain,
     )
 
 

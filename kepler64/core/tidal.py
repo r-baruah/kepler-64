@@ -6,7 +6,7 @@ physics: the tidal tensor is the Hessian (gradient of the gradient) of the
          gravitational potential at the King's coordinate. Its largest
          eigenvalue lambda1 is the principal stretching rate. Collapse when the
          dimensionless tidal-disruption parameter eta = lambda1 * Rg^3 /
-         (G * Mking^2) exceeds the learned critical value.
+         mref^2 exceeds the learned critical value (roche).
 """
 
 import jax.numpy as jnp
@@ -50,10 +50,11 @@ def tidal_disruption(
     constants,
     Rg: float = 1.0,
 ):
-    """Return (eta, lambda1, d_eta). eta > constants.roche => King collapses."""
-    U = potential_field(masses, constants.eps, constants.G)
+    """Return (eta, lambda1, lam2). eta > constants.roche => King collapses."""
+    c_val = getattr(constants, "c", 10.0)
+    U = potential_field(masses, constants.eps, constants.G, c_val)
     A = tidal_tensor_at(U, king_sq)
     lam1, lam2 = eig2x2(A)
-    Mking = float(masses[king_sq])
-    eta = lam1 * (Rg**3) / (constants.G * Mking**2 + 1e-9)
+    mref = getattr(constants, "mref", 3.5)
+    eta = lam1 * (Rg**3) / (mref**2 + 1e-9)
     return eta, lam1, lam2

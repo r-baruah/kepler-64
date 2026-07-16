@@ -21,6 +21,19 @@ class Constants:
     kgain: float = 4.0  # sharpness of the disruption force-sigmoid
     gamma: float = 0.25  # weight of the global field-energy material edge
     Rg: float = 1.0  # king radius of gyration (lattice units); becomes dynamic under accretion/Lorentz
+    # Reference tidal-stress scale.  The disruption index eta = Rg^3 * lambda1
+    # / mref^2 (NOT / Mking^2): the King's own 1000-mass self-gravity must not
+    # sit in the denominator, else eta ~ 1e-6 and the Roche limit is never
+    # reachable.  mref is a FIXED unit scale (~ a minor piece), not a trained
+    # weight: it puts eta in [~0.05 quiet .. ~1+ under a committed attack].
+    mref: float = 3.5
+    # Gravitational material edge: you command more mass -> stronger field.
+    # On-theme (mass == matter) and gives the search a clean capture/advantage
+    # gradient so it plays real chess instead of drifting to a flat equilibrium.
+    # Kept small (0.3) relative to the tidal/disruption terms: a Queen (mass 9)
+    # then contributes ~2.7 to the score, comparable to a committed attack's
+    # eta swing (~1+) rather than drowning it out (which mat_gain=1.0 did).
+    mat_gain: float = 0.3
 
     def c_prior(self, lam_fast: float = 0.1, lam_slow: float = 0.1):
         """Monotonicity prior: keep c in [1.0, 10.0] with a sweet spot ~3-6.
