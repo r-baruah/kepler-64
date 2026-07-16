@@ -1,11 +1,10 @@
 {
   "name": "Kepler-64 Training",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
   "onCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt",
-  "postCreateCommand": "pip install -e .",
   "remoteEnv": {
     "XLA_FLAGS": "--xla_force_host_platform_device_count=4",
     "OMP_NUM_THREADS": "4"
