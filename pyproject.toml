@@ -12,6 +12,8 @@ dependencies = [
     "matplotlib",
     "python-chess",
     "optax",
+    "imageio",
+    "pillow",
 ]
 
 [project.optional-dependencies]
