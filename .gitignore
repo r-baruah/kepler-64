@@ -33,6 +33,8 @@ openings.npz
 # accidentally match package __init__.py files, which begin with "_").
 /_*.py
 
-# Trained constants are produced by the training runner -- keep the artifact
-# out of version control so a degenerate local run is never shipped.
-kepler64/training/trained_constants.json
+# Trained constants: produced by scripts/train.py or the GitHub training
+# workflow. The workflow commits the *real* trained artifact back to the repo,
+# so we do NOT ignore it (unlike other generated files). A local degenerate
+# run would be overwritten by the next workflow run.
+# kepler64/training/trained_constants.json

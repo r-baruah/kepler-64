@@ -1,0 +1,58 @@
+name: Train Kepler-64
+
+on:
+  workflow_dispatch:
+    inputs:
+      steps:
+        description: "Gradient steps per phase"
+        required: false
+        default: "80"
+      phase:
+        description: "Which phase to run (1=outcome-only, 2=policy, both)"
+        required: false
+        default: "both"
+  # Uncomment to also train automatically on every push to main:
+  # push:
+  #   branches: [main]
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need a real token (not default) so we can commit the trained constants back.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # scripts/train.py adds repo root to sys.path; no editable install needed.
+
+      - name: Run training
+        env:
+          XLA_FLAGS: "--xla_force_host_platform_device_count=4"
+          OMP_NUM_THREADS: "4"
+        run: |
+          python scripts/train.py --phase "${{ github.event.inputs.phase || 'both' }}" \
+            --data data --steps "${{ github.event.inputs.steps || '80' }}"
+
+      - name: Commit trained constants
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet kepler64/training/trained_constants.json; then
+            echo "No change in trained constants."
+          else
+            git add kepler64/training/trained_constants.json
+            git commit -m "train: update trained_constants.json [skip ci]"
+            git push
+          fi
