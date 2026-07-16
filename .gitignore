@@ -32,3 +32,7 @@ openings.npz
 # Debug / scratch scripts at the repo root only (anchored so it does not
 # accidentally match package __init__.py files, which begin with "_").
 /_*.py
+
+# Trained constants are produced by the training runner -- keep the artifact
+# out of version control so a degenerate local run is never shipped.
+kepler64/training/trained_constants.json

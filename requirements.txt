@@ -1,0 +1,13 @@
+# Kepler-64 — CPU training dependencies (Codespaces / Colab / local)
+# JAX is pinned to the CPU build (no CUDA). The training workload is
+# CPU-bound (tiny 64-length tensors), so a GPU build would only add
+# launch overhead and is intentionally NOT used.
+jax[cpu]==0.10.2
+jaxlib==0.10.2
+numpy>=1.24
+optax>=0.2.0
+python-chess>=1.10
+matplotlib>=3.7
+imageio>=2.31
+pillow>=10.0
+pandas>=2.0
