@@ -6,6 +6,15 @@ physics: gamma = 1/sqrt(1 - u^2), u = squares_moved / (squares_moved + c) in
         (0,1) so gamma in (1, inf) and never hits the v > c singularity.
         Lorentz mass = own mass; accretion mass (multiverse/accretion) = stolen
         mass. They pair: fast + greedy pieces become supermassive and fragile.
+
+STATUS — IMPLEMENTED BUT NOT WIRED IN:
+    `boost_masses` / `lorentz_mass` are complete and JAX-traceable, but NO
+    per-piece velocity accumulator exists in `core.board.py` (Board.mass_vector
+    returns only static signed masses). Because there is no clean velocity hook
+    to feed, these functions are intentionally INACTIVE: nothing calls them and
+    they are deliberately NOT injected into mass_vector / _score_body. Do not
+    add a half-baked velocity hook; wire this only once a real velocity feed
+    exists in the board state.
 """
 
 import jax.numpy as jnp
