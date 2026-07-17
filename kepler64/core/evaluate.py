@@ -33,9 +33,22 @@ _MAX_MOVES = 218  # theoretical max legal moves in chess
 
 
 def _king_idx(masses, sign: float):
-    """Traced index of the king of the given color (sign +1 white, -1 black)."""
-    mask = (jnp.abs(jnp.abs(masses) - 1000.0) < 0.5) & (jnp.sign(masses) == sign)
-    return jnp.argmax(mask.astype(jnp.float32))
+    """Integer (traced) index of the king of the given color (sign +1 white, -1 black).
+
+    Uses an atol=2.0 closeness test so accretion-shifted King masses (e.g.
+    1002.4) are still matched, rather than the silent a1 fallback of argmax on
+    an all-zero mask. Returns a valid integer index suitable for JAX advanced
+    indexing; if no King is found it returns 0 (a1) as a safe default. Callers
+    that need a hard guarantee should check `_king_found` first.
+    """
+    mask = jnp.isclose(jnp.abs(masses), 1000.0, atol=2.0) & (jnp.sign(masses) == sign)
+    return jnp.argmax(mask.astype(jnp.int32)).astype(jnp.int32)
+
+
+def _king_found(masses, sign: float) -> bool:
+    """True iff a King of the given color is actually present (no silent a1)."""
+    mask = jnp.isclose(jnp.abs(masses), 1000.0, atol=2.0) & (jnp.sign(masses) == sign)
+    return jnp.any(mask)
 
 
 def _eta(U, king_sq, Rg: float = 1.0, mref: float = 3.5) -> float:
@@ -74,6 +87,7 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
 
     wk = _king_idx(masses, 1.0)
     bk = _king_idx(masses, -1.0)
+    kings_ok = _king_found(masses, 1.0) & _king_found(masses, -1.0)
 
     # Disruption is caused by the OPPONENT's masses only.
     eta_w = _eta(U_b, wk, Rg, mref)   # enemy masses stressing your king : bad for White
@@ -82,6 +96,13 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
     # Force-based disruption, flipped around the learned Roche threshold.
     bonus_b = bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
     pen_w = -bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_b[wk] + 1e-9) - roche))
+
+    # If either King is missing (corrupted board), the disruption/force terms
+    # are meaningless — neutralize them instead of silently scoring at a1.
+    eta_w = jnp.where(kings_ok, eta_w, 0.0)
+    eta_b = jnp.where(kings_ok, eta_b, 0.0)
+    bonus_b = jnp.where(kings_ok, bonus_b, 0.0)
+    pen_w = jnp.where(kings_ok, pen_w, 0.0)
 
     # Global field-energy edge: more total disruptive mass/reach = stronger.
     # Kings are EXCLUDED — a king's own 1000-mass self-field would otherwise
@@ -143,7 +164,8 @@ def batch_score(masses_list, turns, constants, pad: int = _MAX_MOVES):
     n = len(masses_list)
     buf = jnp.zeros((pad, 64), dtype=jnp.float32)
     if n:
-        buf = buf.at[:n].set(jnp.stack([jnp.asarray(m, dtype=jnp.float32) for m in masses_list]))
+        stacked = jnp.stack([jnp.asarray(m, dtype=jnp.float32) for m in masses_list])
+        buf = buf.at[:n].set(stacked)
     turns_buf = jnp.array([*(turns if n else [0]), *([0] * (pad - n))], dtype=jnp.int32)
     white = jax.vmap(score_white, in_axes=(0, None))(buf, constants)  # (pad,)
     side = jnp.where(turns_buf == 0, white, -white)
