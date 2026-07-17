@@ -23,6 +23,11 @@ _DIST2 = jnp.sum(_DIFF**2, axis=-1)  # (64, 64) static
 _DIST = jnp.sqrt(_DIST2)
 
 
+def _soft_r2(eps: float) -> "jnp.ndarray":
+    """Plummer-softened squared distance matrix + eps^2 (shared by both fields)."""
+    return _DIST2 + eps * eps
+
+
 def force_field(masses: "jnp.ndarray", eps: float, G: float = 1.0, c: float = 10.0) -> "jnp.ndarray":
     """Return the (64, 2) gravitational acceleration at every square.
 
@@ -30,7 +35,7 @@ def force_field(masses: "jnp.ndarray", eps: float, G: float = 1.0, c: float = 10
     gate(d) = sigmoid(c - d): distant masses are delayed when c is small.
     """
     m = jnp.abs(masses)
-    r2 = _DIST2 + eps * eps
+    r2 = _soft_r2(eps)
     gate = jax.nn.sigmoid(c - _DIST)
     inv = m * gate / (r2 * jnp.sqrt(r2))
     F = jnp.einsum("ij,ijd->id", inv, _DIFF)  # (64, 2)
@@ -40,7 +45,7 @@ def force_field(masses: "jnp.ndarray", eps: float, G: float = 1.0, c: float = 10
 def potential_field(masses: "jnp.ndarray", eps: float, G: float = 1.0, c: float = 10.0) -> "jnp.ndarray":
     """Scalar Plummer potential U_i = -G * sum_j gate(d_ij) * |m_j| / sqrt(r2 + eps^2)."""
     m = jnp.abs(masses)
-    r2 = _DIST2 + eps * eps
+    r2 = _soft_r2(eps)
     r = jnp.sqrt(r2)
     gate = jax.nn.sigmoid(c - _DIST)
     return -G * jnp.einsum("ij,j->i", gate / r, m)
