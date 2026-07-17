@@ -30,9 +30,8 @@ class Constants:
     # Gravitational material edge: you command more mass -> stronger field.
     # On-theme (mass == matter) and gives the search a clean capture/advantage
     # gradient so it plays real chess instead of drifting to a flat equilibrium.
-    # Kept small (0.3) relative to the tidal/disruption terms: a Queen (mass 9)
-    # then contributes ~2.7 to the score, comparable to a committed attack's
-    # eta swing (~1+) rather than drowning it out (which mat_gain=1.0 did).
+    # Trainable scale (unfrozen): lets gradient descent find the balance between
+    # material and the tidal/disruption terms instead of us hard-coding it.
     mat_gain: float = 0.3
 
     def c_prior(self, lam_fast: float = 0.1, lam_slow: float = 0.1):

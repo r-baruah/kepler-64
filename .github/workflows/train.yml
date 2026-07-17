@@ -49,10 +49,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet kepler64/training/trained_constants.json; then
+          git add -f kepler64/training/trained_constants.json
+          if git diff --cached --quiet; then
             echo "No change in trained constants."
           else
-            git add kepler64/training/trained_constants.json
             git commit -m "train: update trained_constants.json [skip ci]"
             git push
           fi
