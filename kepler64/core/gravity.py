@@ -29,23 +29,38 @@ def _soft_r2(eps: float) -> "jnp.ndarray":
 
 
 def force_field(masses: "jnp.ndarray", eps: float, G: float = 1.0, c: float = 10.0) -> "jnp.ndarray":
-    """Return the (64, 2) gravitational acceleration at every square.
+    """Return the gravitational acceleration at every square.
 
     F_i = G * sum_j gate(d_ij) * m_j (r_i - r_j) / (|r_i - r_j|^2 + eps^2)^{3/2}
     gate(d) = sigmoid(c - d): distant masses are delayed when c is small.
+
+    Accepts a single (64,) mass vector OR a batched (N, 64) one (e.g. under
+    vmap); the leading batch dimension is carried through automatically.
     """
     m = jnp.abs(masses)
+    # Reshape to (N, 64) for a uniform einsum. Use newaxis (trace-safe even on
+    # 0-d abstract shapes) and squeeze back to the original rank afterwards.
+    single = m.ndim == 1
+    m = m[jnp.newaxis, :] if single else m
     r2 = _soft_r2(eps)
     gate = jax.nn.sigmoid(c - _DIST)
-    inv = m * gate / (r2 * jnp.sqrt(r2))
-    F = jnp.einsum("ij,ijd->id", inv, _DIFF)  # (64, 2)
-    return G * F
+    inv = m[:, None, :] * gate[None, :, :] / (r2[None, :, :] * jnp.sqrt(r2)[None, :, :])
+    F = jnp.einsum("nij,nijd->nid", inv, _DIFF[None, :, :, :])  # (N, 64, 2)
+    F = G * F
+    return F[0] if single else F
 
 
 def potential_field(masses: "jnp.ndarray", eps: float, G: float = 1.0, c: float = 10.0) -> "jnp.ndarray":
-    """Scalar Plummer potential U_i = -G * sum_j gate(d_ij) * |m_j| / sqrt(r2 + eps^2)."""
+    """Scalar Plummer potential U_i = -G * sum_j gate(d_ij) * |m_j| / sqrt(r2 + eps^2).
+
+    Like `force_field`, accepts (64,) or batched (N, 64) mass input.
+    """
     m = jnp.abs(masses)
+    single = m.ndim == 1
+    m = m[jnp.newaxis, :] if single else m
     r2 = _soft_r2(eps)
     r = jnp.sqrt(r2)
     gate = jax.nn.sigmoid(c - _DIST)
-    return -G * jnp.einsum("ij,j->i", gate / r, m)
+    U = jnp.einsum("ij,nj->ni", gate / r, m)  # (N, 64)
+    U = -G * U
+    return U[0] if single else U
