@@ -26,12 +26,6 @@ from __future__ import annotations
 import warnings
 from typing import Optional
 
-import matplotlib
-matplotlib.use("Agg")
-
-import matplotlib.patches as mpatches
-import matplotlib.patheffects as pe
-import matplotlib.pyplot as plt
 import numpy as np
 import jax.numpy as jnp
 
@@ -70,8 +64,12 @@ _GLYPHS = {
 # ---------------------------------------------------------------------------
 
 def _king_sq(masses: np.ndarray, sign: float) -> Optional[int]:
-    """Square index of the King of the given colour, or None."""
-    mask = (np.abs(np.abs(masses) - 1000.0) < 0.5) & (np.sign(masses) == sign)
+    """Square index of the King of the given colour, or None.
+
+    Consistency with the evaluator: use an atol=2.0 closeness test so
+    accretion-shifted King masses (e.g. 1002.4) still match.
+    """
+    mask = np.isclose(np.abs(masses), 1000.0, atol=2.0) & (np.sign(masses) == sign)
     hits = np.flatnonzero(mask)
     return int(hits[0]) if len(hits) else None
 
@@ -112,11 +110,17 @@ def _tidal_params(U64: np.ndarray, king_sq: int):
     return lam1, lam2, angle_deg, v1
 
 
-def _eta_from_U64(U64: np.ndarray, king_sq: int, G: float, Rg: float = 1.0) -> float:
-    """Dimensionless tidal disruption index η = Rg³ λ1 / (G Mking²)."""
+def _eta_from_U64(U64: np.ndarray, king_sq: int, G: float, Rg: float = 1.0,
+                  mref: float = 3.5) -> float:
+    """Dimensionless tidal disruption index η at a king.
+
+    MUST match `core.evaluate._eta`: η = Rg³ λ1 / mref² (NOT / Mking², and G is
+    absent because λ1 already carries G). Keeping this identical to the
+    evaluator prevents the red "danger" coloring from contradicting the score.
+    """
     A = np.asarray(tidal_tensor_at(jnp.asarray(U64), king_sq))
     vals, _ = np.linalg.eigh(A)
-    return (Rg**3) * float(vals[1]) / (G * 1000.0**2 + 1e-9)
+    return (Rg**3) * float(vals[1]) / (mref**2 + 1e-9)
 
 
 def _disruption_color(eta: float, roche: float) -> tuple[float, float, float]:
@@ -296,7 +300,8 @@ def render_field(ax, board, constants):
         try:
             l1, l2, ang, v1 = _tidal_params(U64_lattice, sq)
             eta = _eta_from_U64(U64_lattice, sq, constants.G,
-                                getattr(constants, "Rg", 1.0))
+                                getattr(constants, "Rg", 1.0),
+                                getattr(constants, "mref", 3.5))
         except Exception:
             continue
         king_tidal[sign] = (sq, l1, l2, ang, v1, eta)
@@ -366,6 +371,12 @@ def render_position(
 
     Two-panel layout: chess board on the left, gravitational field on the right.
     """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.patches as mpatches
+    import matplotlib.patheffects as pe
+    import matplotlib.pyplot as plt
+
     cb        = getattr(board, "_chess", None)
     last_move = cb.move_stack[-1] if (cb is not None and cb.move_stack) else None
     check_sq  = cb.king(cb.turn) if (cb is not None and cb.is_check()) else None
