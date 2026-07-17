@@ -81,7 +81,7 @@ class Board:
     def _color_at(self, sq) -> int:
         if self._chess is not None:
             pc = self._chess.piece_at(sq)
-            return 0 if pc and pc.color == __import__("chess").WHITE else 1
+            return 0 if pc and pc.color == chess.WHITE else 1
         return 0 if sq < 16 else 1
 
     # ---- legal moves -------------------------------------------------------
