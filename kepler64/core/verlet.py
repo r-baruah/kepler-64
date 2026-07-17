@@ -33,7 +33,7 @@ def rollout(masses, king_sq, constants, steps: int = 4, dt: float = 0.1):
     deep search.
     """
     abs_m = jnp.abs(masses)
-    pos = _COORDS[int(king_sq)].astype(jnp.float32)
+    pos = _COORDS[king_sq].astype(jnp.float32)
     vel = jnp.zeros(2, dtype=jnp.float32)
 
     def step(carry, _):
