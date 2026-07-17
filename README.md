@@ -1,5 +1,8 @@
 # Kepler-64
 
+> **Note:** Kepler-64 (Python package: `kepler64`).
+
+
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.10+-3776AB?logo=python&logoColor=white)
 ![JAX](https://img.shields.io/badge/JAX-0.4+-orange?logo=google&logoColor=white)
@@ -26,7 +29,7 @@ This isn't physics as a metaphor for chess. It's the literal equations of astrop
 
 The question that started this was simple enough to be stupid: *what if a chess position were evaluated by gravity?*
 
-Not gravity as a mood. Not "this piece exerts influence over that square." Plummer-softened Newtonian gravity on a 64-square lattice. Tidal tensors computed from the Hessian of the potential field. A Verlet rollout to project whether the King's formation will hold. The gravitational constant $G$ isn't chosen by hand — it's learned via gradient descent from real game outcomes. The whole pipeline is differentiable.
+Not gravity as a mood. Not "this piece exerts influence over that square." Plummer-softened Newtonian gravity on a 64-square lattice. Tidal tensors computed from the Hessian of the potential field. A Verlet rollout to project whether the King's formation will hold. The physics constants aren't chosen by hand — the softening $\varepsilon$, reach $c$, and Roche threshold $\rho_{\text{roche}}$ (among others) are learned via gradient descent from real game outcomes. The gravitational constant $G$ is *typically frozen* (`fix_G=True`) for identifiability, because it cancels in the $\eta$ tidal-disruption formula; it can still be trained (`fix_G=False`). The whole pipeline is differentiable.
 
 Every engine since the 1970s has evaluated positions with hand-tuned heuristics — piece-square tables, mobility scores, king safety patterns. Even neural engines like Leela replace heuristics with a black-box network. This replaces heuristics with physics. Not an approximation of physics. Physics.
 
