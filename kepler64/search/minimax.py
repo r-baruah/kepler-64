@@ -12,15 +12,20 @@ import jax.numpy as jnp
 
 from ..core.fastboard import FastBoard
 from ..core.constants import Constants
-from ..core.evaluate import score_white, batch_score
+from ..core.evaluate import score_white, batch_score, multiverse_score_white
 
 INF = float("inf")
 _MAX_MOVES = 218
 _ACCR = 0.8
 
 
-def _score_position(masses, constants: Constants, turn: int) -> float:
-    s = float(score_white(masses, constants))
+def _score_position(masses, constants: Constants, turn: int,
+                     use_multiverse: bool = False, key=None, K: int = 8,
+                     sigma: float = 0.1) -> float:
+    if use_multiverse and key is not None:
+        s = float(multiverse_score_white(masses, constants, key, K=K, sigma=sigma))
+    else:
+        s = float(score_white(masses, constants))
     return s if turn == 0 else -s
 
 

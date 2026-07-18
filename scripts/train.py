@@ -31,6 +31,9 @@ import os
 import sys
 import time
 
+import jax
+import jax.numpy as jnp
+
 # Make the repo root importable whether run as a script or from elsewhere.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -45,7 +48,7 @@ def _load(puzzle_csv, games_pgn, puzzle_limit, game_limit, game_positions):
     return puz, games
 
 
-def run_phase1(base, data_dir, steps, lr, fix_G, verbose):
+def run_phase1(base, data_dir, steps, lr, fix_G, verbose, use_multiverse, key):
     """Outcome-only. No child vectors -> ~64x cheaper than phase 2."""
     puzzle_csv = os.path.join(data_dir, "puzzles_50k.csv")
     games_pgn = os.path.join(data_dir, "games", "Ripu01.pgn")
@@ -58,10 +61,11 @@ def run_phase1(base, data_dir, steps, lr, fix_G, verbose):
         e["child_m"] = e["child_m"][:1]
         e["mask"] = e["mask"][:1]
     return train.train_examples(base, examples, steps=steps, lr=lr, fix_G=fix_G,
-                                verbose=verbose)
+                                verbose=verbose, key=key,
+                                use_multiverse=use_multiverse)
 
 
-def run_phase2(base, data_dir, steps, lr, fix_G, verbose):
+def run_phase2(base, data_dir, steps, lr, fix_G, verbose, use_multiverse, key):
     """Policy fine-tune with full child vectors (needs RAM)."""
     puzzle_csv = os.path.join(data_dir, "puzzles_50k.csv")
     games_pgn = os.path.join(data_dir, "games", "Ripu01.pgn")
@@ -70,7 +74,8 @@ def run_phase2(base, data_dir, steps, lr, fix_G, verbose):
     examples = puz + games
     print(f"[phase2] {len(examples)} examples")
     return train.train_examples(base, examples, steps=steps, lr=lr, fix_G=fix_G,
-                                verbose=verbose)
+                                verbose=verbose, key=key,
+                                use_multiverse=use_multiverse)
 
 
 def main():
@@ -82,18 +87,25 @@ def main():
     ap.add_argument("--lr", type=float, default=3e-3)
     ap.add_argument("--fix-G", dest="fix_G", action="store_true", default=True)
     ap.add_argument("--no-fix-G", dest="fix_G", action="store_false")
+    ap.add_argument("--multiverse", dest="use_multiverse", action="store_true",
+                    default=False,
+                    help="train the Layer-2 Bayesian-average ('Multiverse') score")
+    ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="kepler64/training/trained_constants.json")
     args = ap.parse_args()
 
+    key = jax.random.PRNGKey(args.seed)
     base = Constants()
     t0 = time.time()
 
     if args.phase in ("1", "both"):
-        base = run_phase1(base, args.data, args.steps, args.lr, args.fix_G, True)
+        base = run_phase1(base, args.data, args.steps, args.lr, args.fix_G, True,
+                          args.use_multiverse, key)
         print(f"[phase1] done in {time.time()-t0:.1f}s")
 
     if args.phase in ("2", "both"):
-        base = run_phase2(base, args.data, args.steps, args.lr, args.fix_G, True)
+        base = run_phase2(base, args.data, args.steps, args.lr, args.fix_G, True,
+                          args.use_multiverse, key)
         print(f"[phase2] done in {time.time()-t0:.1f}s")
 
     with open(args.out, "w") as fh:
