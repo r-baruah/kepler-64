@@ -17,9 +17,15 @@ physics: backpropagate through the ENTIRE physics engine (Plummer -> tidal ->
 
 import jax
 import jax.numpy as jnp
+import jax.random as jrandom
 
-from ..core.evaluate import _score_core
+from ..core.evaluate import _score_core, multiverse_score_white
 from ..core.constants import Constants as _Constants
+
+# NOTE: `loss` is intentionally NOT @jax.jit. It branches on `use_multiverse`
+# (a Python bool) and that branch cannot be traced. The heavy compute inside
+# (`_score_core`, `multiverse_score_white`) is jitted individually, so we keep
+# the per-step graph building in Python while the kernels stay compiled.
 
 
 @jax.jit
@@ -27,9 +33,11 @@ def _unpack(p):
     return p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]
 
 
-@jax.jit
+from ..core.evaluate import _score_core, multiverse_score_white
+
 def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
-         tau: float = 1.0, margin: float = 0.0):
+         tau: float = 1.0, margin: float = 0.0, key=None, use_multiverse: bool = False,
+         K: int = 8, sigma: float = 0.1):
     """All-scalar, jit-compatible.
 
     M           : (N,64) mass vectors of positions            (outcome + policy)
@@ -66,15 +74,37 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # ---- policy term: expert move should score highest -------------------
     # Score every child from the SIDE-TO-MOVE perspective (flip for Black),
     # mask dummies to -inf, then cross-entropy onto the expert move.
-    def _policy_row(child_m, msk, turn):
-        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain))(child_m)
+    # With use_multiverse, each child is scored under the Layer-2 Bayesian
+    # average over K posterior realizations of the physics (the "Multiverse"),
+    # which makes the physics signal discriminative between sibling moves.
+    _const = _Constants(G=G, eps=eps, c=c, roche=roche, bonus=bonus,
+                        kgain=kgain, gamma=gamma, Rg=Rg, mref=_mref,
+                        mat_gain=mat_gain)
+
+    def _policy_row(child_m, msk, turn, row_key):
+        if use_multiverse:
+            Kc = child_m.shape[0]
+            # one posterior seed per child, derived from the row seed
+            child_keys = jax.random.split(row_key, Kc)
+            white = jax.vmap(
+                lambda mm, ck: multiverse_score_white(mm, _const, ck, K=K, sigma=sigma)
+            )(child_m, child_keys)
+        else:
+            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain))(child_m)
         side = jnp.where(turn > 0.0, white, -white)  # Black-to-move: best = most negative White score
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         return jax.nn.log_softmax(side / tau)
 
     if turns is None:
         turns = jnp.zeros((moves_m.shape[0],), dtype=jnp.float32)
-    logp = jax.vmap(_policy_row)(moves_m, mask, turns)            # (N, K)
+
+    if use_multiverse and key is not None:
+        n = moves_m.shape[0]
+        row_keys = jax.random.split(key, n)  # one posterior seed per position
+    else:
+        row_keys = jnp.zeros((moves_m.shape[0], 2), dtype=jnp.uint32)
+
+    logp = jax.vmap(_policy_row)(moves_m, mask, turns, row_keys)   # (N, K)
     policy = -jnp.mean(jnp.take_along_axis(logp, expert_idx[:, None], axis=1))
     policy = jnp.where(has_policy > 0.0, policy, 0.0)
 
