@@ -31,6 +31,15 @@ def tidal_tensor_at(U: "jnp.ndarray", king_sq):
     second-difference stencils are valid even when the King sits on rank 1 or
     8 / file a or h, where a naive stencil would collapse to a first derivative
     and break the win condition for ~25% of King positions.
+
+    Coordinate convention (consistent with gravity._COORDS): _COORDS[sq] =
+    (file, rank), so the tensor's index 0 is the FILE axis and index 1 is the
+    RANK axis. The second-difference along the rank direction lives at [1,1]
+    and along the file direction at [0,0]. (An earlier version had these two
+    diagonals swapped; the dominant eigenvalue is invariant under the swap, so
+    scores were numerically unaffected, but the off-diagonal eigenvectors were
+    implicitly mis-labeled. This ordering is now correct for any future
+    eigenvector-based feature.)
     """
     r = king_sq // 8
     f = king_sq % 8
@@ -38,10 +47,10 @@ def tidal_tensor_at(U: "jnp.ndarray", king_sq):
     Up = jnp.pad(Ug, 1, mode="edge")  # (10, 10)
     R = r + 1
     F = f + 1
-    uxx = Up[R + 1, F] - 2 * Up[R, F] + Up[R - 1, F]
-    uyy = Up[R, F + 1] - 2 * Up[R, F] + Up[R, F - 1]
+    u_file = Up[R, F + 1] - 2 * Up[R, F] + Up[R, F - 1]   # d²U/d(file)²   -> [0,0]
+    u_rank = Up[R + 1, F] - 2 * Up[R, F] + Up[R - 1, F]   # d²U/d(rank)²   -> [1,1]
     uxy = (Up[R + 1, F + 1] - Up[R + 1, F - 1] - Up[R - 1, F + 1] + Up[R - 1, F - 1]) / 4.0
-    return jnp.array([[uxx, uxy], [uxy, uyy]], dtype=jnp.float32)
+    return jnp.array([[u_file, uxy], [uxy, u_rank]], dtype=jnp.float32)
 
 
 def tidal_disruption(

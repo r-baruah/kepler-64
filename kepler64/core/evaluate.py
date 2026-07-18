@@ -25,7 +25,7 @@ All heavy math is pure JAX. Two wrappers share one body:
 import jax
 import jax.numpy as jnp
 
-from .gravity import force_field, potential_field
+from .gravity import force_field, potential_field, _COORDS
 from .tidal import tidal_tensor_at, eig2x2
 from .constants import Constants
 
@@ -71,10 +71,42 @@ def _eta(U, king_sq, Rg: float = 1.0, mref: float = 3.5) -> float:
     return (Rg**3) * lam1 / (mref**2 + 1e-9)
 
 
+def _eta_pair(masses, G, eps, c, Rg, mref):
+    """Return (eta_b, eta_w): tidal stress on enemy / own King from White's view.
+
+    eta_b = stress YOUR masses exert on the BLACK king  (good for White)
+    eta_w = stress THEIR masses exert on the WHITE king (bad for White)
+    Both neutralized to 0 if a King is missing (corrupted board).
+    """
+    abs_m = jnp.abs(masses)
+    white_m = jnp.where(masses > 0.0, abs_m, 0.0)
+    black_m = jnp.where(masses < 0.0, abs_m, 0.0)
+    U_w = potential_field(white_m, eps, G, c)
+    U_b = potential_field(black_m, eps, G, c)
+    wk = _king_idx(masses, 1.0)
+    bk = _king_idx(masses, -1.0)
+    kings_ok = _king_found(masses, 1.0) & _king_found(masses, -1.0)
+    eta_b = jnp.where(kings_ok, _eta(U_w, bk, Rg, mref), 0.0)
+    eta_w = jnp.where(kings_ok, _eta(U_b, wk, Rg, mref), 0.0)
+    return eta_b, eta_w
+
+
 def _score_body(masses, G: float, eps: float, c: float, roche: float,
-                 bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                 Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0):
-    """Evaluation from White's perspective (positive = good for White)."""
+                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
+                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
+                lambda_delta: float = 1.0, com_gain: float = 1.0,
+                inertia_gain: float = 0.01, entropy_gain: float = 0.5,
+                parent_masses=None):
+    """Evaluation from White's perspective (positive = good for White).
+
+    When `parent_masses` is supplied, the move-sensitivity (delta) terms are
+    active: they measure what the MOVE *did* (child minus parent) rather than
+    the static look of the child board. This is the only way to get a signal
+    that discriminates between sibling moves (thesis G1b / roadmap core
+    principle). When `parent_masses is None` the delta terms are zero, so the
+    function degrades to a plain static evaluation (used at search leaves where
+    no parent is available, and in tests).
+    """
     abs_m = jnp.abs(masses)
     white_m = jnp.where(masses > 0.0, abs_m, 0.0)   # your masses
     black_m = jnp.where(masses < 0.0, abs_m, 0.0)   # enemy masses
@@ -104,47 +136,125 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
     bonus_b = jnp.where(kings_ok, bonus_b, 0.0)
     pen_w = jnp.where(kings_ok, pen_w, 0.0)
 
-    # Global field-energy edge: more total disruptive mass/reach = stronger.
-    # Kings are EXCLUDED — a king's own 1000-mass self-field would otherwise
-    # dwarf every piece and erase the signal. This measures your *piece* reach.
-    is_king = jnp.abs(masses) > 500.0
-    white_p = jnp.where(is_king, 0.0, white_m)
-    black_p = jnp.where(is_king, 0.0, black_m)
-    e_w = jnp.sum(jnp.sum(force_field(white_p, eps, G, c) ** 2, axis=-1))
-    e_b = jnp.sum(jnp.sum(force_field(black_p, eps, G, c) ** 2, axis=-1))
-    global_edge = gamma * (e_w - e_b)
+    # Gravitational BINDING ENERGY edge (replaces the old global_edge).
+    #   U_bind_white = dot(white_m, U_w) / 2   (U_w = potential due to white masses)
+    # U_w is negative potential, so a well-coordinated/centralized army has a
+    # more negative binding energy. We reward OUR pieces being more bound than
+    # THEIRS: gamma * (bind_b - bind_w).
+    #
+    # The previous global_edge = gamma * (sum|F_white|² - sum|F_black|²) PENALISED
+    # centre play (a centre pawn radiates ~50% more total field energy than an edge
+    # pawn), which is what made the engine obsessively open with h4/h3 — the
+    # measured h-file bias. Binding energy is piece-position sensitive in the
+    # CORRECT direction: central, coordinated pieces bind more strongly.
+    # U_w/U_b are already computed above, so this adds zero new field passes.
+    bind_w = jnp.dot(white_m, U_w) / 2.0
+    bind_b = jnp.dot(black_m, U_b) / 2.0
+    global_edge = gamma * (bind_b - bind_w)
 
     # Gravitational material edge: you command more mass -> stronger field.
     # Rewards captures / winning material; gives the search a clean, varied
     # gradient instead of the flat equilibrium of the disruption term alone.
     material = mat_gain * (jnp.sum(white_m) - jnp.sum(black_m))
 
-    return eta_b - eta_w + bonus_b + pen_w + global_edge + material
+    score = eta_b - eta_w + bonus_b + pen_w + global_edge + material
+
+    # ── Move-sensitivity (delta) terms ──────────────────────────────────────
+    # Each is (child_quantity - parent_quantity); none of these fire when there
+    # is no parent (static eval / search leaf). They are the real anti-flatness
+    # signal: they vary between sibling moves because the move *changed* the
+    # field, not because the resulting position happens to look good.
+    if parent_masses is not None:
+        # G1b — Δη: the tidal-disruption rate. Reward increasing the enemy
+        # King's tidal stress more than your own. dη/dt, physically.
+        p_eta_b, p_eta_w = _eta_pair(parent_masses, G, eps, c, Rg, mref)
+        delta_eta = (eta_b - p_eta_b) - (eta_w - p_eta_w)
+        score = score + lambda_delta * delta_eta
+
+        # T2.1 — Center-of-mass advance delta. Reward shifting our mass centroid
+        # toward the enemy / away from home more than they do.
+        w_total = jnp.sum(white_m) + 1e-9
+        b_total = jnp.sum(black_m) + 1e-9
+        com_rank_w = jnp.dot(white_m, _COORDS[:, 1]) / w_total
+        com_rank_b = jnp.dot(black_m, _COORDS[:, 1]) / b_total
+        p_abs = jnp.abs(parent_masses)
+        p_w = jnp.where(parent_masses > 0.0, p_abs, 0.0)
+        p_b = jnp.where(parent_masses < 0.0, p_abs, 0.0)
+        p_wt = jnp.sum(p_w) + 1e-9
+        p_bt = jnp.sum(p_b) + 1e-9
+        p_com_w = jnp.dot(p_w, _COORDS[:, 1]) / p_wt
+        p_com_b = jnp.dot(p_b, _COORDS[:, 1]) / p_bt
+        com_delta = (com_rank_w - p_com_w) - (p_com_b - com_rank_b)
+        score = score + com_gain * com_delta
+
+        # T2.2 — Moment-of-inertia toward enemy King delta. Reward tightening
+        # our attack on THEIR king (smaller I_attack_w) relative to before, and
+        # loosening THEIR attack on our king.
+        dist2_to_bk = jnp.sum((_COORDS - _COORDS[bk]) ** 2, axis=-1)
+        dist2_to_wk = jnp.sum((_COORDS - _COORDS[wk]) ** 2, axis=-1)
+        I_attack_w = jnp.dot(white_m, dist2_to_bk)
+        I_attack_b = jnp.dot(black_m, dist2_to_wk)
+        p_I_attack_w = jnp.dot(p_w, jnp.sum((_COORDS - _COORDS[bk]) ** 2, axis=-1))
+        p_I_attack_b = jnp.dot(p_b, jnp.sum((_COORDS - _COORDS[wk]) ** 2, axis=-1))
+        # smaller I_attack_w is better; smaller I_attack_b is worse for us
+        inertia_delta = (p_I_attack_w - I_attack_w) - (I_attack_b - p_I_attack_b)
+        score = score + inertia_gain * inertia_delta / 100.0
+
+        # T2.4 — Entropy (coordination) delta. Reward OUR mass distribution
+        # becoming more concentrated (lower entropy) and THEIRS more scattered.
+        p_w_entropy = _shannon_entropy(p_w)
+        p_b_entropy = _shannon_entropy(p_b)
+        entropy_delta = (_shannon_entropy(white_m) - p_w_entropy) \
+            - (p_b_entropy - _shannon_entropy(black_m))
+        score = score + entropy_gain * entropy_delta
+
+    return score
+
+
+def _shannon_entropy(m):
+    """Shannon entropy of a (non-negative) mass distribution, normalized to ~[0,1]."""
+    total = jnp.sum(m) + 1e-9
+    p = m / total
+    log_p = jnp.where(p > 1e-9, jnp.log(p + 1e-9), 0.0)
+    H = -jnp.dot(p, log_p)
+    return H / jnp.log(64.0)
 
 
 @jax.jit
 def _score_core(masses, G: float, eps: float, c: float, roche: float,
                 bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0):
-    """Traced constants — for training (gradient flows into all 8 leaves)."""
+                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
+                lambda_delta: float = 1.0, com_gain: float = 1.0,
+                inertia_gain: float = 0.01, entropy_gain: float = 0.5,
+                parent_masses=None):
+    """Traced constants — for training (gradient flows into all leaves)."""
     return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
-                       mref, mat_gain)
+                       mref, mat_gain, lambda_delta, com_gain, inertia_gain,
+                       entropy_gain, parent_masses)
 
 
 @jax.jit
 def _score_core_static(masses, G: float, eps: float, c: float, roche: float,
                        bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                       Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0):
+                       Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
+                       lambda_delta: float = 1.0, com_gain: float = 1.0,
+                       inertia_gain: float = 0.01, entropy_gain: float = 0.5,
+                       parent_masses=None):
     """Static constants (compile-time) — fast inference / vmap / search."""
     return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
-                       mref, mat_gain)
+                       mref, mat_gain, lambda_delta, com_gain, inertia_gain,
+                       entropy_gain, parent_masses)
 
 
-def score_white(masses: "jnp.ndarray", constants) -> float:
+def score_white(masses: "jnp.ndarray", constants, parent=None) -> float:
+    """Evaluate from White's perspective. Pass `parent` (a mass vector) to
+    activate the move-sensitivity (delta) terms."""
     return _score_core_static(
         masses, constants.G, constants.eps, constants.c, constants.roche,
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
-        constants.mref, constants.mat_gain,
+        constants.mref, constants.mat_gain, constants.lambda_delta,
+        constants.com_gain, constants.inertia_gain, constants.entropy_gain,
+        parent,
     )
 
 
@@ -155,11 +265,15 @@ def evaluate(board, constants) -> float:
     return s if board.turn == 0 else -s
 
 
-def batch_score(masses_list, turns, constants, pad: int = _MAX_MOVES):
+def batch_score(masses_list, turns, constants, pad: int = _MAX_MOVES,
+                parents=None):
     """Pad a list of child mass vectors to `pad` (the 218-max), vmap-evaluate.
 
     Returns (N,) side-to-move scores with dummy slots masked to -inf so they
     never win a node. This is the "sub-ms 218-move sweep".
+
+    If `parents` is given (a (N,64) array of the parent mass vectors), the
+    move-sensitivity (delta) terms are active for each child.
     """
     n = len(masses_list)
     buf = jnp.zeros((pad, 64), dtype=jnp.float32)
@@ -167,7 +281,12 @@ def batch_score(masses_list, turns, constants, pad: int = _MAX_MOVES):
         stacked = jnp.stack([jnp.asarray(m, dtype=jnp.float32) for m in masses_list])
         buf = buf.at[:n].set(stacked)
     turns_buf = jnp.array([*(turns if n else [0]), *([0] * (pad - n))], dtype=jnp.int32)
-    white = jax.vmap(score_white, in_axes=(0, None))(buf, constants)  # (pad,)
+    if parents is not None:
+        parent_buf = jnp.zeros((pad, 64), dtype=jnp.float32)
+        parent_buf = parent_buf.at[:n].set(jnp.asarray(parents, dtype=jnp.float32))
+        white = jax.vmap(score_white, in_axes=(0, None, 0))(buf, constants, parent_buf)
+    else:
+        white = jax.vmap(score_white, in_axes=(0, None))(buf, constants)  # (pad,)
     side = jnp.where(turns_buf == 0, white, -white)
     mask = jnp.concatenate([jnp.ones(n), jnp.zeros(pad - n)])
     return jnp.where(mask > 0.5, side, -jnp.inf)
@@ -191,27 +310,35 @@ def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants
         c=jnp.clip(base.c * (1.0 + sigma * _jr.normal(k3)), 1.0, 10.0),
         roche=base.roche, bonus=base.bonus, kgain=base.kgain,
         gamma=base.gamma, Rg=base.Rg, mref=base.mref, mat_gain=base.mat_gain,
+        lambda_delta=base.lambda_delta, com_gain=base.com_gain,
+        inertia_gain=base.inertia_gain, entropy_gain=base.entropy_gain,
     )
 
 
 def multiverse_score_white(masses: "jnp.ndarray", constants: "Constants",
-                           key, K: int = 8, sigma: float = 0.1) -> "jnp.ndarray":
+                           key, K: int = 8, sigma: float = 0.1,
+                           parent=None) -> "jnp.ndarray":
     """Layer-2 evaluation: mean of `score_white` over K posterior realizations.
 
     Returns a traced scalar (jit/vmap-safe). `key` should be unique per call
     site (fold it in at the caller) so different rows sample different universes.
+    `parent` (mass vector) is threaded into each realization so the
+    move-sensitivity (delta) terms stay active under the Bayesian average.
     """
     keys = _jr.split(key, K)
     scores = jnp.stack([
-        score_white(masses, _perturb_constants(constants, k, sigma)) for k in keys
+        score_white(masses, _perturb_constants(constants, k, sigma), parent)
+        for k in keys
     ])
     return jnp.mean(scores)
 
 
 def score_white_layer2(masses: "jnp.ndarray", constants: "Constants",
-                       key, K: int = 8, sigma: float = 0.1) -> "jnp.ndarray":
+                       key, K: int = 8, sigma: float = 0.1,
+                       parent=None) -> "jnp.ndarray":
     """Convenience: Layer-1 by default, Layer-2 when `use_multiverse` is set.
 
     Search/inference entry point. Kept thin so callers don't care which layer.
     """
-    return multiverse_score_white(masses, constants, key, K=K, sigma=sigma)
+    return multiverse_score_white(masses, constants, key, K=K, sigma=sigma,
+                                  parent=parent)

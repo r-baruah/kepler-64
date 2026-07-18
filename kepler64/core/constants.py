@@ -27,6 +27,15 @@ class Constants:
     # reachable.  mref is a FIXED unit scale (~ a minor piece), not a trained
     # weight: it puts eta in [~0.05 quiet .. ~1+ under a committed attack].
     mref: float = 3.5
+    # ── Move-sensitivity & structural gains (the "delta" levers) ────────────
+    # These reward what a MOVE *does* (child minus parent) rather than the
+    # static look of a position, which is the only way to get a signal that
+    # varies across sibling moves (see Kepler-64_Training_Thesis.md G1b and the
+    # roadmap's "Every Signal Must Be Move-Sensitive" principle).
+    lambda_delta: float = 1.0   # weight of the Δη = dη/dt tidal-rate term
+    com_gain: float = 1.0        # center-of-mass advance/aggression delta
+    inertia_gain: float = 0.01   # attack/defense concentration delta
+    entropy_gain: float = 0.5    # coordination-vs-scatter delta
     # Gravitational material edge: you command more mass -> stronger field.
     # On-theme (mass == matter) and gives the search a clean capture/advantage
     # gradient so it plays real chess instead of drifting to a flat equilibrium.
