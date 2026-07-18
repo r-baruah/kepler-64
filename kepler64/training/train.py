@@ -26,6 +26,8 @@ Hardware notes (Ryzen 5 5500U, 8 GB RAM, Radeon iGPU, no CUDA):
 
 import os
 
+import jax.random as jrandom
+
 import numpy as np
 
 # ── JAX CPU tuning for this laptop ─────────────────────────────────────────
@@ -86,7 +88,8 @@ _HI = jnp.array([50.0, 20.0, 10.0, 20.0, 500., 50.0, 50., 10.0, 5.0 ], dtype=jnp
 def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx=None,
            steps: int = 200, lr: float = 3e-3, fix_G: bool = False,
            batch_size: int = 256, seed: int = 0, tau: float = 2.0,
-           margin: float = 0.0) -> Constants:
+           margin: float = 0.0, key=None, use_multiverse: bool = False,
+           K: int = 8, sigma: float = 0.1) -> Constants:
     """Mini-batch Adam over (M, Y, turns, moves_m, mask, expert_idx).
 
     M (N,64) mass vectors; Y (N,) outcomes {-1,0,+1} White-view; turns (N,)
@@ -95,6 +98,9 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
 
     Adam (lr≈3e-3) + gradient clipping (max_norm=1.0) + projected params back
     into physical bounds after every step.
+
+    use_multiverse: score each child under the Layer-2 Bayesian average over K
+    posterior realizations of the physics (the "Multiverse"). Requires `key`.
     """
     M = jnp.asarray(M, dtype=jnp.float32)
     Y = jnp.asarray(Y, dtype=jnp.float32)
@@ -116,6 +122,7 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
         has_policy = jnp.array(0.0)
 
     rng = np.random.default_rng(seed)
+    base_key = jrandom.PRNGKey(seed) if key is None else key
     arr = _to_arr(base)
     if fix_G:
         arr = arr.at[0].set(1.0)
@@ -131,8 +138,10 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
         opt_state = opt.init(arr)
 
         @jax.jit
-        def _step(a, state, bM, bY, bMM, bEI, bMK, bT):
-            val, g = jax.value_and_grad(loss_fn)(a, bM, bY, bMM, bEI, has_policy, bMK, bT, tau, margin)
+        def _step(a, state, bM, bY, bMM, bEI, bMK, bT, step_key):
+            val, g = jax.value_and_grad(loss_fn)(
+                a, bM, bY, bMM, bEI, has_policy, bMK, bT, tau, margin,
+                step_key, use_multiverse, K, sigma)
             if fix_G:
                 g = g.at[0].set(0.0)
             updates, new_state = opt.update(g, state)
@@ -142,22 +151,25 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
                 new_a = new_a.at[0].set(1.0)
             return val, new_a, new_state
 
-        for _ in range(steps):
+        for step in range(steps):
             perm = rng.permutation(N)
+            step_key = jrandom.fold_in(base_key, step) if use_multiverse else None
             for s in range(0, N, batch_size):
                 idx = jnp.asarray(perm[s:s + batch_size], dtype=jnp.int32)
                 _, arr, opt_state = _step(
                     arr, opt_state,
                     M[idx], Y[idx], moves_m[idx],
-                    expert_idx[idx], mask[idx], turns[idx],
+                    expert_idx[idx], mask[idx], turns[idx], step_key,
                 )
 
     else:
         # ── SGD fallback (no optax) ───────────────────────────────────────────
         # Manual gradient-norm clip + projected SGD.
         @jax.jit
-        def _step_sgd(a, bM, bY, bMM, bEI, bMK, bT):
-            val, g = jax.value_and_grad(loss_fn)(a, bM, bY, bMM, bEI, has_policy, bMK, bT, tau, margin)
+        def _step_sgd(a, bM, bY, bMM, bEI, bMK, bT, step_key):
+            val, g = jax.value_and_grad(loss_fn)(
+                a, bM, bY, bMM, bEI, has_policy, bMK, bT, tau, margin,
+                step_key, use_multiverse, K, sigma)
             if fix_G:
                 g = g.at[0].set(0.0)
             # clip gradient norm to 1.0
@@ -165,14 +177,15 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
             g = jnp.where(gnorm > 1.0, g / gnorm, g)
             return val, g
 
-        for _ in range(steps):
+        for step in range(steps):
             perm = rng.permutation(N)
+            step_key = jrandom.fold_in(base_key, step) if use_multiverse else None
             for s in range(0, N, batch_size):
                 idx = jnp.asarray(perm[s:s + batch_size], dtype=jnp.int32)
                 _, g = _step_sgd(
                     arr,
                     M[idx], Y[idx], moves_m[idx],
-                    expert_idx[idx], mask[idx], turns[idx],
+                    expert_idx[idx], mask[idx], turns[idx], step_key,
                 )
                 arr = arr - lr * g
                 arr = jnp.clip(arr, _LO, _HI)
@@ -186,7 +199,9 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
 def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3,
                    fix_G: bool = False, batch_size: int = 128, seed: int = 0,
                    val_frac: float = 0.2, verbose: bool = True,
-                   tau: float = 2.0, margin: float = 0.0):
+                   tau: float = 2.0, margin: float = 0.0,
+                   key=None, use_multiverse: bool = False,
+                   K: int = 8, sigma: float = 0.1):
     """Convenience: build arrays from examples (list of dicts), split train/val,
     train, and report validation ranking metrics so we can see real progress
     (not just overfitting on the training set).
@@ -194,6 +209,7 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
     Laptop defaults: batch_size=128 (keeps a step's working set < ~1 GB of the
     8 GB total), val_frac=0.2 (held-out check).  tau=2.0 softens the policy
     softmax; margin>0 adds pairwise margin-ranking (easier than sharp CE).
+    use_multiverse: train the Layer-2 Bayesian-average score.
     """
     if not examples:
         raise ValueError(
@@ -211,6 +227,7 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
     trained = train(
         base, M[tr], Y[tr], turns[tr], moves_m[tr], mask[tr], expert_idx[tr],
         steps, lr, fix_G, batch_size, seed, tau=tau, margin=margin,
+        key=key, use_multiverse=use_multiverse, K=K, sigma=sigma,
     )
 
     if verbose:
