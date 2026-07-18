@@ -12,6 +12,7 @@ import jax.numpy as jnp
 
 from ..core.fastboard import FastBoard
 from ..core.constants import Constants
+from ..core.gravity import potential_field
 from ..core.evaluate import score_white, batch_score, multiverse_score_white
 
 INF = float("inf")
@@ -21,11 +22,12 @@ _ACCR = 0.8
 
 def _score_position(masses, constants: Constants, turn: int,
                      use_multiverse: bool = False, key=None, K: int = 8,
-                     sigma: float = 0.1) -> float:
+                     sigma: float = 0.1, parent=None) -> float:
     if use_multiverse and key is not None:
-        s = float(multiverse_score_white(masses, constants, key, K=K, sigma=sigma))
+        s = float(multiverse_score_white(masses, constants, key, K=K, sigma=sigma,
+                                         parent=parent))
     else:
-        s = float(score_white(masses, constants))
+        s = float(score_white(masses, constants, parent=parent))
     return s if turn == 0 else -s
 
 
@@ -46,7 +48,31 @@ def _accreted_mass(child_masses, parent_masses, move):
     return child_masses.at[sq].set(child_masses[sq] + _ACCR * cm)
 
 
-def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float, masses_override=None):
+def _ordered_moves(board: FastBoard, constants: Constants, parent_mv):
+    """Legal moves ordered for alpha-beta efficiency.
+
+    T3.3 — move ordering by gravitational potential well: a piece moving to a
+    deep well (low potential = many friendly pieces nearby = well-supported
+    outpost) is tried first, because such squares are typically strong and
+    refute the opponent quickly. Captures keep top priority (cheap forcing
+    lines)."""
+    moves = board.legal_moves()
+    if constants is not None:
+        try:
+            U = potential_field(
+                jnp.where(parent_mv > 0, jnp.abs(parent_mv), 0.0),
+                constants.eps, constants.G, constants.c)
+            moves.sort(key=lambda m: (0 if board.is_capture(m) else 1,
+                                      float(U[int(m[1])])))
+            return moves
+        except Exception:
+            pass
+    moves.sort(key=lambda m: 0 if board.is_capture(m) else 1)
+    return moves
+
+
+def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
+            masses_override=None, allow_null: bool = True):
     if board.is_game_over():
         return _terminal(board)
     # Leaves: resolve forcing capture lines via the batched quiescence (one vmap
@@ -55,11 +81,22 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float, mas
     if depth <= 1:
         return _quiesce(engine, board, alpha, beta, masses_override, qdepth=3)
 
-    parent_mv = board.mass_vector()
-    moves = board.legal_moves()
-    moves.sort(key=lambda m: 0 if board.is_capture(m) else 1)  # captures first
+    parent_mv = board.mass_vector() if masses_override is None else masses_override
+    consts = engine.constants
+
+    # T3.1 — Null-move pruning ("gravitational field probe"): if passing the
+    # turn still leaves us at or above beta, the position is so good that no
+    # opponent reply can save it — prune. Skipped in check / at shallow depth.
+    if allow_null and depth >= 3 and not board.in_check(board.turn == 0):
+        null_board = FastBoard(board.pieces.copy(), 1 - board.turn,
+                               board.castling, -1)
+        null_val = -negamax(engine, null_board, depth - 3, -beta, -beta + 1,
+                            None, allow_null=False)
+        if null_val >= beta:
+            return beta
+
     best = -INF
-    for m in moves:
+    for m in _ordered_moves(board, consts, parent_mv):
         child = board.apply(m)
         mv = child.mass_vector()
         if board.is_capture(m):
@@ -84,7 +121,7 @@ def _quiesce(engine, board: FastBoard, alpha: float, beta: float, masses_overrid
     if board.is_game_over():
         return _terminal(board)
     parent_mv = masses_override if masses_override is not None else board.mass_vector()
-    stand = _score_position(parent_mv, engine.constants, board.turn)
+    stand = _score_position(parent_mv, engine.constants, board.turn, parent=parent_mv)
     if stand >= beta:
         return beta
     if stand > alpha:
@@ -93,18 +130,21 @@ def _quiesce(engine, board: FastBoard, alpha: float, beta: float, masses_overrid
     caps = [m for m in board.legal_moves() if board.is_capture(m)]
     if not caps:
         return alpha
-    caps.sort(key=lambda m: 0 if board.is_capture(m) else 1)
     caps = caps[:10]
 
-    # Score all capture children in ONE vmap sweep (side-to-move perspective).
+    # Score all capture children in ONE vmap sweep (side-to-move perspective),
+    # with parent threading so the move-sensitivity (delta) terms are active.
     child_m = []
+    parents = []
     for m in caps:
         child = board.apply(m)
         mv = child.mass_vector()
         if board.is_capture(m):
             mv = _accreted_mass(mv, parent_mv, m)
         child_m.append(mv)
-    scores = batch_score(child_m, [board.turn] * len(child_m), engine.constants, pad=16)
+        parents.append(parent_mv)
+    scores = batch_score(child_m, [board.turn] * len(child_m), engine.constants,
+                         pad=16, parents=jnp.stack(parents))
     order = sorted(range(len(caps)), key=lambda i: -float(scores[i]))
     for i in order:
         if qdepth <= 1:
@@ -140,11 +180,16 @@ def best_move(engine, board: FastBoard, depth: int = 3):
 
 
 def root_sweep(engine, board: FastBoard):
-    """The headline 218-pad vmap sweep at the root; returns the best move."""
+    """The headline 218-pad vmap sweep at the root; returns the best move.
+
+    Parent masses are threaded so the move-sensitivity (delta) terms are active
+    at the root too — each child is scored against the root position."""
     moves = board.legal_moves()
     if not moves:
         return None
+    parent_mv = board.mass_vector()
     masses = [board.apply(m).mass_vector() for m in moves]
+    parents = jnp.stack([parent_mv] * len(masses))
     turns = [board.turn] * len(masses)
-    scores = batch_score(masses, turns, engine.constants)
+    scores = batch_score(masses, turns, engine.constants, parents=parents)
     return moves[int(jnp.argmax(scores))]
