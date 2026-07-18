@@ -28,6 +28,7 @@ Planning/
 *.png
 !kepler64/**/*.png
 openings.npz
+data/
 
 # Debug / scratch scripts at the repo root only (anchored so it does not
 # accidentally match package __init__.py files, which begin with "_").
