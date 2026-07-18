@@ -30,7 +30,9 @@ from ..core.constants import Constants as _Constants
 
 @jax.jit
 def _unpack(p):
-    return p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]
+    # 13 trainable physical leaves (the 9 original + 4 delta-term gains).
+    return (p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
+            p[9], p[10], p[11], p[12])
 
 
 from ..core.evaluate import _score_core, multiverse_score_white
@@ -53,21 +55,25 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                   a random legal move by `margin`) — an easier landscape than
                   the sharp cross-entropy over all K children.
     """
-    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain = _unpack(params)
+    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg = _unpack(params)
     G     = jnp.clip(G,     0.01,  50.0)   # gravity must stay attractive (positive)
     eps   = jnp.clip(eps,   0.01,  20.0)   # Plummer softening must stay positive
     c     = jnp.clip(c,     1.0,   10.0)   # monotonicity prior (hard clamp)
     roche = jnp.clip(roche, 0.05,  20.0)   # disruption threshold must stay positive
     Rg    = jnp.clip(Rg,    0.1,   10.0)   # king extent must stay physical
     mat_gain = jnp.clip(mat_gain, 0.0, 5.0)  # material scale stays modest
+    lambda_delta = jnp.clip(ld, 0.0, 10.0)
+    com_gain = jnp.clip(cg, 0.0, 10.0)
+    inertia_gain = jnp.clip(ig, 0.0, 1.0)
+    entropy_gain = jnp.clip(eg, 0.0, 5.0)
     # mref is a FIXED unit scale (not trained) — keeps the tidal index well
     # conditioned. mat_gain is now a trained leaf (passed through params).
     _mref = _Constants().mref
 
     # ---- outcome term ----------------------------------------------------
     # _score_core is White-perspective; Y is from White's view, so this is
-    # consistent for both sides to move.
-    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain))(M)
+    # consistent for both sides to move. (Outcome term is static — no parent.)
+    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain))(M)
     y = (Y + 1.0) / 2.0  # 0 (black win) .. 1 (white win)
     ce = -jnp.mean(y * jax.nn.log_sigmoid(S) + (1.0 - y) * jax.nn.log_sigmoid(-S))
 
@@ -79,18 +85,20 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # which makes the physics signal discriminative between sibling moves.
     _const = _Constants(G=G, eps=eps, c=c, roche=roche, bonus=bonus,
                         kgain=kgain, gamma=gamma, Rg=Rg, mref=_mref,
-                        mat_gain=mat_gain)
+                        mat_gain=mat_gain, lambda_delta=lambda_delta,
+                        com_gain=com_gain, inertia_gain=inertia_gain,
+                        entropy_gain=entropy_gain)
 
-    def _policy_row(child_m, msk, turn, row_key):
+    def _policy_row(child_m, msk, turn, row_key, parent):
         if use_multiverse:
             Kc = child_m.shape[0]
             # one posterior seed per child, derived from the row seed
             child_keys = jax.random.split(row_key, Kc)
             white = jax.vmap(
-                lambda mm, ck: multiverse_score_white(mm, _const, ck, K=K, sigma=sigma)
+                lambda mm, ck: multiverse_score_white(mm, _const, ck, K=K, sigma=sigma, parent=parent)
             )(child_m, child_keys)
         else:
-            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain))(child_m)
+            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, parent))(child_m)
         side = jnp.where(turn > 0.0, white, -white)  # Black-to-move: best = most negative White score
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         return jax.nn.log_softmax(side / tau)
@@ -104,7 +112,11 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     else:
         row_keys = jnp.zeros((moves_m.shape[0], 2), dtype=jnp.uint32)
 
-    logp = jax.vmap(_policy_row)(moves_m, mask, turns, row_keys)   # (N, K)
+    # Parent mass vector per position (the position from which the children are
+    # generated) — supplies the move-sensitivity (delta) terms their reference.
+    parents = M
+
+    logp = jax.vmap(_policy_row)(moves_m, mask, turns, row_keys, parents)   # (N, K)
     policy = -jnp.mean(jnp.take_along_axis(logp, expert_idx[:, None], axis=1))
     policy = jnp.where(has_policy > 0.0, policy, 0.0)
 
@@ -114,14 +126,14 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # unconditionally; when margin=0 the term is identically 0, so the jit'd
     # graph stays static (JAX cannot branch on a traced scalar).  In
     # outcome-only mode moves_m is a single dummy row, which makes mr=0 too.
-    def _margin_row(child_m, msk, turn, ei):
-        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain))(child_m)
+    def _margin_row(child_m, msk, turn, ei, parent):
+        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, parent))(child_m)
         side = jnp.where(turn > 0.0, white, -white)
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         exp = side[ei]
         neg = jnp.max(jnp.where(jnp.arange(side.shape[0]) == ei, -jnp.inf, side))
         return jnp.maximum(0.0, margin - (exp - neg))
-    mr = jax.vmap(_margin_row)(moves_m, mask, turns, expert_idx)
+    mr = jax.vmap(_margin_row)(moves_m, mask, turns, expert_idx, parents)
     policy = policy + jnp.mean(mr)
 
     # ---- soft monotonicity prior on c ------------------------------------
@@ -130,8 +142,8 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
 
 
 @jax.jit
-def _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain):
-    white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain))(child_m)
+def _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, parent):
+    white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, parent))(child_m)
     side = jnp.where(turn > 0.0, white, -white)
     side = jnp.where(msk > 0.5, side, -jnp.inf)
     return side
@@ -152,20 +164,21 @@ def policy_metrics(constants, M, Y, turns, moves_m, mask, expert_idx):
         constants.bonus, constants.kgain, constants.gamma, constants.Rg)
     _mref = _Constants().mref
     mat_gain = constants.mat_gain
+    M = jnp.asarray(M, dtype=jnp.float32)
     moves_m = jnp.asarray(moves_m, dtype=jnp.float32)
     mask = jnp.asarray(mask, dtype=jnp.float32)
     expert_idx = jnp.asarray(expert_idx, dtype=jnp.int32)
     turns = jnp.asarray(turns, dtype=jnp.float32)
 
-    def _one(child_m, msk, turn, ei):
-        side = _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain)
+    def _one(child_m, msk, turn, ei, parent):
+        side = _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, constants.lambda_delta, constants.com_gain, constants.inertia_gain, constants.entropy_gain, parent)
         # rank of expert: 1 + number of children scored strictly higher
         better = jnp.sum(side > side[ei])
         rank = better + 1
         is_cap = msk[ei] > 0.5  # always true for expert; kept for clarity
         return rank, (side[ei] == jnp.max(side))  # rank, is_top1
 
-    rank, top1 = jax.vmap(_one)(moves_m, mask, turns, expert_idx)
+    rank, top1 = jax.vmap(_one)(moves_m, mask, turns, expert_idx, M)
     top1 = float(jnp.mean(top1.astype(jnp.float32)))
     mrr = float(jnp.mean(1.0 / rank.astype(jnp.float32)))
     return {"top1": top1, "mrr": mrr, "mrr_capture": mrr, "mrr_quiet": mrr}

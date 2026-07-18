@@ -61,9 +61,11 @@ from .data import to_arrays
 
 
 def _to_arr(c: Constants) -> "jnp.ndarray":
-    # 9 trainable physical leaves: the 8 original + mat_gain (unfrozen scale).
+    # 13 trainable physical leaves: the 9 original + 4 delta-term gains
+    # (lambda_delta, com_gain, inertia_gain, entropy_gain).
     return jnp.array([c.G, c.eps, c.c, c.roche, c.bonus, c.kgain, c.gamma, c.Rg,
-                     c.mat_gain], dtype=jnp.float32)
+                      c.mat_gain, c.lambda_delta, c.com_gain, c.inertia_gain,
+                      c.entropy_gain], dtype=jnp.float32)
 
 
 def _from_arr(a) -> Constants:
@@ -77,12 +79,18 @@ def _from_arr(a) -> Constants:
         gamma=float(jnp.clip(a[6], 0.0, 50.0)),
         Rg=float(jnp.clip(a[7], 0.1, 10.0)),
         mat_gain=float(jnp.clip(a[8], 0.0, 5.0)),  # material scale stays modest
+        lambda_delta=float(jnp.clip(a[9], 0.0, 10.0)),
+        com_gain=float(jnp.clip(a[10], 0.0, 10.0)),
+        inertia_gain=float(jnp.clip(a[11], 0.0, 1.0)),
+        entropy_gain=float(jnp.clip(a[12], 0.0, 5.0)),
     )
 
 
-# Physical bounds for projection after each Adam step.  Index 8 = mat_gain.
-_LO = jnp.array([0.01, 0.01, 1.0,  0.05, 0.01, 0.01, 0.0, 0.1, 0.0 ], dtype=jnp.float32)
-_HI = jnp.array([50.0, 20.0, 10.0, 20.0, 500., 50.0, 50., 10.0, 5.0 ], dtype=jnp.float32)
+# Physical bounds for projection after each Adam step.
+_LO = jnp.array([0.01, 0.01, 1.0, 0.05, 0.01, 0.01, 0.0, 0.1, 0.0,
+                 0.0, 0.0, 0.0, 0.0], dtype=jnp.float32)
+_HI = jnp.array([50.0, 20.0, 10.0, 20.0, 500., 50.0, 50., 10.0, 5.0,
+                 10.0, 10.0, 1.0, 5.0], dtype=jnp.float32)
 
 
 def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx=None,
