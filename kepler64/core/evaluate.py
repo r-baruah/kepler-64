@@ -171,3 +171,47 @@ def batch_score(masses_list, turns, constants, pad: int = _MAX_MOVES):
     side = jnp.where(turns_buf == 0, white, -white)
     mask = jnp.concatenate([jnp.ones(n), jnp.zeros(pad - n)])
     return jnp.where(mask > 0.5, side, -jnp.inf)
+
+
+# ── Layer 2: "the Multiverse" ────────────────────────────────────────────────
+# Bayesian model average over a posterior of physics constants. A move that is
+# good across many possible universes is boosted; one that is only good under a
+# single fragile regime is suppressed. This is the project's differentiator and
+# the mechanism that makes the physics signal discriminative between sibling
+# moves (the single-realization Layer-1 score is nearly flat across them).
+import jax.random as _jr
+
+
+def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants":
+    """Sample one realization of the physics from the posterior around `base`."""
+    k1, k2, k3 = _jr.split(key, 3)
+    return Constants(
+        G=base.G * (1.0 + sigma * _jr.normal(k1)),
+        eps=base.eps * (1.0 + sigma * _jr.normal(k2)),
+        c=jnp.clip(base.c * (1.0 + sigma * _jr.normal(k3)), 1.0, 10.0),
+        roche=base.roche, bonus=base.bonus, kgain=base.kgain,
+        gamma=base.gamma, Rg=base.Rg, mref=base.mref, mat_gain=base.mat_gain,
+    )
+
+
+def multiverse_score_white(masses: "jnp.ndarray", constants: "Constants",
+                           key, K: int = 8, sigma: float = 0.1) -> "jnp.ndarray":
+    """Layer-2 evaluation: mean of `score_white` over K posterior realizations.
+
+    Returns a traced scalar (jit/vmap-safe). `key` should be unique per call
+    site (fold it in at the caller) so different rows sample different universes.
+    """
+    keys = _jr.split(key, K)
+    scores = jnp.stack([
+        score_white(masses, _perturb_constants(constants, k, sigma)) for k in keys
+    ])
+    return jnp.mean(scores)
+
+
+def score_white_layer2(masses: "jnp.ndarray", constants: "Constants",
+                       key, K: int = 8, sigma: float = 0.1) -> "jnp.ndarray":
+    """Convenience: Layer-1 by default, Layer-2 when `use_multiverse` is set.
+
+    Search/inference entry point. Kept thin so callers don't care which layer.
+    """
+    return multiverse_score_white(masses, constants, key, K=K, sigma=sigma)
