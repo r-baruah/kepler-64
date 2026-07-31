@@ -56,13 +56,9 @@ def run_phase1(base, data_dir, steps, lr, fix_G, verbose, use_multiverse, key):
     puz, games = _load(puzzle_csv, games_pgn, 5000, 30, 8000)
     examples = puz + games
     print(f"[phase1] {len(examples)} examples")
-    # Strip child vectors so the loss runs outcome-only (cheap).
-    for e in examples:
-        e["child_m"] = e["child_m"][:1]
-        e["mask"] = e["mask"][:1]
     return train.train_examples(base, examples, steps=steps, lr=lr, fix_G=fix_G,
-                                verbose=verbose, key=key,
-                                use_multiverse=use_multiverse)
+                                 verbose=verbose, key=key,
+                                 use_multiverse=use_multiverse, policy=False)
 
 
 def run_phase2(base, data_dir, steps, lr, fix_G, verbose, use_multiverse, key):
@@ -111,7 +107,8 @@ def main():
     with open(args.out, "w") as fh:
         json.dump({k: getattr(base, k) for k in
                    ["G","eps","c","roche","bonus","kgain","gamma","Rg",
-                    "mref","mat_gain"]}, fh, indent=2)
+                    "mref","mat_gain","lambda_delta","com_gain",
+                    "inertia_gain","entropy_gain"]}, fh, indent=2)
     print(f"[train] saved constants -> {args.out}")
 
 

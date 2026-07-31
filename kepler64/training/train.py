@@ -209,7 +209,7 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
                    val_frac: float = 0.2, verbose: bool = True,
                    tau: float = 2.0, margin: float = 0.0,
                    key=None, use_multiverse: bool = False,
-                   K: int = 8, sigma: float = 0.1):
+                   K: int = 8, sigma: float = 0.1, policy: bool = True):
     """Convenience: build arrays from examples (list of dicts), split train/val,
     train, and report validation ranking metrics so we can see real progress
     (not just overfitting on the training set).
@@ -232,13 +232,16 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
     split = int((1.0 - val_frac) * n)
     tr, va = perm[:split], perm[split:]
 
+    train_moves = moves_m[tr] if policy else None
+    train_mask = mask[tr] if policy else None
+    train_expert = expert_idx[tr] if policy else None
     trained = train(
-        base, M[tr], Y[tr], turns[tr], moves_m[tr], mask[tr], expert_idx[tr],
+        base, M[tr], Y[tr], turns[tr], train_moves, train_mask, train_expert,
         steps, lr, fix_G, batch_size, seed, tau=tau, margin=margin,
         key=key, use_multiverse=use_multiverse, K=K, sigma=sigma,
     )
 
-    if verbose:
+    if verbose and policy:
         from .loss import policy_metrics
         Mv, Yv, tv, mmv, mkv, eiv = (
             M[va], Y[va], turns[va], moves_m[va], mask[va], expert_idx[va])
@@ -249,6 +252,9 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
         print(f"[train] baseline  top1={b['top1']:.3f}  mrr={b['mrr']:.3f}")
         print(f"[train] trained   top1={t['top1']:.3f}  mrr={t['mrr']:.3f}")
         print(f"[train] delta mrr              : {t['mrr'] - b['mrr']:+.3f}")
+    elif verbose:
+        print(f"[train] N={n}  train={split} val={n - split}  "
+              f"steps={steps} lr={lr} outcome-only")
     return trained
 
 
@@ -277,5 +283,4 @@ def train_from_data(base: Constants, data_dir: str, steps: int = 200,
         raise ValueError("No training examples loaded — check data_dir path.")
     return train_examples(base, examples, steps, lr, fix_G,
                           batch_size=128, seed=seed, verbose=verbose)
-
 

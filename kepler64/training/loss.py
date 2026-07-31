@@ -12,7 +12,8 @@ physics: backpropagate through the ENTIRE physics engine (Plummer -> tidal ->
         real, physical knobs, not a faked evaluation. The `c` monotonicity
         prior is preserved.
 
-`params` layout (jnp array of 8): [G, eps, c, roche, bonus, kgain, gamma, Rg].
+`params` layout (13 leaves): [G, eps, c, roche, bonus, kgain, gamma, Rg,
+mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain].
 """
 
 import jax
@@ -23,9 +24,8 @@ from ..core.evaluate import _score_core, multiverse_score_white
 from ..core.constants import Constants as _Constants
 
 # NOTE: `loss` is intentionally NOT @jax.jit. It branches on `use_multiverse`
-# (a Python bool) and that branch cannot be traced. The heavy compute inside
-# (`_score_core`, `multiverse_score_white`) is jitted individually, so we keep
-# the per-step graph building in Python while the kernels stay compiled.
+# (a Python bool), while the training step that calls it is jitted by the
+# optimizer loop. `_score_core` remains a traceable pure-JAX body.
 
 
 @jax.jit
@@ -34,8 +34,6 @@ def _unpack(p):
     return (p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
             p[9], p[10], p[11], p[12])
 
-
-from ..core.evaluate import _score_core, multiverse_score_white
 
 def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
          tau: float = 1.0, margin: float = 0.0, key=None, use_multiverse: bool = False,
