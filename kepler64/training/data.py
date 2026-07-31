@@ -20,9 +20,9 @@ import chess
 import numpy as np
 
 from ..core.fastboard import FastBoard, _MASS_LUT
+from ..core.transitions import child_mass_vector
 
 _MAX_MOVES = 64   # pad children to this (covers >99.9% of real positions)
-_ACCR = 0.8       # accretion fraction (matches search/minimax.py)
 
 # Promotion piece-type map: chess.Move.promotion uses python-chess piece types
 # (1=P, 2=N, 3=B, 4=R, 5=Q, 6=K); FastBoard uses the same encoding but 0=none.
@@ -35,14 +35,6 @@ def _move_to_tuple(m) -> tuple:
 def _mass_np(pieces: np.ndarray) -> np.ndarray:
     """Pure-numpy mass vector — avoids JAX device round-trips in the data loop."""
     return np.sign(pieces).astype(np.float32) * _MASS_LUT[np.abs(pieces.astype(np.int8))]
-
-
-def _accreted(child_masses: np.ndarray, parent_masses: np.ndarray, move) -> np.ndarray:
-    """Apply accretion to a capture: capturing piece absorbs _ACCR fraction of captured mass."""
-    to_sq = int(move[1])
-    captured_mass = float(parent_masses[to_sq])  # mass of the piece being captured
-    child_masses[to_sq] += _ACCR * captured_mass
-    return child_masses
 
 
 def _children(chess_board):
@@ -58,11 +50,7 @@ def _children(chess_board):
     for i, m in enumerate(legal):
         if i >= _MAX_MOVES:
             break
-        child = fb.apply(m)
-        mv = _mass_np(child.pieces)        # pure numpy — fast
-        if fb.is_capture(m):
-            mv = _accreted(mv, parent, m)
-        child_m[i] = mv
+        child_m[i] = np.asarray(child_mass_vector(fb, m, parent), dtype=np.float32)
         mask[i]    = 1.0
     return parent, child_m, mask, legal
 

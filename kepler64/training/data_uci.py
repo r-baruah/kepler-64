@@ -18,6 +18,7 @@ import chess.engine
 import jax.numpy as jnp
 
 from ..core.fastboard import FastBoard
+from ..core.transitions import child_mass_vector
 
 
 def _mv_uci(mv):
@@ -75,15 +76,16 @@ def build_policy_batch(games, max_children: int = 40):
             child_m = []
             eidx = -1
             for i, m in enumerate(legal):
-                child_m.append(fb.apply(m).mass_vector())
+                child_m.append(child_mass_vector(fb, m, fb.mass_vector()))
                 if _mv_uci(m) == expert_uci:
                     eidx = i
             if eidx < 0 or not child_m:
                 continue
             # truncate if too many children
             if len(child_m) > max_children:
+                if eidx >= max_children:
+                    continue
                 child_m = child_m[:max_children]
-                eidx = min(eidx, max_children - 1)
             k = len(child_m)
             # pad to max_children with zero mass vectors (masked out in loss)
             while len(child_m) < max_children:
