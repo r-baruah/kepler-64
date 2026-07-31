@@ -15,12 +15,11 @@ physics: Eval = +eta_enemy - eta_self + bonus(your force on enemy king)
         around it, so gradient descent learns the tidal limit instead of us
         hand-picking it.
 
-All heavy math is pure JAX. Two wrappers share one body:
-  * _score_core_static  — constants are STATIC (compile-time). Fast inference /
-    vmap / search; XLA folds G, eps, c into the kernel.
-  * _score_core         — constants are TRACED. Used only by training so
-    jax.grad flows into G, eps, c, roche.
+All heavy math is pure JAX. Training imports ``_score_core`` as a stable private
+alias of the shared traced body so ``jax.grad`` can move every trainable leaf.
 """
+
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -91,11 +90,25 @@ def _eta_pair(masses, G, eps, c, Rg, mref):
     return eta_b, eta_w
 
 
-def _score_body(masses, G: float, eps: float, c: float, roche: float,
+class EvalTerms(NamedTuple):
+    tidal_enemy: float
+    tidal_self: float
+    force_enemy_king: float
+    force_own_king: float
+    binding: float
+    material: float
+    delta_tidal: float
+    delta_com: float
+    delta_inertia: float
+    delta_entropy: float
+    total: float
+
+
+def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
                 bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
                 Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
-                lambda_delta: float = 1.0, com_gain: float = 1.0,
-                inertia_gain: float = 0.01, entropy_gain: float = 0.5,
+                lambda_delta: float = 0.0, com_gain: float = 0.0,
+                inertia_gain: float = 0.0, entropy_gain: float = 0.0,
                 parent_masses=None):
     """Evaluation from White's perspective (positive = good for White).
 
@@ -148,8 +161,12 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
     # measured h-file bias. Binding energy is piece-position sensitive in the
     # CORRECT direction: central, coordinated pieces bind more strongly.
     # U_w/U_b are already computed above, so this adds zero new field passes.
-    bind_w = jnp.dot(white_m, U_w) / 2.0
-    bind_b = jnp.dot(black_m, U_b) / 2.0
+    # potential_field includes each body's potential at its own square. Remove
+    # that diagonal term; otherwise the king's 1000^2 self-energy overwhelms
+    # every positional relationship and creates unstable flank preferences.
+    self_scale = G * jax.nn.sigmoid(c) / jnp.sqrt(eps * eps)
+    bind_w = (jnp.dot(white_m, U_w) + self_scale * jnp.dot(white_m, white_m)) / 2.0
+    bind_b = (jnp.dot(black_m, U_b) + self_scale * jnp.dot(black_m, black_m)) / 2.0
     global_edge = gamma * (bind_b - bind_w)
 
     # Gravitational material edge: you command more mass -> stronger field.
@@ -157,7 +174,10 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
     # gradient instead of the flat equilibrium of the disruption term alone.
     material = mat_gain * (jnp.sum(white_m) - jnp.sum(black_m))
 
-    score = eta_b - eta_w + bonus_b + pen_w + global_edge + material
+    delta_eta_term = jnp.array(0.0, dtype=masses.dtype)
+    com_term = jnp.array(0.0, dtype=masses.dtype)
+    inertia_term = jnp.array(0.0, dtype=masses.dtype)
+    entropy_term = jnp.array(0.0, dtype=masses.dtype)
 
     # ── Move-sensitivity (delta) terms ──────────────────────────────────────
     # Each is (child_quantity - parent_quantity); none of these fire when there
@@ -169,7 +189,7 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
         # King's tidal stress more than your own. dη/dt, physically.
         p_eta_b, p_eta_w = _eta_pair(parent_masses, G, eps, c, Rg, mref)
         delta_eta = (eta_b - p_eta_b) - (eta_w - p_eta_w)
-        score = score + lambda_delta * delta_eta
+        delta_eta_term = lambda_delta * delta_eta
 
         # T2.1 — Center-of-mass advance delta. Reward shifting our mass centroid
         # toward the enemy / away from home more than they do.
@@ -185,7 +205,7 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
         p_com_w = jnp.dot(p_w, _COORDS[:, 1]) / p_wt
         p_com_b = jnp.dot(p_b, _COORDS[:, 1]) / p_bt
         com_delta = (com_rank_w - p_com_w) - (p_com_b - com_rank_b)
-        score = score + com_gain * com_delta
+        com_term = com_gain * com_delta
 
         # T2.2 — Moment-of-inertia toward enemy King delta. Reward tightening
         # our attack on THEIR king (smaller I_attack_w) relative to before, and
@@ -198,17 +218,40 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
         p_I_attack_b = jnp.dot(p_b, jnp.sum((_COORDS - _COORDS[wk]) ** 2, axis=-1))
         # smaller I_attack_w is better; smaller I_attack_b is worse for us
         inertia_delta = (p_I_attack_w - I_attack_w) - (I_attack_b - p_I_attack_b)
-        score = score + inertia_gain * inertia_delta / 100.0
+        inertia_term = inertia_gain * inertia_delta / 100.0
 
         # T2.4 — Entropy (coordination) delta. Reward OUR mass distribution
         # becoming more concentrated (lower entropy) and THEIRS more scattered.
         p_w_entropy = _shannon_entropy(p_w)
         p_b_entropy = _shannon_entropy(p_b)
-        entropy_delta = (_shannon_entropy(white_m) - p_w_entropy) \
-            - (p_b_entropy - _shannon_entropy(black_m))
-        score = score + entropy_gain * entropy_delta
+        entropy_delta = (p_w_entropy - _shannon_entropy(white_m)) \
+            + (_shannon_entropy(black_m) - p_b_entropy)
+        entropy_term = entropy_gain * entropy_delta
 
-    return score
+    total = (eta_b - eta_w + bonus_b + pen_w + global_edge + material
+             + delta_eta_term + com_term + inertia_term + entropy_term)
+    return EvalTerms(eta_b, -eta_w, bonus_b, pen_w, global_edge, material,
+                     delta_eta_term, com_term, inertia_term, entropy_term, total)
+
+
+def _score_body(masses, G: float, eps: float, c: float, roche: float,
+                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
+                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
+                lambda_delta: float = 0.0, com_gain: float = 0.0,
+                inertia_gain: float = 0.0, entropy_gain: float = 0.0,
+                parent_masses=None):
+    return _score_terms_body(masses, G, eps, c, roche, bonus, kgain, gamma,
+                             Rg, mref, mat_gain, lambda_delta, com_gain,
+                             inertia_gain, entropy_gain, parent_masses).total
+
+
+@jax.jit
+def _score_core_static(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
+                       mref, mat_gain, lambda_delta=0.0, com_gain=0.0,
+                       inertia_gain=0.0, entropy_gain=0.0, parent_masses=None):
+    return _score_terms_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
+                             mref, mat_gain, lambda_delta, com_gain,
+                             inertia_gain, entropy_gain, parent_masses).total
 
 
 def _shannon_entropy(m):
@@ -220,36 +263,30 @@ def _shannon_entropy(m):
     return H / jnp.log(64.0)
 
 
-@jax.jit
-def _score_core(masses, G: float, eps: float, c: float, roche: float,
-                bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
-                lambda_delta: float = 1.0, com_gain: float = 1.0,
-                inertia_gain: float = 0.01, entropy_gain: float = 0.5,
-                parent_masses=None):
-    """Traced constants — for training (gradient flows into all leaves)."""
-    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
-                       mref, mat_gain, lambda_delta, com_gain, inertia_gain,
-                       entropy_gain, parent_masses)
-
-
-@jax.jit
-def _score_core_static(masses, G: float, eps: float, c: float, roche: float,
-                       bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                       Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
-                       lambda_delta: float = 1.0, com_gain: float = 1.0,
-                       inertia_gain: float = 0.01, entropy_gain: float = 0.5,
-                       parent_masses=None):
-    """Static constants (compile-time) — fast inference / vmap / search."""
-    return _score_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
-                       mref, mat_gain, lambda_delta, com_gain, inertia_gain,
-                       entropy_gain, parent_masses)
-
-
 def score_white(masses: "jnp.ndarray", constants, parent=None) -> float:
     """Evaluate from White's perspective. Pass `parent` (a mass vector) to
     activate the move-sensitivity (delta) terms."""
+    # Jitted inference path: `_score_core_static` reuses the shared traced body
+    # (the training alias `_score_core` stays a plain traceable function). A
+    # `None` parent is a concrete value under jit, so the static branch fires
+    # exactly as before; an array parent activates the delta terms. `batch_score`
+    # still vmaps this fine.
     return _score_core_static(
+        masses, constants.G, constants.eps, constants.c, constants.roche,
+        constants.bonus, constants.kgain, constants.gamma, constants.Rg,
+        constants.mref, constants.mat_gain, constants.lambda_delta,
+        constants.com_gain, constants.inertia_gain, constants.entropy_gain,
+        parent,
+    )
+
+
+# Stable private import used by the trainer.
+_score_core = _score_body
+
+
+def score_white_terms(masses: "jnp.ndarray", constants, parent=None) -> EvalTerms:
+    """Return weighted contributions that sum exactly to ``score_white``."""
+    return _score_terms_body(
         masses, constants.G, constants.eps, constants.c, constants.roche,
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
         constants.mref, constants.mat_gain, constants.lambda_delta,
@@ -270,7 +307,7 @@ def batch_score(masses_list, turns, constants, pad: int = _MAX_MOVES,
     """Pad a list of child mass vectors to `pad` (the 218-max), vmap-evaluate.
 
     Returns (N,) side-to-move scores with dummy slots masked to -inf so they
-    never win a node. This is the "sub-ms 218-move sweep".
+    never win a node.
 
     If `parents` is given (a (N,64) array of the parent mass vectors), the
     move-sensitivity (delta) terms are active for each child.

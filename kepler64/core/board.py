@@ -1,9 +1,8 @@
 """Board state and legal-move generation.
 
-DESIGN (locked): the board is a *swappable* interface. v1 uses a python-chess
-adapter so the pure-JAX physics kernel can be validated immediately; the
-pure-JAX board (no python-chess in the hot path) is the v1.5 unlock that makes
-the end-to-end sub-ms claim true.
+DESIGN (locked): the board is a *swappable* interface. This adapter keeps
+python-chess at the public boundary while the evaluator consumes a compact
+mass vector.
 
 chess:  a position is 64 squares of pieces + turn/castling/ep.
 physics: the evaluation only needs the (64,) mass vector + the static (64,64)

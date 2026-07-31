@@ -32,10 +32,13 @@ class Constants:
     # static look of a position, which is the only way to get a signal that
     # varies across sibling moves (see Kepler-64_Training_Thesis.md G1b and the
     # roadmap's "Every Signal Must Be Move-Sensitive" principle).
-    lambda_delta: float = 1.0   # weight of the Δη = dη/dt tidal-rate term
-    com_gain: float = 1.0        # center-of-mass advance/aggression delta
-    inertia_gain: float = 0.01   # attack/defense concentration delta
-    entropy_gain: float = 0.5    # coordination-vs-scatter delta
+    # Default to neutral: these terms must come from a persisted trained
+    # artifact. Non-zero hand defaults can become an accidental positional
+    # policy when loading older artifacts that predate the four leaves.
+    lambda_delta: float = 0.0   # weight of the Δη = dη/dt tidal-rate term
+    com_gain: float = 0.0        # center-of-mass advance/aggression delta
+    inertia_gain: float = 0.0   # attack/defense concentration delta
+    entropy_gain: float = 0.0    # coordination-vs-scatter delta
     # Gravitational material edge: you command more mass -> stronger field.
     # On-theme (mass == matter) and gives the search a clean capture/advantage
     # gradient so it plays real chess instead of drifting to a flat equilibrium.

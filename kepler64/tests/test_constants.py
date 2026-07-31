@@ -35,3 +35,11 @@ def test_c_can_be_traced_jax_value():
     assert jnp.isfinite(loss)
     g = jax.grad(_c_prior_loss)(c_traced)
     assert jnp.isfinite(g)
+
+
+def test_untrained_delta_terms_default_to_neutral():
+    c = Constants()
+    assert c.lambda_delta == 0.0
+    assert c.com_gain == 0.0
+    assert c.inertia_gain == 0.0
+    assert c.entropy_gain == 0.0
