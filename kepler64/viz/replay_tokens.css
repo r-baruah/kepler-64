@@ -1,0 +1,36 @@
+/* Impeccable · THESIS: physical chess computation is shown as an observation, not claimed in a hero.
+ * OWN-WORLD: mineral field, ultramarine data plates, trajectory orange, ruled scientific typography.
+ * STORY: witness one move, inspect alternatives, verify mechanism, open the source.
+ * FIRST VIEWPORT: thesis and GitHub action beside one fused board-field instrument.
+ * FORM: Observatory Ephemeris / Fused Instrument / seed e9dbd1b0. */
+:root {
+  --color-paper: oklch(94% 0.014 210);
+  --color-panel: oklch(98% 0.006 210);
+  --color-panel-raised: oklch(90% 0.022 220);
+  --color-ink: oklch(18% 0.035 248);
+  --color-muted: oklch(42% 0.035 240);
+  --color-rule: oklch(72% 0.025 225);
+  --color-accent: oklch(67% 0.22 38);
+  --color-plate: oklch(42% 0.19 265);
+  --color-positive: oklch(63% 0.16 152);
+  --color-negative: oklch(58% 0.2 24);
+  --color-focus: oklch(53% 0.2 265);
+  --font-display: "Familjen Grotesk", "Arial Narrow", sans-serif;
+  --font-body: "Atkinson Hyperlegible", Arial, sans-serif;
+  --font-mono: "Sometype Mono", Consolas, monospace;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-section: 6rem;
+  --text-sm: 0.78rem;
+  --text-md: 0.95rem;
+  --text-lg: 1.35rem;
+  --text-display: clamp(3rem, 8vw, 6rem);
+  --radius-sm: 0;
+  --radius-md: 2px;
+  --rule-thin: 1px;
+  --dur-fast: 120ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
