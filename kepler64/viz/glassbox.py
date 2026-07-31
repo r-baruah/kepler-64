@@ -146,20 +146,32 @@ def _disruption_color(eta: float, roche: float) -> tuple[float, float, float]:
 # Panel A — Chess board
 # ---------------------------------------------------------------------------
 
-def render_board(ax, board, constants, last_move=None, check_sq=None) -> None:
+def render_board(ax, board, constants, last_move=None, check_sq=None,
+                 palette=None) -> None:
     """Draw the chess position on *ax* using plain matplotlib primitives.
 
     Squares: filled Rectangle patches.
     Pieces:  ax.text() with a contrasting stroke — no raster compositing,
              no orientation issues, identical quality at any DPI.
     """
+    import matplotlib.patheffects as pe
+    import matplotlib.pyplot as plt
+
+    palette = palette or {}
+    square_light = palette.get("square_light", _SQ_LIGHT)
+    square_dark = palette.get("square_dark", _SQ_DARK)
+    move_fill = palette.get("move_fill", "#f6e27a")
+    move_line = palette.get("move_line", "#c8a400")
+    frame_color = palette.get("frame", _FRAME_COL)
+    axis_color = palette.get("axis", "#5a5a5a")
+    background = palette.get("background", _BOARD_BG)
     masses = np.asarray(board.mass_vector())
     cb = getattr(board, "_chess", None)
 
     # --- squares ---
     for sq in range(64):
         x, y = sq % 8, sq // 8
-        col = _SQ_LIGHT if (x + y) % 2 == 0 else _SQ_DARK
+        col = square_light if (x + y) % 2 == 0 else square_dark
         ax.add_patch(plt.Rectangle((x - 0.5, y - 0.5), 1, 1, color=col, zorder=0))
 
     # --- last-move highlight (yellow tint + gold arrow) ---
@@ -167,11 +179,11 @@ def render_board(ax, board, constants, last_move=None, check_sq=None) -> None:
         for s in (last_move.from_square, last_move.to_square):
             x, y = s % 8, s // 8
             ax.add_patch(plt.Rectangle(
-                (x - 0.5, y - 0.5), 1, 1, color="#f6e27a", alpha=0.50, zorder=1))
+                (x - 0.5, y - 0.5), 1, 1, color=move_fill, alpha=0.62, zorder=1))
         fx, fy = last_move.from_square % 8, last_move.from_square // 8
         tx, ty = last_move.to_square   % 8, last_move.to_square   // 8
         ax.annotate("", xy=(tx, ty), xytext=(fx, fy), zorder=2,
-                    arrowprops=dict(arrowstyle="->", color="#c8a400",
+                    arrowprops=dict(arrowstyle="->", color=move_line,
                                    lw=2.5, mutation_scale=18))
 
     # --- check ring ---
@@ -207,22 +219,22 @@ def render_board(ax, board, constants, last_move=None, check_sq=None) -> None:
     # --- wood border ---
     ax.add_patch(plt.Rectangle(
         (-0.5, -0.5), 8, 8, fill=False,
-        edgecolor=_FRAME_COL, linewidth=3.5, zorder=5))
+        edgecolor=frame_color, linewidth=2.2, zorder=5))
 
     # --- axes ---
     ax.set_xlim(-0.5, 7.5)
     ax.set_ylim(-0.5, 7.5)
     ax.set_aspect("equal")
-    ax.set_facecolor(_BOARD_BG)
+    ax.set_facecolor(background)
     ax.set_xticks(range(8))
     ax.set_xticklabels(list("abcdefgh"),
-                       fontsize=8.5, color="#5a5a5a", fontfamily="monospace")
+                       fontsize=8.5, color=axis_color, fontfamily="monospace")
     ax.set_yticks(range(8))
     ax.set_yticklabels([str(i) for i in range(1, 9)],
-                       fontsize=8.5, color="#5a5a5a", fontfamily="monospace")
+                       fontsize=8.5, color=axis_color, fontfamily="monospace")
     ax.tick_params(length=0)
     for spine in ax.spines.values():
-        spine.set_edgecolor(_FRAME_COL)
+        spine.set_edgecolor(frame_color)
         spine.set_linewidth(0.6)
 
 
@@ -230,7 +242,7 @@ def render_board(ax, board, constants, last_move=None, check_sq=None) -> None:
 # Panel B — Gravitational field portrait
 # ---------------------------------------------------------------------------
 
-def render_field(ax, board, constants):
+def render_field(ax, board, constants, palette=None, colorbar=True):
     """Gravitational field portrait on *ax*.
 
     Renders:
@@ -239,6 +251,20 @@ def render_field(ax, board, constants):
       3. Pieces as mass-scaled scatter dots
       4. Tidal stress ellipse + stretching-axis arrow at each King
     """
+    import matplotlib.patches as mpatches
+    import matplotlib.pyplot as plt
+
+    from matplotlib.colors import LinearSegmentedColormap
+
+    palette = palette or {}
+    field_low = palette.get("field_low", "#edf1f0")
+    field_mid = palette.get("field_mid", "#2448b8")
+    field_high = palette.get("field_high", "#111827")
+    contour = palette.get("contour", "#ffffff")
+    axis_color = palette.get("axis", "#5a5a5a")
+    background = palette.get("background", _FIG_BG)
+    field_cmap = LinearSegmentedColormap.from_list(
+        "kepler_field", [field_low, field_mid, field_high])
     masses = np.asarray(board.mass_vector())
 
     # -- 1. Potential heatmap -------------------------------------------------
@@ -250,7 +276,7 @@ def render_field(ax, board, constants):
     p3, p97 = np.percentile(U, [3.0, 97.0])
     im = ax.imshow(
         U, origin="lower", extent=[-0.5, 7.5, -0.5, 7.5],
-        cmap="plasma", aspect="equal", interpolation="bilinear",
+        cmap=field_cmap, aspect="equal", interpolation="bilinear",
         vmin=p3, vmax=p97, zorder=0)
 
     # -- 2. Equipotential contours --------------------------------------------
@@ -258,7 +284,7 @@ def render_field(ax, board, constants):
     if Umax > Umin:
         levels = np.linspace(Umin, Umax, 16)[1:-1]
         ax.contour(GX, GY, U, levels=levels,
-                   colors="white", alpha=0.18, linewidths=0.45, zorder=1)
+                   colors=contour, alpha=0.28, linewidths=0.5, zorder=1)
 
     # -- 3. Piece scatter dots ------------------------------------------------
     # Radius ∝ √(|m|/9): queen (9) is the largest non-king dot.
@@ -333,24 +359,25 @@ def render_field(ax, board, constants):
     ax.set_xlim(-0.5, 7.5)
     ax.set_ylim(-0.5, 7.5)
     ax.set_aspect("equal")
-    ax.set_facecolor(_FIG_BG)
+    ax.set_facecolor(background)
     ax.set_xticks(range(8))
     ax.set_xticklabels(list("abcdefgh"),
-                       fontsize=8.5, color="#5a5a5a", fontfamily="monospace")
+                       fontsize=8.5, color=axis_color, fontfamily="monospace")
     ax.set_yticks(range(8))
     ax.set_yticklabels([str(i) for i in range(1, 9)],
-                       fontsize=8.5, color="#5a5a5a", fontfamily="monospace")
+                       fontsize=8.5, color=axis_color, fontfamily="monospace")
     ax.tick_params(length=0)
     for spine in ax.spines.values():
         spine.set_edgecolor("#cccccc")
         spine.set_linewidth(0.6)
 
     # Colorbar
-    cbar = plt.colorbar(im, ax=ax, fraction=0.028, pad=0.02)
-    cbar.set_label(r"$\Phi\;[G \cdot m \cdot \ell^{-1}]$",
-                   color="#555555", fontsize=7.5, labelpad=5)
-    cbar.ax.tick_params(labelsize=6.5, colors="#555555", length=2)
-    plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color="#555555")
+    if colorbar:
+        cbar = plt.colorbar(im, ax=ax, fraction=0.028, pad=0.02)
+        cbar.set_label(r"$\Phi\;[G \cdot m \cdot \ell^{-1}]$",
+                       color=axis_color, fontsize=7.5, labelpad=5)
+        cbar.ax.tick_params(labelsize=6.5, colors=axis_color, length=2)
+        plt.setp(plt.getp(cbar.ax.axes, "yticklabels"), color=axis_color)
 
     return im
 
@@ -476,7 +503,7 @@ def game_gif(
             W, H = max(W, im.width), max(H, im.height)
         seq = [np.array(Image.open(f).convert("RGB").resize((W, H), Image.LANCZOS))
                for f in frames]
-        imageio.mimsave(out_path, seq, duration=duration, loop=0)
+        imageio.mimsave(out_path, seq, duration=round(duration * 1000), loop=0)
     except Exception as exc:
         warnings.warn(f"GIF assembly failed ({exc}); PNG frames retained.",
                       stacklevel=2)
