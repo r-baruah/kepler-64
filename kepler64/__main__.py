@@ -1,7 +1,7 @@
 """Kepler-64 — runnable demo.
 
-Plays a short engine game, renders a Glass Box frame, and runs the sub-ms sweep
-benchmark. Usage:  python -m kepler64
+Plays a short engine game, renders a Glass Box frame, and runs the synchronized
+candidate-sweep benchmark. Usage:  python -m kepler64
 """
 
 import chess
@@ -20,7 +20,7 @@ def main():
     for ply in range(10):
         if b.is_game_over():
             break
-        mv = engine.play(Board.from_chess(b))
+        mv = engine.play(b)
         if mv is None:
             break
         san = b.san(mv)

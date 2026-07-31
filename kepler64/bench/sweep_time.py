@@ -1,8 +1,7 @@
-"""Benchmark: sub-ms evaluation sweep.
+"""Benchmark the synchronized 218-padded evaluation sweep.
 
-Proves the headline claim is reproducible, not asserted. Times the 218-padded
-vmap sweep of all legal moves at the root over many random positions and
-reports p50/p99 latency in milliseconds.
+Times only the JAX candidate-scoring call after child states are prepared and
+reports p50/p99 latency. Results are hardware and backend specific.
 """
 
 import random
@@ -36,7 +35,7 @@ def sweep_benchmark(engine, positions=None, repeats: int = 50, warmup: int = 3):
         board = Board.from_chess(b)
         moves = board.legal_moves()
         masses = [board.apply_move(m).mass_vector() for m in moves]
-        batch_score(masses, [board.turn] * len(masses), engine.constants)
+        batch_score(masses, [board.turn] * len(masses), engine.constants).block_until_ready()
 
     times = []
     for _ in range(repeats):
@@ -46,7 +45,7 @@ def sweep_benchmark(engine, positions=None, repeats: int = 50, warmup: int = 3):
         masses = [board.apply_move(m).mass_vector() for m in moves]
         turns = [board.turn] * len(masses)
         t0 = time.perf_counter()
-        batch_score(masses, turns, engine.constants)
+        batch_score(masses, turns, engine.constants).block_until_ready()
         t1 = time.perf_counter()
         times.append((t1 - t0) * 1000.0)
 
