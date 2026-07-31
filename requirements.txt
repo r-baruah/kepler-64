@@ -10,4 +10,3 @@ python-chess>=1.10
 matplotlib>=3.7
 imageio>=2.31
 pillow>=10.0
-pandas>=2.0
