@@ -48,13 +48,14 @@ _MASS_LUT = np.array([0.0, 1.0, 3.0, 3.0, 5.0, 9.0, 1000.0], dtype=np.float32)
 
 
 class FastBoard:
-    __slots__ = ("pieces", "turn", "castling", "ep")
+    __slots__ = ("pieces", "turn", "castling", "ep", "velocity")
 
-    def __init__(self, pieces=None, turn=0, castling=0, ep=-1):
+    def __init__(self, pieces=None, turn=0, castling=0, ep=-1, velocity=None):
         self.pieces = pieces if pieces is not None else np.zeros(64, dtype=np.int8)
         self.turn = turn          # 0 = white to move, 1 = black
         self.castling = castling  # bitmask
         self.ep = ep              # en-passant target square, -1 if none
+        self.velocity = velocity if velocity is not None else np.zeros(64, dtype=np.float32)
 
     # ---- construction ----------------------------------------------------
     @classmethod
@@ -288,6 +289,22 @@ class FastBoard:
         white = p > 0
         pt = abs(p)
 
+        # Velocity accumulator (feeds the Lorentz mass boost): each piece's
+        # recent-motion activity. The moved piece carries its own momentum
+        # forward (+1 hop); everything else relaxes (0.985/ply); captures
+        # zero the victim's momentum. A piece that shuffles back and forth
+        # keeps its velocity HIGH, so its Lorentz-inflated mass becomes the
+        # dominant field actor — the physics-native anti-repetition signal.
+        v = self.velocity.copy()
+        v *= 0.985
+        captured_sq = t
+        if pt == 1 and t == self.ep and int(board[t]) == 0:
+            captured_sq = t - (8 if white else -8)
+        v[captured_sq] = 0.0
+        v[t] = v[f] + 1.0
+        v[f] = 0.0
+        nb.velocity = v
+
         # En-passant capture (pawn diagonal onto empty ep square).
         if pt == 1 and t == self.ep and int(board[t]) == 0:
             cap = t - (8 if white else -8)
@@ -301,12 +318,20 @@ class FastBoard:
         if pt == 6 and abs(t - f) == 2:
             if t == 6:       # white kingside
                 board[5] = board[7]; board[7] = 0
+                nb.velocity[5] = nb.velocity[7] + 1.0
+                nb.velocity[7] = 0.0
             elif t == 2:     # white queenside
                 board[3] = board[0]; board[0] = 0
+                nb.velocity[3] = nb.velocity[0] + 1.0
+                nb.velocity[0] = 0.0
             elif t == 62:    # black kingside
                 board[61] = board[63]; board[63] = 0
+                nb.velocity[61] = nb.velocity[63] + 1.0
+                nb.velocity[63] = 0.0
             elif t == 58:    # black queenside
                 board[59] = board[56]; board[56] = 0
+                nb.velocity[59] = nb.velocity[56] + 1.0
+                nb.velocity[56] = 0.0
 
         # En-passant target update.
         if pt == 1 and abs(t - f) == 16:
@@ -335,11 +360,23 @@ class FastBoard:
 
     # ---- physics interface ----------------------------------------------
     def mass_vector(self) -> "jnp.ndarray":
-        """(64,) signed gravitational masses: white +, black -. King = 1000.
+        """(64,) signed gravitational masses: white +, black -.
 
-        Fully vectorized LUT lookup (no per-square Python loop)."""
+        Pieces with recent motion carry a Lorentz-inflated "relativistic" mass
+        (gamma = 1/sqrt(1-u^2), u = v/(v+c)): kinetic energy IS mass. A piece
+        oscillating back and forth keeps its velocity high and becomes
+        supermassive — the physics-native pressure against pointless
+        repetition. The king stays exactly 1000 (the detector is not subject
+        to its own motion boost; the eval's king-detection relies on that).
+        """
         lut = _MASS_LUT  # (7,) -> mass by abs piece type
         m = np.sign(self.pieces) * lut[np.abs(self.pieces.astype(np.int8))]
+        v = self.velocity
+        if np.any(v > 0.0):
+            u = v / (v + 6.0)
+            gamma = 1.0 / np.sqrt(1.0 - u * u)
+            gamma[np.abs(self.pieces) == 6] = 1.0  # kinks excluded
+            m = m * gamma
         return jnp.asarray(m)
 
     def is_game_over(self) -> bool:

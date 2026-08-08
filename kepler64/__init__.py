@@ -39,15 +39,48 @@ class RocheEngine:
         """
         return evaluate(board, self.constants)
 
-    def play(self, board, depth: int = 3):
-        """Search + return the best move (as a python-chess Move)."""
+    def play(self, board, depth: int = 3, search_time_ms: float | None = None,
+             max_depth: int = 8, use_multiverse: bool = True):
+        """Search + return the best move (as a python-chess Move).
+
+        `depth` caps iterative deepening (default 3). Pass `search_time_ms` to
+        search with a wall-clock budget instead of a fixed depth: the engine
+        deepens until the budget is exhausted and returns the best move of the
+        last COMPLETED iteration (never an unfinished deeper search).
+
+        `use_multiverse` (default True) runs the Layer-2 posterior mean on the
+        root's near-tie candidates, so the multiverse breaks ties the search
+        cannot; it is deterministic (fixed posterior seed) and cheap (only the
+        root's tie-set is re-scored).
+        """
         import chess
 
         from .core.fastboard import FastBoard
-        from .search.minimax import best_move
+        from .search.minimax import best_move, best_move_time, iterative_search
 
         fb = board if isinstance(board, FastBoard) else FastBoard.from_chess(board)
-        mv = best_move(self, fb, depth)
+
+        # Closed-orbit history: every position already on the line (board
+        # identity only — pieces/turn/castling/ep — NOT the halfmove clocks,
+        # which change on every ply and would defeat the comparison). A root
+        # move that lands back on a seen board is a cycle with no net
+        # momentum: the laws assign it the draw value.
+        seen = None
+        if isinstance(board, chess.Board) and board.move_stack:
+            seen = set()
+            b = board.copy()
+            seen.add(" ".join(b.fen().split()[:4]))
+            for _ in range(len(board.move_stack)):
+                b.pop()
+                seen.add(" ".join(b.fen().split()[:4]))
+
+        if search_time_ms is not None:
+            mv, _ = iterative_search(self, fb, max_depth=max_depth,
+                                     time_ms=search_time_ms, seen=seen,
+                                     use_multiverse=use_multiverse)
+        else:
+            mv, _ = iterative_search(self, fb, max_depth=depth, seen=seen,
+                                     use_multiverse=use_multiverse)
         if mv is None:
             return None
         f, t, promo = mv

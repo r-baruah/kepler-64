@@ -7,7 +7,8 @@ from .fastboard import _MASS_LUT
 _ACCRETION = 0.8
 
 
-def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION):
+def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
+                      child_board=None):
     """Apply a legal move to a possibly accretion-adjusted mass vector.
 
     Pure-numpy: no JAX device round-trips, so it is safe to call per child
@@ -17,6 +18,10 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION)
     FastBoard stores piece identities, while the mass vector can carry mass
     accumulated on earlier captures. Updating the vector directly preserves
     that state across quiet moves and makes every data/search path agree.
+
+    `child_board` (when available) is the already-applied FastBoard; its
+    velocity accumulator then Lorentz-boosts the child's masses, so the
+    search sees the same "relativistic" masses as `child_board.mass_vector()`.
     """
     from_sq, to_sq, promotion = (int(move[0]), int(move[1]), int(move[2]))
     masses = np.asarray(parent_masses, dtype=np.float32)
@@ -47,4 +52,11 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION)
             rook_to += 56
         child[rook_to] = masses[rook_from]
         child[rook_from] = 0.0
+
+    if child_board is not None and np.any(child_board.velocity > 0.0):
+        v = np.asarray(child_board.velocity, dtype=np.float32)
+        u = v / (v + 6.0)
+        gamma = 1.0 / np.sqrt(1.0 - u * u)
+        gamma[np.abs(np.asarray(child_board.pieces)) == 6] = 1.0
+        child = child * gamma
     return child
