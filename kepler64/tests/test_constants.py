@@ -37,9 +37,14 @@ def test_c_can_be_traced_jax_value():
     assert jnp.isfinite(g)
 
 
-def test_untrained_delta_terms_default_to_neutral():
+def test_delta_terms_default_to_playable():
+    """Default constants must be ACTIVE (not zero): with all-zero gains the
+    evaluation is flat across sibling quiet moves and the engine's choice is
+    decided by ordering ties (flank shuffles, rook aimlessness). The gains
+    remain trainable leaves — a persisted trained artifact overrides them."""
     c = Constants()
-    assert c.lambda_delta == 0.0
-    assert c.com_gain == 0.0
-    assert c.inertia_gain == 0.0
-    assert c.entropy_gain == 0.0
+    assert c.lambda_delta > 0.0
+    assert c.com_gain > 0.0
+    assert c.inertia_gain > 0.0
+    assert c.entropy_gain > 0.0
+    assert c.mat_gain == 1.0

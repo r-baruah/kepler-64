@@ -17,7 +17,7 @@ class Constants:
     c: float = 4.0  # speed of light, squares/ply (learned, prior-bounded)
     roche: float = 1.0  # critical eta: init at 1.0 so learning is interpretable
     # Disruption force-sigmoid scale/gain (learnable, on-theme physics knobs):
-    bonus: float = 50.0  # magnitude of the king-disruption force term
+    bonus: float = 220.0  # magnitude of the king-disruption force term
     kgain: float = 4.0  # sharpness of the disruption force-sigmoid
     gamma: float = 0.25  # weight of the global field-energy material edge
     Rg: float = 1.0  # king radius of gyration (lattice units); becomes dynamic under accretion/Lorentz
@@ -32,19 +32,23 @@ class Constants:
     # static look of a position, which is the only way to get a signal that
     # varies across sibling moves (see Kepler-64_Training_Thesis.md G1b and the
     # roadmap's "Every Signal Must Be Move-Sensitive" principle).
-    # Default to neutral: these terms must come from a persisted trained
-    # artifact. Non-zero hand defaults can become an accidental positional
-    # policy when loading older artifacts that predate the four leaves.
-    lambda_delta: float = 0.0   # weight of the Δη = dη/dt tidal-rate term
-    com_gain: float = 0.0        # center-of-mass advance/aggression delta
-    inertia_gain: float = 0.0   # attack/defense concentration delta
-    entropy_gain: float = 0.0    # coordination-vs-scatter delta
+    #
+    # Defaults are ACTIVE (not neutral) since 2026-08: with all-zero gains the
+    # evaluation was flat across sibling quiet moves (every legal move scored
+    # within ~0.02), so the engine's move choice was decided by ordering ties
+    # and it played flank shuffles; and with mat_gain = 0.3 a captured knight
+    # moved the score by only 0.9, so blunders barely registered. These values
+    # remain trainable leaves — a persisted trained artifact overrides them.
+    lambda_delta: float = 1.0   # weight of the Δη = dη/dt tidal-rate term
+    com_gain: float = 25.0       # center-of-mass advance/aggression delta
+    inertia_gain: float = 8.0   # attack/defense concentration delta
+    entropy_gain: float = 2.5    # coordination-vs-scatter delta
     # Gravitational material edge: you command more mass -> stronger field.
     # On-theme (mass == matter) and gives the search a clean capture/advantage
     # gradient so it plays real chess instead of drifting to a flat equilibrium.
     # Trainable scale (unfrozen): lets gradient descent find the balance between
     # material and the tidal/disruption terms instead of us hard-coding it.
-    mat_gain: float = 0.3
+    mat_gain: float = 1.0
 
     def c_prior(self, lam_fast: float = 0.1, lam_slow: float = 0.1):
         """Monotonicity prior: keep c in [1.0, 10.0] with a sweet spot ~3-6.

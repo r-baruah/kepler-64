@@ -24,7 +24,7 @@ from typing import NamedTuple
 import jax
 import jax.numpy as jnp
 
-from .gravity import force_field, potential_field, _COORDS
+from .gravity import force_field, potential_field, _COORDS, _DIST2, _DIST
 from .tidal import tidal_tensor_at, eig2x2
 from .constants import Constants
 
@@ -149,8 +149,9 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
     bonus_b = jnp.where(kings_ok, bonus_b, 0.0)
     pen_w = jnp.where(kings_ok, pen_w, 0.0)
 
-    # Gravitational BINDING ENERGY edge (replaces the old global_edge).
-    #   U_bind_white = dot(white_m, U_w) / 2   (U_w = potential due to white masses)
+    # Gravitational BINDING ENERGY edge (army-internal cohesion):
+    #   U_bind_white = dot(white_co, U_wc) / 2
+    # where white_co EXCLUDES the white king (and U_wc its source field).
     # U_w is negative potential, so a well-coordinated/centralized army has a
     # more negative binding energy. We reward OUR pieces being more bound than
     # THEIRS: gamma * (bind_b - bind_w).
@@ -160,13 +161,34 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
     # pawn), which is what made the engine obsessively open with h4/h3 — the
     # measured h-file bias. Binding energy is piece-position sensitive in the
     # CORRECT direction: central, coordinated pieces bind more strongly.
-    # U_w/U_b are already computed above, so this adds zero new field passes.
+    #
+    # The KING is excluded from this term (both as source and as receiver).
+    # Physically the king is the tidal DETECTOR — its own 1000-mass gravity is
+    # handled by the disruption/force terms, not by the cohesion edge. Keeping
+    # king-piece pairs here leaks the king's 1000^2 self-energy back into every
+    # positional relationship: any piece moving away from its own king paid a
+    # ~100+ point binding penalty (measured: 1.e4 = -155 purely from binding),
+    # so the engine huddled its army around the king and treated flank pushes
+    # (which barely disturb the king's well) as least-bad moves — the "outward
+    # comet" flank-pawn bias, with the causality inverted from what it looks
+    # like. U_w/U_b are already computed above; the king's source field is
+    # subtracted analytically (U_king_src = +1000 * gate(d)/r), so this adds
+    # only vector ops, not extra field passes.
+    gwk = jax.nn.sigmoid(c - _DIST[:, wk])
+    gbk = jax.nn.sigmoid(c - _DIST[:, bk])
+    rwk = jnp.sqrt(_DIST2[:, wk] + eps * eps)
+    rbk = jnp.sqrt(_DIST2[:, bk] + eps * eps)
+    king_m = 1000.0
+    U_wc = jnp.where(kings_ok, U_w + king_m * gwk / rwk, U_w)
+    U_bc = jnp.where(kings_ok, U_b + king_m * gbk / rbk, U_b)
+    white_co = white_m.at[wk].set(0.0)
+    black_co = black_m.at[bk].set(0.0)
     # potential_field includes each body's potential at its own square. Remove
     # that diagonal term; otherwise the king's 1000^2 self-energy overwhelms
     # every positional relationship and creates unstable flank preferences.
     self_scale = G * jax.nn.sigmoid(c) / jnp.sqrt(eps * eps)
-    bind_w = (jnp.dot(white_m, U_w) + self_scale * jnp.dot(white_m, white_m)) / 2.0
-    bind_b = (jnp.dot(black_m, U_b) + self_scale * jnp.dot(black_m, black_m)) / 2.0
+    bind_w = (jnp.dot(white_co, U_wc) + self_scale * jnp.dot(white_co, white_co)) / 2.0
+    bind_b = (jnp.dot(black_co, U_bc) + self_scale * jnp.dot(black_co, black_co)) / 2.0
     global_edge = gamma * (bind_b - bind_w)
 
     # Gravitational material edge: you command more mass -> stronger field.
@@ -191,15 +213,26 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
         delta_eta = (eta_b - p_eta_b) - (eta_w - p_eta_w)
         delta_eta_term = lambda_delta * delta_eta
 
-        # T2.1 — Center-of-mass advance delta. Reward shifting our mass centroid
-        # toward the enemy / away from home more than they do.
-        w_total = jnp.sum(white_m) + 1e-9
-        b_total = jnp.sum(black_m) + 1e-9
-        com_rank_w = jnp.dot(white_m, _COORDS[:, 1]) / w_total
-        com_rank_b = jnp.dot(black_m, _COORDS[:, 1]) / b_total
+        # T2.1 — Center-of-mass advance delta. Reward shifting our ARMY's mass
+        # centroid (kings excluded — the king is the protected detector, not a
+        # weapon; including it let a 1000-mass king rank advance swamp every
+        # other signal and marched the king into the enemy camp) toward the
+        # enemy / away from home more than they do. Mass-weighting stays plain
+        # (rank average over the army): an earlier "attack-axis" variant that
+        # multiplied each piece's mass by exp(-dfile^2/2) re-weighted lateral
+        # moves by up to ~54x and made castling appear catastrophically bad
+        # (the kingside rook "became" supermassive when it left the h-file).
         p_abs = jnp.abs(parent_masses)
         p_w = jnp.where(parent_masses > 0.0, p_abs, 0.0)
         p_b = jnp.where(parent_masses < 0.0, p_abs, 0.0)
+        p_wk_sq = _king_idx(parent_masses, 1.0)
+        p_bk_sq = _king_idx(parent_masses, -1.0)
+        p_w = p_w.at[p_wk_sq].set(0.0)
+        p_b = p_b.at[p_bk_sq].set(0.0)
+        w_total = jnp.sum(white_co) + 1e-9
+        b_total = jnp.sum(black_co) + 1e-9
+        com_rank_w = jnp.dot(white_co, _COORDS[:, 1]) / w_total
+        com_rank_b = jnp.dot(black_co, _COORDS[:, 1]) / b_total
         p_wt = jnp.sum(p_w) + 1e-9
         p_bt = jnp.sum(p_b) + 1e-9
         p_com_w = jnp.dot(p_w, _COORDS[:, 1]) / p_wt
@@ -207,25 +240,32 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
         com_delta = (com_rank_w - p_com_w) - (p_com_b - com_rank_b)
         com_term = com_gain * com_delta
 
-        # T2.2 — Moment-of-inertia toward enemy King delta. Reward tightening
-        # our attack on THEIR king (smaller I_attack_w) relative to before, and
-        # loosening THEIR attack on our king.
-        dist2_to_bk = jnp.sum((_COORDS - _COORDS[bk]) ** 2, axis=-1)
-        dist2_to_wk = jnp.sum((_COORDS - _COORDS[wk]) ** 2, axis=-1)
-        I_attack_w = jnp.dot(white_m, dist2_to_bk)
-        I_attack_b = jnp.dot(black_m, dist2_to_wk)
-        p_I_attack_w = jnp.dot(p_w, jnp.sum((_COORDS - _COORDS[bk]) ** 2, axis=-1))
-        p_I_attack_b = jnp.dot(p_b, jnp.sum((_COORDS - _COORDS[wk]) ** 2, axis=-1))
+        # T2.2 — Attack moment-of-inertia delta. The tidal tearing of the
+        # enemy king acts along the king-king axis, so lateral distance enters
+        # softened (k_ax = 0.2): a piece that advances along the enemy king's
+        # column tightens the attack (rewarded), a lateral shuffle mostly
+        # doesn't. Masses are NOT re-weighted by the axis — only the distance
+        # measure is anisotropic (the mass-weighted Σ stays a plain "moment").
+        def _ax_dist2(king_sq):
+            d = _COORDS - _COORDS[king_sq]
+            return d[:, 1] ** 2 + 0.2 * d[:, 0] ** 2
+
+        dist2_to_bk = _ax_dist2(bk)
+        dist2_to_wk = _ax_dist2(wk)
+        I_attack_w = jnp.dot(white_co, dist2_to_bk)
+        I_attack_b = jnp.dot(black_co, dist2_to_wk)
+        p_I_attack_w = jnp.dot(p_w, dist2_to_bk)
+        p_I_attack_b = jnp.dot(p_b, dist2_to_wk)
         # smaller I_attack_w is better; smaller I_attack_b is worse for us
         inertia_delta = (p_I_attack_w - I_attack_w) - (I_attack_b - p_I_attack_b)
         inertia_term = inertia_gain * inertia_delta / 100.0
 
-        # T2.4 — Entropy (coordination) delta. Reward OUR mass distribution
+        # T2.4 — Entropy (coordination) delta. Reward OUR army (kings excluded)
         # becoming more concentrated (lower entropy) and THEIRS more scattered.
         p_w_entropy = _shannon_entropy(p_w)
         p_b_entropy = _shannon_entropy(p_b)
-        entropy_delta = (p_w_entropy - _shannon_entropy(white_m)) \
-            + (_shannon_entropy(black_m) - p_b_entropy)
+        entropy_delta = (p_w_entropy - _shannon_entropy(white_co)) \
+            + (_shannon_entropy(black_co) - p_b_entropy)
         entropy_term = entropy_gain * entropy_delta
 
     total = (eta_b - eta_w + bonus_b + pen_w + global_edge + material
