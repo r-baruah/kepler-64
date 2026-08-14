@@ -52,12 +52,19 @@ export class UnifiedCanvas {
   private hoveredSquare: number | null = null;
   private onHoverCallback?: (info: SquareHoverInfo | null) => void;
 
+  // Selection & Tap-to-move state
+  private selectedSquare: number | null = null;
+
   // Drag-and-drop state
   private isDragging = false;
   private dragPiece: Piece | null = null;
   private dragFromSq: number | null = null;
-  private dragCurrentX = 0;
-  private dragCurrentY = 0;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private dragLastClientX = 0;
+  private dragLastClientY = 0;
+  private dragCanvasX = 0;
+  private dragCanvasY = 0;
   private onMoveCallback?: (fromSq: number, toSq: number) => void;
   private onEvaluateCallback?: (breakdown: ScoreBreakdown) => void;
 
@@ -80,6 +87,7 @@ export class UnifiedCanvas {
   public setBoard(board: KeplerBoard, lastMove: { from: number; to: number } | null = null): void {
     this.board = board;
     this.lastMove = lastMove;
+    this.selectedSquare = null;
     this.render();
   }
 
@@ -137,7 +145,7 @@ export class UnifiedCanvas {
     window.addEventListener('mousemove', this.handleWindowMouseMove.bind(this));
     window.addEventListener('mouseup', this.handlePointerUp.bind(this));
 
-    // Touch support
+    // Touch support with touch-action lock
     this.canvas.addEventListener('touchstart', (e) => {
       if (e.touches.length === 1) {
         const touch = e.touches[0];
@@ -147,15 +155,20 @@ export class UnifiedCanvas {
 
     window.addEventListener('touchmove', (e) => {
       if (this.isDragging && e.touches.length === 1) {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         const touch = e.touches[0];
         this.updateDrag(touch.clientX, touch.clientY);
       }
     }, { passive: false });
 
-    window.addEventListener('touchend', () => {
+    window.addEventListener('touchend', (e) => {
       if (this.isDragging) {
-        this.endDrag();
+        if (e.changedTouches.length > 0) {
+          const touch = e.changedTouches[0];
+          this.endDrag(touch.clientX, touch.clientY);
+        } else {
+          this.endDrag();
+        }
       }
     });
   }
@@ -214,17 +227,22 @@ export class UnifiedCanvas {
   }
 
   private startDrag(clientX: number, clientY: number): void {
+    this.dragStartX = clientX;
+    this.dragStartY = clientY;
+    this.dragLastClientX = clientX;
+    this.dragLastClientY = clientY;
+
+    const rect = this.canvas.getBoundingClientRect();
+    this.dragCanvasX = ((clientX - rect.left) / rect.width) * this.canvas.width;
+    this.dragCanvasY = ((clientY - rect.top) / rect.height) * this.canvas.height;
+
     const sq = this.getCanvasSquare(clientX, clientY);
     if (sq === null) return;
     const piece = this.board.squares[sq];
-    if (!piece) return;
 
     this.isDragging = true;
     this.dragPiece = piece;
     this.dragFromSq = sq;
-    const rect = this.canvas.getBoundingClientRect();
-    this.dragCurrentX = clientX - rect.left;
-    this.dragCurrentY = clientY - rect.top;
     this.render();
   }
 
@@ -234,32 +252,63 @@ export class UnifiedCanvas {
   }
 
   private updateDrag(clientX: number, clientY: number): void {
+    this.dragLastClientX = clientX;
+    this.dragLastClientY = clientY;
+
     const rect = this.canvas.getBoundingClientRect();
-    this.dragCurrentX = clientX - rect.left;
-    this.dragCurrentY = clientY - rect.top;
+    this.dragCanvasX = ((clientX - rect.left) / rect.width) * this.canvas.width;
+    this.dragCanvasY = ((clientY - rect.top) / rect.height) * this.canvas.height;
     this.render();
   }
 
-  private handlePointerUp(_e: MouseEvent): void {
+  private handlePointerUp(e: MouseEvent): void {
     if (!this.isDragging) return;
-    this.endDrag();
+    this.endDrag(e.clientX, e.clientY);
   }
 
-  private endDrag(): void {
+  private endDrag(clientX?: number, clientY?: number): void {
     if (!this.isDragging) return;
-    const targetSq = this.getCanvasSquare(
-      this.canvas.getBoundingClientRect().left + this.dragCurrentX,
-      this.canvas.getBoundingClientRect().top + this.dragCurrentY
-    );
 
-    if (targetSq !== null && this.dragFromSq !== null && targetSq !== this.dragFromSq) {
-      if (this.onMoveCallback) {
-        this.onMoveCallback(this.dragFromSq, targetSq);
+    const finalX = clientX !== undefined ? clientX : this.dragLastClientX;
+    const finalY = clientY !== undefined ? clientY : this.dragLastClientY;
+    const dragDistance = Math.hypot(finalX - this.dragStartX, finalY - this.dragStartY);
+    const targetSq = this.getCanvasSquare(finalX, finalY);
+
+    if (dragDistance < 10) {
+      // TAP / CLICK INTERACTION (Tap-to-move)
+      if (this.selectedSquare === null) {
+        if (targetSq !== null && this.board.squares[targetSq]) {
+          this.selectedSquare = targetSq;
+        }
       } else {
-        // Direct local board move
-        this.board.squares[targetSq] = this.dragPiece;
-        this.board.squares[this.dragFromSq] = null;
-        this.lastMove = { from: this.dragFromSq, to: targetSq };
+        if (targetSq === this.selectedSquare) {
+          // Deselect
+          this.selectedSquare = null;
+        } else if (targetSq !== null) {
+          // Attempt move from selectedSquare to targetSq
+          if (this.onMoveCallback) {
+            this.onMoveCallback(this.selectedSquare, targetSq);
+          } else {
+            const piece = this.board.squares[this.selectedSquare];
+            this.board.squares[targetSq] = piece;
+            this.board.squares[this.selectedSquare] = null;
+            this.lastMove = { from: this.selectedSquare, to: targetSq };
+          }
+          this.selectedSquare = null;
+        }
+      }
+    } else {
+      // DRAG & DROP INTERACTION
+      if (targetSq !== null && this.dragFromSq !== null && targetSq !== this.dragFromSq && this.dragPiece) {
+        if (this.onMoveCallback) {
+          this.onMoveCallback(this.dragFromSq, targetSq);
+        } else {
+          // Direct local board move
+          this.board.squares[targetSq] = this.dragPiece;
+          this.board.squares[this.dragFromSq] = null;
+          this.lastMove = { from: this.dragFromSq, to: targetSq };
+        }
+        this.selectedSquare = null;
       }
     }
 
@@ -298,7 +347,20 @@ export class UnifiedCanvas {
       ctx.fillRect(f * sqSize, (7 - r) * sqSize, sqSize, sqSize);
     }
 
-    // 3. Draw Last Move Highlight
+    // 3. Draw Selected Square (Tap-to-move) Highlight
+    if (this.selectedSquare !== null) {
+      const f = this.selectedSquare % 8;
+      const r = Math.floor(this.selectedSquare / 8);
+      ctx.save();
+      ctx.fillStyle = 'rgba(240, 100, 38, 0.25)';
+      ctx.fillRect(f * sqSize, (7 - r) * sqSize, sqSize, sqSize);
+      ctx.strokeStyle = '#f06426';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(f * sqSize + 1.5, (7 - r) * sqSize + 1.5, sqSize - 3, sqSize - 3);
+      ctx.restore();
+    }
+
+    // 4. Draw Last Move Highlight
     if (this.lastMove) {
       ctx.fillStyle = 'rgba(240, 100, 38, 0.35)'; // Trajectory Orange
       for (const sq of [this.lastMove.from, this.lastMove.to]) {
@@ -486,8 +548,8 @@ export class UnifiedCanvas {
         ctx.shadowOffsetY = 6;
         ctx.drawImage(
           img,
-          this.dragCurrentX - drawSize / 2,
-          this.dragCurrentY - drawSize / 2,
+          this.dragCanvasX - drawSize / 2,
+          this.dragCanvasY - drawSize / 2,
           drawSize,
           drawSize
         );

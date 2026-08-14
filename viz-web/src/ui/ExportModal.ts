@@ -56,7 +56,7 @@ export class ExportModal {
           Renders a complete, professional widescreen Observatory HUD (Board + Vertical Barometer + Live Telemetry + Panoramic Trajectory Wave + Watermark) for <strong>${this.game.title}</strong>, formatted for Hacker News, Reddit, and Twitter/X.
         </p>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-md); margin-bottom:var(--space-md);">
+        <div class="export-options-grid">
           <div class="slider-group">
             <span class="slider-header">Export Format</span>
             <select id="export-layout" style="padding:8px; font-family:var(--font-mono); border:var(--rule-thin) solid var(--color-ink);">
@@ -86,7 +86,7 @@ export class ExportModal {
           <img id="export-result-img" style="max-width:100%; border:var(--rule-thin) solid var(--color-ink); max-height:280px;" />
         </div>
 
-        <div style="display:flex; gap:var(--space-md); justify-content:flex-end;">
+        <div class="modal-actions">
           <button id="render-btn" class="action-primary">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
             Generate & Download GIF

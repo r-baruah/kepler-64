@@ -177,28 +177,52 @@ export class EvalSparkline {
   }
 
   private attachEvents(): void {
-    const svgWrapper = this.container.querySelector('.timeline-svg-wrapper');
+    const svgWrapper = this.container.querySelector('.timeline-svg-wrapper') as HTMLElement;
     const hoverInfo = this.container.querySelector('#timeline-hover-info');
 
-    svgWrapper?.addEventListener('mousemove', (e: any) => {
+    const handlePointerInteraction = (clientX: number, isCommit: boolean = false) => {
+      if (!svgWrapper || !this.points.length) return;
       const rect = svgWrapper.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
+      const clickX = clientX - rect.left;
       const pct = Math.max(0, Math.min(1, clickX / rect.width));
       const targetIdx = Math.round(pct * (this.points.length - 1));
       const p = this.points[targetIdx];
       if (p && hoverInfo) {
         hoverInfo.textContent = `Ply ${p.ply + 1} (${p.moveSan}) · Score: ${(p.score >= 0 ? '+' : '') + p.score.toFixed(2)}`;
       }
-    });
-
-    svgWrapper?.addEventListener('click', (e: any) => {
-      const rect = svgWrapper.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const pct = Math.max(0, Math.min(1, clickX / rect.width));
-      const targetIdx = Math.round(pct * (this.points.length - 1));
-      if (this.onSelectPlyCallback) {
+      if (isCommit && this.onSelectPlyCallback) {
         this.onSelectPlyCallback(targetIdx);
       }
+    };
+
+    svgWrapper?.addEventListener('mousemove', (e: MouseEvent) => {
+      handlePointerInteraction(e.clientX, false);
+    });
+
+    svgWrapper?.addEventListener('click', (e: MouseEvent) => {
+      handlePointerInteraction(e.clientX, true);
+    });
+
+    // Touch scrubber support
+    let isTouchingTimeline = false;
+
+    svgWrapper?.addEventListener('touchstart', (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        isTouchingTimeline = true;
+        handlePointerInteraction(e.touches[0].clientX, true);
+      }
+    }, { passive: true });
+
+    svgWrapper?.addEventListener('touchmove', (e: TouchEvent) => {
+      if (isTouchingTimeline && e.touches.length === 1) {
+        if (e.cancelable) e.preventDefault();
+        handlePointerInteraction(e.touches[0].clientX, true);
+      }
+    }, { passive: false });
+
+    svgWrapper?.addEventListener('touchend', () => {
+      isTouchingTimeline = false;
     });
   }
 }
+

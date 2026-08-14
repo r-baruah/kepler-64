@@ -228,6 +228,8 @@ export class FieldGuideComponent {
         const idx = parseInt((e.currentTarget as HTMLElement).getAttribute('data-ch-idx') || '0', 10);
         this.activeChapterIndex = idx;
         this.render();
+        const activeNav = this.container.querySelector(`.index-nav-item[data-ch-idx="${idx}"]`);
+        activeNav?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       });
     });
 

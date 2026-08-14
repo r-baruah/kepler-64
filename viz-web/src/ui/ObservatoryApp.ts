@@ -330,42 +330,46 @@ export class ObservatoryApp {
     this.container.innerHTML = `
       <!-- MASTHEAD -->
       <header class="masthead shell">
-        <a href="#top" class="brand">
-          <span>KEPLER-64</span>
-          <span class="brand-badge">ROCHE ENGINE</span>
-        </a>
+        <div class="masthead-main">
+          <a href="#top" class="brand">
+            <span>KEPLER-64</span>
+            <span class="brand-badge">ROCHE ENGINE</span>
+          </a>
 
-        <nav class="nav-links">
+          <div class="masthead-actions">
+            <button id="nav-export-btn" class="action-secondary masthead-action-btn" title="Export Social GIF">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span>Export GIF</span>
+            </button>
+            <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-primary star-header-btn" title="Star Kepler-64 on GitHub">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              <span>★ Star</span>
+            </a>
+          </div>
+        </div>
+
+        <nav class="nav-links nav-ribbon">
           <a href="#observatory" class="nav-link">Observatory</a>
           <a href="#compendium" class="nav-link">Compendium</a>
           <a href="#mechanism" class="nav-link">How it Works</a>
           <a href="#sandbox" class="nav-link">Laboratory</a>
           <a href="#contributors" class="nav-link">Contributors</a>
-          <button id="nav-export-btn" class="action-secondary" style="padding:6px 12px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            Export GIF
-          </button>
-          <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-primary" style="padding:6px 12px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            ★ Star on GitHub
-          </a>
         </nav>
       </header>
 
       <!-- HERO THESIS -->
       <section class="hero shell" id="top">
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:var(--space-md);">
-          <div>
+        <div class="hero-inner">
+          <div class="hero-text-block">
             <h1 class="hero-thesis">What if gravity could play chess?</h1>
             <p class="hero-sub">
               Kepler-64 replaces conventional chess heuristics with a differentiable N-body gravitational field.
-              Pieces exert mass, warping 2D spacetime. The enemy King does not get checkmated—it gets
-              <strong>tidally disrupted past the Roche limit</strong>.
+              Pieces exert mass, warping 2D spacetime—the enemy King gets <strong>tidally disrupted past the Roche limit</strong>.
             </p>
           </div>
           <!-- PRESET SELECTOR -->
           <div class="preset-bar">
-            <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:var(--color-muted);">OBSERVATIONS:</span>
+            <span class="preset-label">OBSERVATIONS:</span>
             ${PRESET_GAMES.map((g, idx) => `
               <button class="preset-pill ${idx === 0 ? 'active' : ''}" data-preset-id="${g.id}">
                 ${g.title}
@@ -378,7 +382,7 @@ export class ObservatoryApp {
       <!-- THE UNIFIED OBSERVATORY CONSOLE -->
       <section class="observatory-console-section shell" id="observatory">
         <div class="observatory-cockpit-grid">
-          <!-- LEFT: FUSED BOARD INSTRUMENT + VERTICAL BAROMETER -->
+          <!-- LEFT: FUSED BOARD INSTRUMENT + DIRECT PLAYBACK CONTROLS + SPARKLINE -->
           <div class="board-column">
             <div class="board-with-barometer">
               <!-- VERTICAL GRAVITATIONAL BAROMETER -->
@@ -395,15 +399,41 @@ export class ObservatoryApp {
               </div>
             </div>
 
+            <!-- DIRECT PLAYBACK & SCRUBBER CONTROLS (TIED DIRECTLY TO BOARD) -->
+            <div class="transport-bar">
+              <div class="transport-buttons">
+                <button id="btn-first" class="action-secondary transport-btn" title="First Move">⏮</button>
+                <button id="btn-prev" class="action-secondary transport-btn" title="Previous Move">◀</button>
+                <button id="btn-play" class="action-primary transport-play-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  Play
+                </button>
+                <button id="btn-next" class="action-secondary transport-btn" title="Next Move">▶</button>
+                <button id="btn-last" class="action-secondary transport-btn" title="Last Move">⏭</button>
+              </div>
+
+              <div class="scrubber-row">
+                <input id="ply-slider" type="range" min="0" max="${Math.max(0, this.moves.length - 1)}" value="${this.currentPlyIndex}" class="scrubber-slider" />
+                <strong id="ply-indicator" class="ply-indicator">Ply ${this.currentPlyIndex + 1} / ${this.moves.length}</strong>
+                <button id="btn-export-quick" class="action-secondary export-quick-btn" title="Export Social GIF">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                  GIF
+                </button>
+              </div>
+            </div>
+
+            <!-- PANORAMIC TRAJECTORY TIMELINE (DIRECTLY BELOW CONTROLS) -->
+            <div id="sparkline-container" class="cockpit-sparkline-wrap"></div>
+
             <!-- HOVER HUD & LAYER TOGGLES STRIP -->
             <div class="board-footer-strip">
               <div class="hover-hud">
-                <span id="hover-hud-text">Hover over any square to inspect local gravitational force & mass</span>
+                <span id="hover-hud-text">Tap or hover any square to inspect local force & mass</span>
               </div>
               <div class="layer-toggles">
                 <button class="toggle-chip active" data-layer="showContours">Contours</button>
                 <button class="toggle-chip active" data-layer="showHeatmap">Potential</button>
-                <button class="toggle-chip" data-layer="showVectors">Force Vectors</button>
+                <button class="toggle-chip" data-layer="showVectors">Vectors</button>
                 <button class="toggle-chip active" data-layer="showTidalStress">Tidal Tensors</button>
                 <button class="toggle-chip active" data-layer="showAccretion">Accretion</button>
               </div>
@@ -416,14 +446,14 @@ export class ObservatoryApp {
               <div class="telemetry-header">
                 <div>
                   <div id="readout-move" class="telemetry-move">—</div>
-                  <div id="readout-mover" style="font-family:var(--font-mono); font-size:0.78rem; color:var(--color-muted);">White to move</div>
+                  <div id="readout-mover" class="telemetry-mover">White to move</div>
                 </div>
                 <div id="readout-status" class="telemetry-status status-safe">● TIDAL EQUILIBRIUM</div>
               </div>
 
               <!-- ROCHE DISRUPTION GAUGE -->
               <div class="roche-gauge-box">
-                <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.75rem; font-weight:700; margin-bottom:4px;">
+                <div class="gauge-header">
                   <span>King Roche Disruption Index (η)</span>
                   <span id="gauge-eta-text">η = 0.000 / ρ = 0.80</span>
                 </div>
@@ -436,7 +466,7 @@ export class ObservatoryApp {
               <div class="telemetry-dual-grid">
                 <!-- WATERFALL -->
                 <div>
-                  <div style="font-family:var(--font-mono); font-size:0.72rem; font-weight:700; color:var(--color-muted); margin-bottom:6px;">SCORE DECOMPOSITION</div>
+                  <div class="pane-subtitle">SCORE DECOMPOSITION</div>
                   <ul class="waterfall-ledger">
                     <li id="row-enemy-tide" class="waterfall-row">
                       <span>Enemy King Tide</span>
@@ -467,8 +497,8 @@ export class ObservatoryApp {
                 </div>
 
                 <!-- CANDIDATE MATRIX -->
-                <div style="border-left:var(--rule-thin) solid var(--color-rule); padding-left:var(--space-md);">
-                  <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:0.72rem; font-weight:700; color:var(--color-muted); margin-bottom:6px;">
+                <div class="candidates-pane">
+                  <div class="candidates-pane-header">
                     <span>TOP CANDIDATES</span>
                     <span>Score</span>
                   </div>
@@ -479,40 +509,11 @@ export class ObservatoryApp {
               </div>
 
               <!-- NET POSITION SCORE BAR -->
-              <div style="display:flex; justify-content:space-between; align-items:baseline; padding-top:var(--space-sm); border-top:var(--rule-thin) solid var(--color-ink); font-family:var(--font-mono); font-weight:700; margin-top:var(--space-xs);">
-                <span style="font-size:0.8rem;">NET POSITION SCORE:</span>
-                <span id="total-score-val" style="font-size:1.1rem; color:var(--color-plate);">+0.00 native</span>
+              <div class="net-score-bar">
+                <span class="net-score-label">NET POSITION SCORE:</span>
+                <span id="total-score-val" class="net-score-val">+0.00 native</span>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- FULL-WIDTH PANORAMIC TRAJECTORY TIMELINE & INTEGRATED TRANSPORT BAR -->
-        <div class="full-timeline-strip">
-          <div id="sparkline-container"></div>
-
-          <!-- TRANSPORT CONTROLS -->
-          <div class="transport-bar">
-            <div class="transport-buttons">
-              <button id="btn-first" class="action-secondary" style="padding:6px 10px;" title="First Move">⏮</button>
-              <button id="btn-prev" class="action-secondary" style="padding:6px 10px;" title="Previous Move">◀</button>
-              <button id="btn-play" class="action-primary" style="padding:6px 14px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                Play
-              </button>
-              <button id="btn-next" class="action-secondary" style="padding:6px 10px;" title="Next Move">▶</button>
-              <button id="btn-last" class="action-secondary" style="padding:6px 10px;" title="Last Move">⏭</button>
-            </div>
-
-            <div style="display:flex; align-items:center; gap:var(--space-md); flex:1;">
-              <input id="ply-slider" type="range" min="0" max="${Math.max(0, this.moves.length - 1)}" value="${this.currentPlyIndex}" class="scrubber-slider" />
-              <strong id="ply-indicator" style="font-family:var(--font-mono); font-size:0.82rem; white-space:nowrap;">Ply ${this.currentPlyIndex + 1} / ${this.moves.length}</strong>
-            </div>
-
-            <button id="btn-export-quick" class="action-secondary" style="padding:6px 12px; font-size:0.8rem;">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              Export Clip
-            </button>
           </div>
         </div>
       </section>
@@ -595,14 +596,14 @@ export class ObservatoryApp {
 
       <!-- FOOTER -->
       <footer style="border-top:var(--rule-thin) solid var(--color-ink); padding:var(--space-xl) 0; background:var(--color-white);">
-        <div class="shell" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:var(--space-md);">
+        <div class="shell footer-inner">
           <div style="font-family:var(--font-mono); font-size:0.82rem; color:var(--color-muted);">
             Kepler-64 © 2026 · Created by <strong>Ripuranjan Baruah</strong> · Open-Source Research
           </div>
-          <div style="display:flex; gap:var(--space-md);">
-            <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-secondary" style="padding:4px 8px; font-size:0.75rem;">GitHub Repository</a>
-            <a href="https://github.com/r-baruah/kepler-64/blob/main/REFERENCES.md" target="_blank" rel="noreferrer" class="action-secondary" style="padding:4px 8px; font-size:0.75rem;">References</a>
-            <a href="https://github.com/r-baruah/kepler-64/issues" target="_blank" rel="noreferrer" class="action-secondary" style="padding:4px 8px; font-size:0.75rem;">Report Issue</a>
+          <div class="footer-links">
+            <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-secondary" style="padding:5px 10px; font-size:0.75rem;">GitHub Repository</a>
+            <a href="https://github.com/r-baruah/kepler-64/blob/main/REFERENCES.md" target="_blank" rel="noreferrer" class="action-secondary" style="padding:5px 10px; font-size:0.75rem;">References</a>
+            <a href="https://github.com/r-baruah/kepler-64/issues" target="_blank" rel="noreferrer" class="action-secondary" style="padding:5px 10px; font-size:0.75rem;">Report Issue</a>
           </div>
         </div>
       </footer>
