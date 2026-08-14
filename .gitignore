@@ -6,23 +6,33 @@ __pycache__/
 dist/
 build/
 *.egg
+.pytest_cache/
 
 # Virtual environments
 .venv/
 venv/
 env/
 
-# IDE
+# Node & Frontend
+node_modules/
+viz-web/node_modules/
+viz-web/dist/
+
+# IDE & OS
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Project-specific
+# Internal design, books & planning scratch
+DESIGN.md
+PRODUCT.md
+docs/
+Kepler-64_Book/
+
+# Project generated artifacts & scratch
 Planning/
 *.gif
 *.png
@@ -32,24 +42,15 @@ data/
 /replay-output/
 /replay-output-final/
 /launch-replay/
+.hallmark/
+*.pgn
+!tests/**/*.pgn
 
 # Local agent tooling (not part of the project)
 .commandcode/
 .github/hooks/
 .github/skills/
-package.json
-package-lock.json
 
-# Debug / scratch scripts at the repo root only (anchored so it does not
-# accidentally match package __init__.py files, which begin with "_").
+# Debug / scratch scripts
 /_*.py
 /play_vs_sf.py
-
-# Generated game files (PGN output from play_vs_sf.py etc.)
-/games_*.pgn
-
-# Trained constants: produced by scripts/train.py or the GitHub training
-# workflow. The workflow commits the *real* trained artifact back to the repo,
-# so we do NOT ignore it (unlike other generated files). A local degenerate
-# run would be overwritten by the next workflow run.
-# kepler64/training/trained_constants.json

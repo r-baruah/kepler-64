@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use Kepler-64 in your research or benchmarks, please cite it as below."
+authors:
+  - family-names: Baruah
+    given-names: Ripuranjan
+    name: "Ripuranjan Baruah"
+title: "Kepler-64: Differentiable N-Body Gravitational Chess Engine"
+version: 0.1.0
+date-released: 2026-08-14
+url: "https://github.com/r-baruah/kepler-64"
+license: "Apache-2.0"
+keywords:
+  - "chess engine"
+  - "differentiable physics"
+  - "jax"
+  - "astrophysics"
+  - "roche limit"
+  - "n-body gravitational field"
