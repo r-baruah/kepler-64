@@ -112,9 +112,10 @@ export class UnifiedCanvas {
     ];
     let loadedCount = 0;
 
+    const base = (import.meta.env.BASE_URL || './').replace(/\/$/, '') + '/';
     pieces.forEach((name) => {
       const img = new Image();
-      img.src = `/pieces/${name}.svg`;
+      img.src = `${base}pieces/${name}.svg`;
       img.onload = () => {
         this.pieceImages.set(name, img);
         loadedCount++;
@@ -122,6 +123,9 @@ export class UnifiedCanvas {
           this.isLoaded = true;
           this.render();
         }
+      };
+      img.onerror = () => {
+        console.error(`Failed to load piece image: ${base}pieces/${name}.svg`);
       };
     });
   }

@@ -32,11 +32,12 @@ export class BannerRenderer {
       'wb', 'wk', 'wn', 'wp', 'wq', 'wr',
     ];
 
+    const base = (import.meta.env.BASE_URL || './').replace(/\/$/, '') + '/';
     this.preloadPromise = new Promise((resolve) => {
       let loaded = 0;
       pieces.forEach((name) => {
         const img = new Image();
-        img.src = `/pieces/${name}.svg`;
+        img.src = `${base}pieces/${name}.svg`;
         img.onload = () => {
           this.pieceCache.set(name, img);
           loaded++;
