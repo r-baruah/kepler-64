@@ -85,7 +85,10 @@ def _potential_on_grid(
     """
     abs_m  = np.abs(np.asarray(masses, dtype=np.float32))
     coords = np.array([(k % 8, k // 8) for k in range(64)], dtype=np.float32)
-    g      = np.linspace(0.0, 7.0, n)
+    # The extent in imshow is [-0.5, 7.5], representing 8 full units.
+    # To perfectly align the mathematical evaluation with the visual pixels:
+    dx = 8.0 / n
+    g      = np.linspace(-0.5 + dx/2, 7.5 - dx/2, n)
     GX, GY = np.meshgrid(g, g)
     dx = GX[:, :, None] - coords[None, None, :, 0]
     dy = GY[:, :, None] - coords[None, None, :, 1]
