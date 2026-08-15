@@ -17,9 +17,9 @@ class Constants:
     c: float = 4.0  # speed of light, squares/ply (learned, prior-bounded)
     roche: float = 1.0  # critical eta: init at 1.0 so learning is interpretable
     # Disruption force-sigmoid scale/gain (learnable, on-theme physics knobs):
-    bonus: float = 220.0  # magnitude of the king-disruption force term
+    bonus: float = 300.0  # magnitude of the king-disruption force term (raised from 220 so an attack dominates the linear material edge)
     kgain: float = 4.0  # sharpness of the disruption force-sigmoid
-    gamma: float = 0.25  # weight of the global field-energy material edge
+    gamma: float = 0.5  # weight of the global field-energy/binding-energy edge (raised from 0.25 so positional cohesion outweighs the material tiebreaker)
     Rg: float = 1.0  # king radius of gyration (lattice units); becomes dynamic under accretion/Lorentz
     # Reference tidal-stress scale.  The disruption index eta = Rg^3 * lambda1
     # / mref^2 (NOT / Mking^2): the King's own 1000-mass self-gravity must not
@@ -39,10 +39,16 @@ class Constants:
     # and it played flank shuffles; and with mat_gain = 0.3 a captured knight
     # moved the score by only 0.9, so blunders barely registered. These values
     # remain trainable leaves — a persisted trained artifact overrides them.
-    lambda_delta: float = 1.0   # weight of the Δη = dη/dt tidal-rate term
-    com_gain: float = 25.0       # center-of-mass advance/aggression delta
-    inertia_gain: float = 8.0   # attack/defense concentration delta
-    entropy_gain: float = 2.5    # coordination-vs-scatter delta
+    #
+    # REBALANCED 2026-08-15: physics terms are strengthened so the tidal /
+    # disruption / binding-energy signal dominates the linear material edge,
+    # while mat_gain stays at 1.0 (the documented floor below which a captured
+    # knight stopped registering). The thesis is gravity-as-evaluation; the
+    # rebalance lifts the physics levers rather than cutting material.
+    lambda_delta: float = 2.0   # weight of the Δη = dη/dt tidal-rate term (was 1.0)
+    com_gain: float = 40.0       # center-of-mass advance/aggression delta (was 25.0)
+    inertia_gain: float = 12.0   # attack/defense concentration delta (was 8.0)
+    entropy_gain: float = 4.0    # coordination-vs-scatter delta (was 2.5)
     # Gravitational material edge: you command more mass -> stronger field.
     # On-theme (mass == matter) and gives the search a clean capture/advantage
     # gradient so it plays real chess instead of drifting to a flat equilibrium.
