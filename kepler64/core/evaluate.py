@@ -34,26 +34,25 @@ _MAX_MOVES = 218  # theoretical max legal moves in chess
 def _king_idx(masses, sign: float):
     """Integer (traced) index of the king of the given color (sign +1 white, -1 black).
 
-    Uses an atol=2.0 closeness test so accretion-shifted King masses (e.g.
-    1002.4) are still matched, rather than the silent a1 fallback of argmax on
-    an all-zero mask. Returns a valid integer index suitable for JAX advanced
-    indexing; if no King is found it returns 0 (a1) as a safe default. Callers
-    that need a hard guarantee should check `_king_found` first.
+    Uses an atol=5.0 closeness test so accretion-shifted King masses (e.g.
+    1002.4, 1008.0) are still matched. Returns a valid integer index suitable
+    for JAX advanced indexing; if no King is found it returns 0 (a1) as a safe
+    default. Callers that need a hard guarantee should check `_king_found` first.
     """
-    mask = jnp.isclose(jnp.abs(masses), 1000.0, atol=2.0) & (jnp.sign(masses) == sign)
+    mask = jnp.isclose(jnp.abs(masses), 1000.0, atol=5.0) & (jnp.sign(masses) == sign)
     return jnp.argmax(mask.astype(jnp.int32)).astype(jnp.int32)
 
 
 def _king_found(masses, sign: float) -> bool:
     """True iff a King of the given color is actually present (no silent a1)."""
-    mask = jnp.isclose(jnp.abs(masses), 1000.0, atol=2.0) & (jnp.sign(masses) == sign)
+    mask = jnp.isclose(jnp.abs(masses), 1000.0, atol=5.0) & (jnp.sign(masses) == sign)
     return jnp.any(mask)
 
 
-def _eta(U, king_sq, Rg: float = 1.0, mref: float = 3.5) -> float:
+def _eta(U, king_sq, king_mass, Rg: float = 1.0, mref: float = 3.5) -> float:
     """Tidal-disruption index at a king from the supplied potential field U.
 
-    eta = Rg^3 * lambda1 / mref^2: the dominant tidal eigenvalue (tearing)
+    eta = Rg_eff^3 * lambda1 / mref^2: the dominant tidal eigenvalue (tearing)
     scaled by the king's spatial extent (Rg) and a reference tidal-stress
     scale (mref).  G is intentionally ABSENT: lambda1 is already proportional
     to G (the tidal tensor is the Hessian of the potential), so including G in
@@ -63,11 +62,18 @@ def _eta(U, king_sq, Rg: float = 1.0, mref: float = 3.5) -> float:
     Mking^2: the King's own 1000-mass self-gravity would otherwise shrink eta
     to ~1e-6 and the Roche limit would never be reachable.
 
+    The king's radius of gyration Rg_eff scales as the cube root of its mass
+    (constant-density self-gravitating body), so a King that has accreted mass
+    is more spatially extended and correspondingly easier to tidally disrupt.
+    This is the physics-native "overextended piece is fragile" coupling (the
+    missing C13 hook): accretion grows the King, and growth raises eta.
+
     Larger eta = closer to disruption.
     """
     A = tidal_tensor_at(U, king_sq)
     lam1, _ = eig2x2(A)
-    return (Rg**3) * lam1 / (mref**2 + 1e-9)
+    Rg_eff = Rg * (jnp.abs(king_mass) / 1000.0) ** (1.0 / 3.0)
+    return (Rg_eff**3) * lam1 / (mref**2 + 1e-9)
 
 
 def _eta_pair(masses, G, eps, c, Rg, mref):
@@ -85,8 +91,10 @@ def _eta_pair(masses, G, eps, c, Rg, mref):
     wk = _king_idx(masses, 1.0)
     bk = _king_idx(masses, -1.0)
     kings_ok = _king_found(masses, 1.0) & _king_found(masses, -1.0)
-    eta_b = jnp.where(kings_ok, _eta(U_w, bk, Rg, mref), 0.0)
-    eta_w = jnp.where(kings_ok, _eta(U_b, wk, Rg, mref), 0.0)
+    wk_m = jnp.abs(masses[wk])
+    bk_m = jnp.abs(masses[bk])
+    eta_b = jnp.where(kings_ok, _eta(U_w, bk, bk_m, Rg, mref), 0.0)
+    eta_w = jnp.where(kings_ok, _eta(U_b, wk, wk_m, Rg, mref), 0.0)
     return eta_b, eta_w
 
 
@@ -135,8 +143,8 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
     kings_ok = _king_found(masses, 1.0) & _king_found(masses, -1.0)
 
     # Disruption is caused by the OPPONENT's masses only.
-    eta_w = _eta(U_b, wk, Rg, mref)   # enemy masses stressing your king : bad for White
-    eta_b = _eta(U_w, bk, Rg, mref)   # your masses stressing enemy king : good for White
+    eta_w = _eta(U_b, wk, jnp.abs(masses[wk]), Rg, mref)   # enemy masses stressing your king : bad for White
+    eta_b = _eta(U_w, bk, jnp.abs(masses[bk]), Rg, mref)   # your masses stressing enemy king : good for White
 
     # Force-based disruption, flipped around the learned Roche threshold.
     bonus_b = bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
