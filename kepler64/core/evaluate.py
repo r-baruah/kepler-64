@@ -387,16 +387,30 @@ import jax.random as _jr
 
 
 def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants":
-    """Sample one realization of the physics from the posterior around `base`."""
-    k1, k2, k3 = _jr.split(key, 3)
+    """Sample one realization of the physics from the posterior around `base`.
+
+    Every trainable leaf is perturbed multiplicatively (log-normal-ish, so
+    positive constants stay positive and the perturbation is scale-free). The
+    reach gate `c` is clipped back to its physical prior [1, 10]. `mref` is a
+    fixed unit scale (not a trainable weight), so it is held constant.
+    """
+    keys = _jr.split(key, 13)
+    kG, ke, kc, kr, kb, kkg, kg, kR, kmg, kld, kcg, kig, keg = keys
     return Constants(
-        G=base.G * (1.0 + sigma * _jr.normal(k1)),
-        eps=base.eps * (1.0 + sigma * _jr.normal(k2)),
-        c=jnp.clip(base.c * (1.0 + sigma * _jr.normal(k3)), 1.0, 10.0),
-        roche=base.roche, bonus=base.bonus, kgain=base.kgain,
-        gamma=base.gamma, Rg=base.Rg, mref=base.mref, mat_gain=base.mat_gain,
-        lambda_delta=base.lambda_delta, com_gain=base.com_gain,
-        inertia_gain=base.inertia_gain, entropy_gain=base.entropy_gain,
+        G=base.G * (1.0 + sigma * _jr.normal(kG)),
+        eps=base.eps * (1.0 + sigma * _jr.normal(ke)),
+        c=jnp.clip(base.c * (1.0 + sigma * _jr.normal(kc)), 1.0, 10.0),
+        roche=base.roche * (1.0 + sigma * _jr.normal(kr)),
+        bonus=base.bonus * (1.0 + sigma * _jr.normal(kb)),
+        kgain=base.kgain * (1.0 + sigma * _jr.normal(kkg)),
+        gamma=base.gamma * (1.0 + sigma * _jr.normal(kg)),
+        Rg=base.Rg * (1.0 + sigma * _jr.normal(kR)),
+        mref=base.mref,
+        mat_gain=base.mat_gain * (1.0 + sigma * _jr.normal(kmg)),
+        lambda_delta=base.lambda_delta * (1.0 + sigma * _jr.normal(kld)),
+        com_gain=base.com_gain * (1.0 + sigma * _jr.normal(kcg)),
+        inertia_gain=base.inertia_gain * (1.0 + sigma * _jr.normal(kig)),
+        entropy_gain=base.entropy_gain * (1.0 + sigma * _jr.normal(keg)),
     )
 
 
@@ -409,13 +423,17 @@ def multiverse_score_white(masses: "jnp.ndarray", constants: "Constants",
     site (fold it in at the caller) so different rows sample different universes.
     `parent` (mass vector) is threaded into each realization so the
     move-sensitivity (delta) terms stay active under the Bayesian average.
+
+    The K realizations are mapped with `jax.vmap` over the split keys — a
+    Python loop over a traced key array would raise under jit/vmap, so this is
+    the only trace-safe way to build the ensemble.
     """
     keys = _jr.split(key, K)
-    scores = jnp.stack([
-        score_white(masses, _perturb_constants(constants, k, sigma), parent)
-        for k in keys
-    ])
-    return jnp.mean(scores)
+
+    def _one(k):
+        return score_white(masses, _perturb_constants(constants, k, sigma), parent)
+
+    return jnp.mean(jax.vmap(_one)(keys))
 
 
 def score_white_layer2(masses: "jnp.ndarray", constants: "Constants",
