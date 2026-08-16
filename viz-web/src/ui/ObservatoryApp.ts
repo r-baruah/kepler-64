@@ -94,7 +94,11 @@ export class ObservatoryApp {
       game.initialFen && game.initialFen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
         ? game.initialFen
         : null;
-    this.chess = this.startFen ? new Chess(this.startFen) : new Chess();
+    try {
+      this.chess = this.startFen ? new Chess(this.startFen) : new Chess();
+    } catch {
+      this.chess = new Chess();
+    }
     if (game.pgn) this.chess.loadPgn(game.pgn);
     this.moves = this.chess.history({ verbose: true });
     this.currentPlyIndex = Math.max(0, Math.min(game.highlightPly, this.moves.length - 1));

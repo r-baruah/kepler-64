@@ -215,16 +215,22 @@ export class BannerRenderer {
       const imgData = offCtx.createImageData(n, n);
       const data = imgData.data;
 
+      const HEAT_PALETTE: ReadonlyArray<readonly [number, number, number]> = [
+        [18, 26, 75],
+        [58, 45, 86],
+        [98, 66, 88],
+        [140, 88, 77],
+        [185, 112, 60],
+        [230, 140, 45],
+      ];
       for (let gy = 0; gy < n; gy++) {
         const invGy = n - 1 - gy;
         for (let gx = 0; gx < n; gx++) {
           const val = grid[invGy * n + gx];
           const t = Math.max(0, Math.min(1, (val - p3) / span));
-
-          const r = Math.round(18 + t * (230 - 18));
-          const g = Math.round(26 + t * (140 - 26));
-          const b = Math.round(75 + t * (45 - 75));
-          const alpha = Math.round(35 + t * 45);
+          const band = Math.min(5, Math.floor(t * 6));
+          const [r, g, b] = HEAT_PALETTE[band];
+          const alpha = 35 + band * 9;
 
           const idx = (gy * n + gx) * 4;
           data[idx] = r;
