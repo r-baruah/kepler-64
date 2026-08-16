@@ -1572,6 +1572,14 @@ h1, h2, h3, h4 {
   margin-bottom: var(--space-xl);
 }
 
+.contributors-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--space-md);
+}
+
 .contributors-status {
   display: flex;
   align-items: center;
@@ -1579,7 +1587,23 @@ h1, h2, h3, h4 {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--color-muted);
-  margin-bottom: var(--space-md);
+}
+
+.contributors-refresh {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: var(--rule-thin) solid var(--color-rule);
+  padding: 4px 8px;
+  cursor: pointer;
+  flex: none;
+}
+
+.contributors-refresh:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .status-dot {

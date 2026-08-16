@@ -1,6 +1,6 @@
 /**
  * Kepler-64 GitHub Contributors Client
- * Rate-limit-safe: aggressive localStorage caching, ETag conditional requests,
+ * Rate-limit-safe: short-TTL localStorage cache + ETag conditional requests,
  * and graceful fallback when the unauthenticated GitHub API quota is exhausted.
  */
 
@@ -20,8 +20,8 @@ interface ContributorCacheEntry {
 export const GITHUB_REPO = 'r-baruah/kepler-64';
 export const GITHUB_REPO_URL = `https://github.com/${GITHUB_REPO}`;
 
-const CACHE_KEY = 'k64.contributors.v1';
-const TTL_MS = 6 * 60 * 60 * 1000; // 6 hours between live refreshes
+const CACHE_KEY = 'k64.contributors.v2';
+const TTL_MS = 5 * 60 * 1000; // 5 min between live refreshes — ETag 304s don't count against the 60/hr limit
 const RATE_LIMIT_TTL_MS = 60 * 60 * 1000; // on 403/429, don't retry for 1 hour
 
 function readCache(): ContributorCacheEntry | null {
