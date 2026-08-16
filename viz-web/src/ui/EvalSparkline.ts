@@ -33,6 +33,7 @@ export class EvalSparkline {
   private mvPoints: MultiverseSparkPoint[] | null = null;
   private currentPly: number = 0;
   private collapsePlies: number[] = [];
+  private showSpaghetti = true;
   private onSelectPlyCallback?: (ply: number) => void;
 
   constructor(container: HTMLElement) {
@@ -216,7 +217,9 @@ export class EvalSparkline {
     const envelopePath = `M ${topPts[0]} ${topPts.slice(1).map((p) => `L ${p}`).join(' ')} ${bottomPts.slice().reverse().map((p) => `L ${p}`).join(' ')} Z`;
 
     // Spaghetti lines (cap at 5 universes)
-    const maxUniverseCount = Math.min(5, coords.reduce((max, c) => Math.max(max, c.spaghetti.length), 0));
+    const maxUniverseCount = this.showSpaghetti
+      ? Math.min(5, coords.reduce((max, c) => Math.max(max, c.spaghetti.length), 0))
+      : 0;
     const spaghettiPaths: string[] = [];
     for (let u = 0; u < maxUniverseCount; u++) {
       const segments: string[] = [];
@@ -252,6 +255,7 @@ export class EvalSparkline {
             <span class="legend-dot white-dot"></span> White Pull (+ΔE)
             <span class="legend-dot black-dot"></span> Black Pull (-ΔE)
           </div>
+          <button id="spaghetti-toggle" class="timeline-mini-toggle ${this.showSpaghetti ? 'active' : ''}" type="button">Threads</button>
         </div>
 
         <div class="timeline-svg-wrapper">
@@ -346,6 +350,11 @@ export class EvalSparkline {
   private attachEvents(): void {
     const svgWrapper = this.container.querySelector('.timeline-svg-wrapper') as HTMLElement;
     const hoverInfo = this.container.querySelector('#timeline-hover-info');
+
+    this.container.querySelector('#spaghetti-toggle')?.addEventListener('click', () => {
+      this.showSpaghetti = !this.showSpaghetti;
+      this.render();
+    });
 
     const handlePointerInteraction = (clientX: number, isCommit: boolean = false) => {
       if (!svgWrapper) return;

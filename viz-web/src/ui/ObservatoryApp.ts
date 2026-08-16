@@ -84,7 +84,10 @@ export class ObservatoryApp {
     this.cleanupWorker();
     this.config = { ...this.replayConfig };
     this.syncConfigToUi();
-    if (this.canvasRenderer) this.canvasRenderer.setConfig(this.config);
+    if (this.canvasRenderer) {
+      this.canvasRenderer.setConfig(this.config);
+      this.canvasRenderer.setOrientation('w');
+    }
     this.currentGame = game;
     this.startFen =
       game.initialFen && game.initialFen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
@@ -540,6 +543,8 @@ export class ObservatoryApp {
     this.moves = [];
     this.currentPlyIndex = 0;
 
+    if (this.canvasRenderer) this.canvasRenderer.setOrientation(side);
+
     // Enter the persona's physical universe.
     this.config = { ...getPersona(personaId).config };
     this.syncConfigToUi();
@@ -605,6 +610,8 @@ export class ObservatoryApp {
     this.startFen = fen;
     this.moves = [];
     this.currentPlyIndex = 0;
+
+    if (this.canvasRenderer) this.canvasRenderer.setOrientation('w');
 
     this.currentGame = {
       id: 'imported-fen',

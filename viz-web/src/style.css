@@ -807,6 +807,26 @@ h1, h2, h3, h4 {
   font-size: 0.66rem;
 }
 
+.timeline-mini-toggle {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  background: transparent;
+  border: var(--rule-thin) solid var(--color-rule);
+  border-radius: 999px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.timeline-mini-toggle.active {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: rgba(255, 90, 0, 0.06);
+}
+
 .legend-dot {
   display: inline-block;
   width: 6px;

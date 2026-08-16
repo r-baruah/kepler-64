@@ -10,15 +10,17 @@ export function drawAccretionHalos(
   ctx: CanvasRenderingContext2D,
   board: KeplerBoard,
   excessBySquare: Record<number, number>,
-  sqSize: number
+  sqSize: number,
+  flip = false
 ): void {
   for (let sq = 0; sq < 64; sq++) {
     const excess = excessBySquare[sq];
     if (!excess || excess <= 0) continue;
     if (!board.squares[sq]) continue;
 
-    const f = sq % 8;
-    const r = Math.floor(sq / 8);
+    const dsq = flip ? 63 - sq : sq;
+    const f = dsq % 8;
+    const r = Math.floor(dsq / 8);
     const cx = (f + 0.5) * sqSize;
     const cy = ((7 - r) + 0.5) * sqSize;
     const radius = haloRadius(excess) * sqSize;

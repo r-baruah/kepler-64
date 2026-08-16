@@ -57,6 +57,7 @@ export class UnifiedCanvas {
   private accretionExcess: Record<number, number> = {};
   private captureStream: { fromSq: number; toSq: number; startTime: number } | null = null;
   private animFrame: number | null = null;
+  private pulseTimer: number | null = null;
 
   // Hover state
   private hoveredSquare: number | null = null;
@@ -77,6 +78,7 @@ export class UnifiedCanvas {
   private dragCanvasY = 0;
   private onMoveCallback?: (fromSq: number, toSq: number) => void;
   private onEvaluateCallback?: (breakdown: ScoreBreakdown) => void;
+  private orientation: 'w' | 'b' = 'w';
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -92,6 +94,7 @@ export class UnifiedCanvas {
 
     this.preloadPieces();
     this.attachEventListeners();
+    this.syncPulseTimer();
   }
 
   public setBoard(board: KeplerBoard, lastMove: { from: number; to: number } | null = null): void {
@@ -113,11 +116,32 @@ export class UnifiedCanvas {
 
   public setLayers(layers: Partial<RenderLayers>): void {
     this.layers = { ...this.layers, ...layers };
+    this.syncPulseTimer();
     this.render();
+  }
+
+  private syncPulseTimer(): void {
+    const shouldPulse =
+      this.layers.showAccretion || this.layers.showWavefronts || this.layers.showLorentz;
+    if (shouldPulse && this.pulseTimer === null) {
+      this.pulseTimer = window.setInterval(() => this.render(), 150);
+    } else if (!shouldPulse && this.pulseTimer !== null) {
+      window.clearInterval(this.pulseTimer);
+      this.pulseTimer = null;
+    }
   }
 
   public setAccretion(excess: Record<number, number>): void {
     this.accretionExcess = excess;
+  }
+
+  public setOrientation(color: 'w' | 'b'): void {
+    this.orientation = color;
+    this.render();
+  }
+
+  private disp(sq: number): number {
+    return this.orientation === 'b' ? 63 - sq : sq;
   }
 
   public playCaptureStream(fromSq: number, toSq: number): void {
@@ -234,24 +258,16 @@ export class UnifiedCanvas {
       this.hoveredSquare = sq;
       if (this.onHoverCallback) {
         if (sq !== null) {
-          const f = sq % 8;
-          const r = Math.floor(sq / 8);
-          const piece = this.board.squares[sq];
-    let masses = this.board.massVector();
-
-    // Live field warping: relocate the dragged piece's mass under the cursor.
-    if (this.isDragging && this.dragPiece && this.dragFromSq !== null) {
-      const targetSq = this.hoveredSquare ?? this.dragFromSq;
-      const carried = masses[this.dragFromSq];
-      masses = Float32Array.from(masses);
-      masses[this.dragFromSq] = 0;
-      if (targetSq !== null) masses[targetSq] += carried;
-    }
+          const realSq = this.disp(sq);
+          const f = realSq % 8;
+          const r = Math.floor(realSq / 8);
+          const piece = this.board.squares[realSq];
+          const masses = this.board.massVector();
           const forces = forceField(masses, this.config.eps, this.config.G, this.config.c);
-          const fMag = Math.sqrt(forces.fx[sq] * forces.fx[sq] + forces.fy[sq] * forces.fy[sq]);
+          const fMag = Math.sqrt(forces.fx[realSq] * forces.fx[realSq] + forces.fy[realSq] * forces.fy[realSq]);
 
           this.onHoverCallback({
-            square: sq,
+            square: realSq,
             fileChar: String.fromCharCode(97 + f),
             rankNum: r + 1,
             piece,
@@ -289,7 +305,7 @@ export class UnifiedCanvas {
 
     const sq = this.getCanvasSquare(clientX, clientY);
     if (sq === null) return;
-    const piece = this.board.squares[sq];
+    const piece = this.board.squares[this.disp(sq)];
 
     this.isDragging = true;
     this.dragPiece = piece;
@@ -329,7 +345,7 @@ export class UnifiedCanvas {
     if (dragDistance < 10) {
       // TAP / CLICK INTERACTION (Tap-to-move)
       if (this.selectedSquare === null) {
-        if (targetSq !== null && this.board.squares[targetSq]) {
+        if (targetSq !== null && this.board.squares[this.disp(targetSq)]) {
           this.selectedSquare = targetSq;
         }
       } else {
@@ -337,14 +353,15 @@ export class UnifiedCanvas {
           // Deselect
           this.selectedSquare = null;
         } else if (targetSq !== null) {
-          // Attempt move from selectedSquare to targetSq
+          const fromReal = this.disp(this.selectedSquare);
+          const toReal = this.disp(targetSq);
           if (this.onMoveCallback) {
-            this.onMoveCallback(this.selectedSquare, targetSq);
+            this.onMoveCallback(fromReal, toReal);
           } else {
-            const piece = this.board.squares[this.selectedSquare];
-            this.board.squares[targetSq] = piece;
-            this.board.squares[this.selectedSquare] = null;
-            this.lastMove = { from: this.selectedSquare, to: targetSq };
+            const piece = this.board.squares[fromReal];
+            this.board.squares[toReal] = piece;
+            this.board.squares[fromReal] = null;
+            this.lastMove = { from: fromReal, to: toReal };
           }
           this.selectedSquare = null;
         }
@@ -352,13 +369,15 @@ export class UnifiedCanvas {
     } else {
       // DRAG & DROP INTERACTION
       if (targetSq !== null && this.dragFromSq !== null && targetSq !== this.dragFromSq && this.dragPiece) {
+        const fromReal = this.disp(this.dragFromSq);
+        const toReal = this.disp(targetSq);
         if (this.onMoveCallback) {
-          this.onMoveCallback(this.dragFromSq, targetSq);
+          this.onMoveCallback(fromReal, toReal);
         } else {
           // Direct local board move
-          this.board.squares[targetSq] = this.dragPiece;
-          this.board.squares[this.dragFromSq] = null;
-          this.lastMove = { from: this.dragFromSq, to: targetSq };
+          this.board.squares[toReal] = this.dragPiece;
+          this.board.squares[fromReal] = null;
+          this.lastMove = { from: fromReal, to: toReal };
         }
         this.selectedSquare = null;
       }
@@ -371,28 +390,37 @@ export class UnifiedCanvas {
   }
 
   private computeLagrangePoints(): { x: number; y: number; label: string }[] {
-    const wk = this.board.findKingSquare('w');
-    const bk = this.board.findKingSquare('b');
-    if (wk === null || bk === null) return [];
+    const masses = this.board.massVector();
+    const ranked: { sq: number; m: number }[] = [];
+    for (let sq = 0; sq < 64; sq++) {
+      if (this.board.squares[sq]) ranked.push({ sq, m: Math.abs(masses[sq]) });
+    }
+    ranked.sort((a, b) => b.m - a.m);
+    if (ranked.length < 2 || ranked[0].m <= 0 || ranked[1].m <= 0) return [];
 
-    const wx = (wk % 8) + 0.5;
-    const wy = Math.floor(wk / 8) + 0.5;
-    const bx = (bk % 8) + 0.5;
-    const by = Math.floor(bk / 8) + 0.5;
+    const A = ranked[0]; // primary (heavier)
+    const B = ranked[1]; // secondary
+    const ax = (A.sq % 8) + 0.5;
+    const ay = Math.floor(A.sq / 8) + 0.5;
+    const bx = (B.sq % 8) + 0.5;
+    const by = Math.floor(B.sq / 8) + 0.5;
 
-    const dx = bx - wx;
-    const dy = by - wy;
+    const dx = bx - ax;
+    const dy = by - ay;
     const d = Math.hypot(dx, dy) || 1;
     const ux = dx / d;
     const uy = dy / d;
 
+    const mu = B.m / (A.m + B.m); // secondary mass fraction
+    const alpha = Math.cbrt(mu / 3);
+
     const s60 = 0.8660254;
     const points = [
-      { x: (wx + bx) / 2, y: (wy + by) / 2, label: 'L1' },
-      { x: bx + ux * d * 0.55, y: by + uy * d * 0.55, label: 'L2' },
-      { x: wx - ux * d * 0.55, y: wy - uy * d * 0.55, label: 'L3' },
-      { x: wx + (ux * 0.5 - uy * s60) * d, y: wy + (uy * 0.5 + ux * s60) * d, label: 'L4' },
-      { x: wx + (ux * 0.5 + uy * s60) * d, y: wy + (uy * 0.5 - ux * s60) * d, label: 'L5' },
+      { x: ax + ux * d * (1 - alpha), y: ay + uy * d * (1 - alpha), label: 'L1' },
+      { x: bx + ux * d * alpha, y: by + uy * d * alpha, label: 'L2' },
+      { x: ax - ux * d * (1 - (7 * mu) / 12), y: ay - uy * d * (1 - (7 * mu) / 12), label: 'L3' },
+      { x: ax + (ux * 0.5 - uy * s60) * d, y: ay + (uy * 0.5 + ux * s60) * d, label: 'L4' },
+      { x: ax + (ux * 0.5 + uy * s60) * d, y: ay + (uy * 0.5 - ux * s60) * d, label: 'L5' },
     ];
 
     return points.filter((p) => p.x >= 0 && p.x <= 8 && p.y >= 0 && p.y <= 8);
@@ -406,6 +434,9 @@ export class UnifiedCanvas {
     ctx.clearRect(0, 0, width, height);
 
     const sqSize = width / 8.0;
+    const flip = this.orientation === 'b';
+    const disp = (sq: number): number => (flip ? 63 - sq : sq);
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 350);
 
     // 1. Draw Board Base Squares
     const sqLight = '#e9eff4';
@@ -443,14 +474,26 @@ export class UnifiedCanvas {
     // 4. Draw Last Move Highlight
     if (this.lastMove) {
       ctx.fillStyle = 'rgba(240, 100, 38, 0.35)'; // Trajectory Orange
-      for (const sq of [this.lastMove.from, this.lastMove.to]) {
+      for (const sq of [disp(this.lastMove.from), disp(this.lastMove.to)]) {
         const f = sq % 8;
         const r = Math.floor(sq / 8);
         ctx.fillRect(f * sqSize, (7 - r) * sqSize, sqSize, sqSize);
       }
     }
 
-    const masses = this.board.massVector();
+    const rawMasses = this.board.massVector();
+    let masses: Float32Array = flip
+      ? Float32Array.from({ length: 64 }, (_, d) => rawMasses[63 - d])
+      : rawMasses;
+
+    // Live field warping: relocate the dragged piece's mass under the cursor.
+    if (this.isDragging && this.dragPiece && this.dragFromSq !== null) {
+      masses = Float32Array.from(masses);
+      const targetSq = this.hoveredSquare ?? this.dragFromSq;
+      const carried = masses[this.dragFromSq];
+      masses[this.dragFromSq] = 0;
+      if (targetSq !== null) masses[targetSq] += carried;
+    }
 
     // 4. Draw Continuous Plummer Potential Heatmap
     if (this.layers.showHeatmap) {
@@ -575,21 +618,23 @@ export class UnifiedCanvas {
       const bk = this.board.findKingSquare('b');
 
       if (wk !== null && breakdown.whiteKingTidal) {
-        const kx = (wk % 8 + 0.5) * sqSize;
-        const ky = (7 - Math.floor(wk / 8) + 0.5) * sqSize;
+        const dk = disp(wk);
+        const kx = (dk % 8 + 0.5) * sqSize;
+        const ky = (7 - Math.floor(dk / 8) + 0.5) * sqSize;
         drawTidalStressEllipse(ctx, kx, ky, sqSize, breakdown.whiteKingTidal);
       }
 
       if (bk !== null && breakdown.blackKingTidal) {
-        const kx = (bk % 8 + 0.5) * sqSize;
-        const ky = (7 - Math.floor(bk / 8) + 0.5) * sqSize;
+        const dk = disp(bk);
+        const kx = (dk % 8 + 0.5) * sqSize;
+        const ky = (7 - Math.floor(dk / 8) + 0.5) * sqSize;
         drawTidalStressEllipse(ctx, kx, ky, sqSize, breakdown.blackKingTidal);
       }
     }
 
     // 7b. Draw Retarded Gravitational Wavefronts (finite c)
     if (this.layers.showWavefronts && this.lastMove) {
-      const origin = this.lastMove.from;
+      const origin = disp(this.lastMove.from);
       const of = origin % 8;
       const or = Math.floor(origin / 8);
       const cx = (of + 0.5) * sqSize;
@@ -601,7 +646,7 @@ export class UnifiedCanvas {
       ripples.forEach((f, idx) => {
         ctx.beginPath();
         ctx.arc(cx, cy, cSq * f * sqSize, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(0, 105, 255, ${0.5 - idx * 0.14})`;
+        ctx.strokeStyle = `rgba(0, 105, 255, ${((0.5 - idx * 0.14) * (0.7 + 0.3 * pulse)).toFixed(3)})`;
         ctx.lineWidth = idx === 0 ? 1.6 : 1.2;
         ctx.setLineDash(idx === 0 ? [5, 5] : []);
         ctx.stroke();
@@ -624,8 +669,8 @@ export class UnifiedCanvas {
 
     // 7c. Draw Kinetic Trails (Lorentz escalation)
     if (this.layers.showLorentz && this.lastMove) {
-      const from = this.lastMove.from;
-      const to = this.lastMove.to;
+      const from = disp(this.lastMove.from);
+      const to = disp(this.lastMove.to);
       const dist = DIST_64[from * 64 + to];
       if (dist >= 2) {
         const ratio = Math.min(0.95, dist / this.config.c);
@@ -659,8 +704,8 @@ export class UnifiedCanvas {
       const lp = this.computeLagrangePoints();
       ctx.save();
       lp.forEach((p) => {
-        const px = p.x * sqSize;
-        const py = (8 - p.y) * sqSize;
+        const px = (flip ? 8 - p.x : p.x) * sqSize;
+        const py = (flip ? p.y : 8 - p.y) * sqSize;
         const triangular = p.label === 'L4' || p.label === 'L5';
         const arm = sqSize * 0.18;
 
@@ -687,13 +732,16 @@ export class UnifiedCanvas {
 
     // 7e. Draw Accretion Halos (Layer 2)
     if (this.layers.showAccretion) {
-      drawAccretionHalos(ctx, this.board, this.accretionExcess, sqSize);
+      ctx.save();
+      ctx.globalAlpha = 0.7 + 0.3 * pulse;
+      drawAccretionHalos(ctx, this.board, this.accretionExcess, sqSize, flip);
+      ctx.restore();
     }
 
     // 8. Draw Pieces
     for (let sq = 0; sq < 64; sq++) {
       if (this.isDragging && sq === this.dragFromSq) continue;
-      const piece = this.board.squares[sq];
+      const piece = this.board.squares[disp(sq)];
       if (!piece) continue;
 
       const f = sq % 8;
@@ -743,7 +791,7 @@ export class UnifiedCanvas {
     // 9b. Draw Capture Matter Stream (Layer 2)
     if (this.captureStream) {
       const t = Math.min(1, (performance.now() - this.captureStream.startTime) / 300);
-      drawCaptureStream(ctx, this.captureStream.fromSq, this.captureStream.toSq, sqSize, t);
+      drawCaptureStream(ctx, disp(this.captureStream.fromSq), disp(this.captureStream.toSq), sqSize, t);
     }
 
     // 9c. Draw Relativistic Glow (Lorentz escalation)
@@ -751,7 +799,7 @@ export class UnifiedCanvas {
       const dist = DIST_64[this.lastMove.from * 64 + this.lastMove.to];
       const ratio = Math.min(0.95, dist / this.config.c);
       if (ratio > 0.6) {
-        const to = this.lastMove.to;
+        const to = disp(this.lastMove.to);
         const f = to % 8;
         const r = Math.floor(to / 8);
         const cx = (f + 0.5) * sqSize;
@@ -759,7 +807,7 @@ export class UnifiedCanvas {
         ctx.save();
         ctx.beginPath();
         ctx.arc(cx, cy, sqSize * 0.58, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
+        ctx.strokeStyle = `rgba(0, 229, 255, ${(0.45 + 0.35 * pulse).toFixed(3)})`;
         ctx.lineWidth = 2.5;
         ctx.stroke();
         ctx.restore();
@@ -776,8 +824,9 @@ export class UnifiedCanvas {
         const py = Math.floor(sq / 8) + 0.5;
         if (!lp.some((p) => Math.hypot(p.x - px, p.y - py) < 0.75)) continue;
 
-        const f = sq % 8;
-        const r = Math.floor(sq / 8);
+        const dsq = disp(sq);
+        const f = dsq % 8;
+        const r = Math.floor(dsq / 8);
         ctx.save();
         ctx.strokeStyle = 'rgba(0, 105, 255, 0.9)';
         ctx.lineWidth = 2;
@@ -795,11 +844,11 @@ export class UnifiedCanvas {
     ctx.fillStyle = 'rgba(23, 34, 53, 0.55)';
 
     for (let f = 0; f < 8; f++) {
-      const char = String.fromCharCode(97 + f);
+      const char = String.fromCharCode(97 + (flip ? 7 - f : f));
       ctx.fillText(char, f * sqSize + 3, height - 3);
     }
     for (let r = 0; r < 8; r++) {
-      const num = (r + 1).toString();
+      const num = (flip ? 8 - r : r + 1).toString();
       ctx.fillText(num, width - 10, (7 - r) * sqSize + 12);
     }
     ctx.restore();
