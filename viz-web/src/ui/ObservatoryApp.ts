@@ -20,6 +20,10 @@ import { PgnImportModal } from './PgnImportModal';
 import { latex } from './katexUtil';
 import { BOT_PERSONAS, getPersona } from '../core/personas';
 import type { SearchResult } from '../core/search';
+import { sampleUniverses, evaluateAcrossUniverses } from '../core/multiverse';
+import type { MultiverseSparkPoint } from './EvalSparkline';
+import { buildAccretionLedger } from '../core/accretion';
+import type { AccretionLedger } from '../core/accretion';
 
 export class ObservatoryApp {
   private container: HTMLElement;
@@ -37,6 +41,8 @@ export class ObservatoryApp {
   private liveChess: Chess = new Chess();
   private isBotThinking = false;
   private searchWorker: Worker | null = null;
+  private multiverseEnabled = false;
+  private accretionExcess: Record<number, number> = {};
 
   private canvasRenderer!: UnifiedCanvas;
   private exportModal!: ExportModal;
@@ -112,6 +118,7 @@ export class ObservatoryApp {
       this.sparkline.setCurrentPly(plyIndex);
     }
     this.updateCandidateMoves();
+    this.refreshAccretion();
   }
 
   private initCanvas(): void {
@@ -157,6 +164,11 @@ export class ObservatoryApp {
   }
 
   private updateSparklineData(): void {
+    if (this.multiverseEnabled) {
+      this.updateMultiverseSparkline();
+      return;
+    }
+
     const tempChess = new Chess();
     const tempBoard = new KeplerBoard();
     const points: { ply: number; score: number; moveSan: string }[] = [];
@@ -173,6 +185,20 @@ export class ObservatoryApp {
       });
     }
     this.sparkline.setData(points, this.currentPlyIndex);
+  }
+
+  private updateMultiverseSparkline(): void {
+    const samples = sampleUniverses(this.config, 5);
+    const tempChess = new Chess();
+    const mvPoints: MultiverseSparkPoint[] = [];
+
+    for (let i = 0; i < this.moves.length; i++) {
+      const m = this.moves[i];
+      tempChess.move(m);
+      const { mean, sigma, scores } = evaluateAcrossUniverses(tempChess.fen(), samples);
+      mvPoints.push({ ply: i, moveSan: m.san, mean, sigma, spaghetti: scores });
+    }
+    this.sparkline.setMultiverseData(mvPoints, this.currentPlyIndex);
   }
 
   private initFieldGuide(): void {
@@ -230,6 +256,57 @@ export class ObservatoryApp {
         <span class="cand-score">${(m.score >= 0 ? '+' : '') + m.score.toFixed(2)}</span>
       </li>
     `).join('');
+  }
+
+  private refreshAccretion(): void {
+    const movesUpTo = this.moves.slice(0, this.currentPlyIndex + 1);
+    const ledger = buildAccretionLedger(movesUpTo);
+    this.accretionExcess = ledger.excessBySquare;
+    if (this.canvasRenderer) this.canvasRenderer.setAccretion(this.accretionExcess);
+    this.updateAccretionHud(ledger);
+  }
+
+  private updateAccretionHud(ledger: AccretionLedger): void {
+    const list = this.container.querySelector('#accretion-ledger');
+    if (!list) return;
+
+    const entries = Object.entries(ledger.excessBySquare)
+      .map(([sqStr, excess]) => ({ sq: parseInt(sqStr, 10), excess }))
+      .filter((e) => this.board.squares[e.sq])
+      .sort((a, b) => b.excess - a.excess)
+      .slice(0, 5);
+
+    if (!entries.length) {
+      list.innerHTML = '<li class="accretion-empty">No captures yet — mass is conserved.</li>';
+      return;
+    }
+
+    const GLYPHS: Record<string, { w: string; b: string }> = {
+      p: { w: '♙', b: '♟' },
+      n: { w: '♘', b: '♞' },
+      b: { w: '♗', b: '♝' },
+      r: { w: '♖', b: '♜' },
+      q: { w: '♕', b: '♛' },
+      k: { w: '♔', b: '♚' },
+    };
+
+    const consumedBySq: Record<number, string[]> = {};
+    ledger.history.forEach((h) => {
+      (consumedBySq[h.captorSquare] ??= []).push(h.victimType);
+    });
+
+    list.innerHTML = entries.map((e) => {
+      const piece = this.board.squares[e.sq]!;
+      const glyph = GLYPHS[piece.type]?.[piece.color] ?? piece.type;
+      const total = piece.mass + e.excess;
+      const consumed = (consumedBySq[e.sq] ?? []).map((t) => GLYPHS[t]?.b ?? t).join(', ');
+      const fileChar = String.fromCharCode(97 + (e.sq % 8));
+      const rank = Math.floor(e.sq / 8) + 1;
+      return `<li class="accretion-item">
+        <span>${glyph} ${fileChar}${rank} <strong>[${total.toFixed(1)}m]</strong></span>
+        <span class="accretion-consumed">+${e.excess.toFixed(1)}m${consumed ? ` · ${consumed}` : ''}</span>
+      </li>`;
+    }).join('');
   }
 
   private updateTelemetry(breakdown: ScoreBreakdown): void {
@@ -516,6 +593,13 @@ export class ObservatoryApp {
     this.currentPlyIndex = Math.max(0, this.moves.length - 1);
     this.syncBoardToPly(this.currentPlyIndex);
     this.updateSparklineData();
+
+    const last = this.moves[this.moves.length - 1];
+    if (last?.captured) {
+      const fromSq = (last.from.charCodeAt(1) - 49) * 8 + (last.from.charCodeAt(0) - 97);
+      const toSq = (last.to.charCodeAt(1) - 49) * 8 + (last.to.charCodeAt(0) - 97);
+      this.canvasRenderer.playCaptureStream(fromSq, toSq);
+    }
 
     const slider = this.container.querySelector('#ply-slider') as HTMLInputElement | null;
     if (slider) {
@@ -846,6 +930,7 @@ export class ObservatoryApp {
                 <button class="toggle-chip" data-layer="showVectors">Vectors</button>
                 <button class="toggle-chip active" data-layer="showTidalStress">Tidal Tensors</button>
                 <button class="toggle-chip active" data-layer="showAccretion">Accretion</button>
+                <button class="toggle-chip" data-layer="multiverse">Multiverse</button>
               </div>
             </div>
           </div>
@@ -918,6 +1003,13 @@ export class ObservatoryApp {
               <div class="net-score-bar">
                 <span class="net-score-label">NET POSITION SCORE:</span>
                 <span id="total-score-val" class="net-score-val">+0.00 native</span>
+              </div>
+
+              <div class="accretion-pane">
+                <div class="pane-subtitle">ACCRETION LEDGER</div>
+                <ul id="accretion-ledger" class="accretion-list">
+                  <li class="accretion-empty">No captures yet — mass is conserved.</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -1049,6 +1141,11 @@ export class ObservatoryApp {
         const el = e.currentTarget as HTMLElement;
         const layer = el.getAttribute('data-layer') as any;
         const isActive = el.classList.toggle('active');
+        if (layer === 'multiverse') {
+          this.multiverseEnabled = isActive;
+          this.updateSparklineData();
+          return;
+        }
         if (this.canvasRenderer && layer) {
           this.canvasRenderer.setLayers({ [layer]: isActive });
         }

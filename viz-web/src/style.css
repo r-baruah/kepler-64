@@ -1054,6 +1054,42 @@ h1, h2, h3, h4 {
   cursor: not-allowed;
 }
 
+/* ---------- Accretion ledger ---------- */
+.accretion-pane {
+  border-top: var(--rule-thin) solid var(--color-rule);
+  padding-top: 8px;
+}
+
+.accretion-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.accretion-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-ink);
+}
+
+.accretion-item strong { color: var(--color-plate); }
+
+.accretion-consumed {
+  color: var(--color-muted);
+  font-size: 0.68rem;
+}
+
+.accretion-empty {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-muted);
+}
+
 /* ---------- Telemetry ---------- */
 .telemetry-column {
   display: flex;

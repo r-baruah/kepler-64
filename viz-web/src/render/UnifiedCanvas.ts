@@ -12,6 +12,7 @@ import { evaluatePosition } from '../core/evaluate';
 import type { ScoreBreakdown } from '../core/evaluate';
 import { generateContourLines } from './ContourRenderer';
 import { drawTidalStressEllipse } from './TidalRenderer';
+import { drawAccretionHalos, drawCaptureStream } from './AccretionRenderer';
 
 export interface RenderLayers {
   showHeatmap: boolean;
@@ -47,6 +48,9 @@ export class UnifiedCanvas {
   private pieceImages: Map<string, HTMLImageElement> = new Map();
   private isLoaded = false;
   private lastMove: { from: number; to: number } | null = null;
+  private accretionExcess: Record<number, number> = {};
+  private captureStream: { fromSq: number; toSq: number; startTime: number } | null = null;
+  private animFrame: number | null = null;
 
   // Hover state
   private hoveredSquare: number | null = null;
@@ -100,6 +104,34 @@ export class UnifiedCanvas {
     this.layers = { ...this.layers, ...layers };
     this.render();
   }
+
+  public setAccretion(excess: Record<number, number>): void {
+    this.accretionExcess = excess;
+    this.render();
+  }
+
+  public playCaptureStream(fromSq: number, toSq: number): void {
+    this.captureStream = { fromSq, toSq, startTime: performance.now() };
+    if (this.animFrame === null) {
+      this.tickAnimation();
+    }
+  }
+
+  private tickAnimation = (): void => {
+    if (!this.captureStream) {
+      this.animFrame = null;
+      return;
+    }
+    const t = (performance.now() - this.captureStream.startTime) / 300;
+    if (t >= 1) {
+      this.captureStream = null;
+      this.animFrame = null;
+      this.render();
+      return;
+    }
+    this.render();
+    this.animFrame = requestAnimationFrame(this.tickAnimation);
+  };
 
   public onMove(cb: (fromSq: number, toSq: number) => void): void {
     this.onMoveCallback = cb;
@@ -507,6 +539,11 @@ export class UnifiedCanvas {
       }
     }
 
+    // 7b. Draw Accretion Halos (Layer 2)
+    if (this.layers.showAccretion) {
+      drawAccretionHalos(ctx, this.board, this.accretionExcess, sqSize);
+    }
+
     // 8. Draw Pieces
     for (let sq = 0; sq < 64; sq++) {
       if (this.isDragging && sq === this.dragFromSq) continue;
@@ -555,6 +592,12 @@ export class UnifiedCanvas {
         );
         ctx.restore();
       }
+    }
+
+    // 9b. Draw Capture Matter Stream (Layer 2)
+    if (this.captureStream) {
+      const t = Math.min(1, (performance.now() - this.captureStream.startTime) / 300);
+      drawCaptureStream(ctx, this.captureStream.fromSq, this.captureStream.toSq, sqSize, t);
     }
 
     // 10. Board Outer Coordinates (a-h, 1-8)
