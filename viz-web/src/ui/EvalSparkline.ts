@@ -110,23 +110,12 @@ export class EvalSparkline {
 
         <div class="timeline-svg-wrapper">
           <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" class="timeline-svg">
-            <defs>
-              <linearGradient id="gradWhite" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--color-plate)" stop-opacity="0.35" />
-                <stop offset="100%" stop-color="var(--color-plate)" stop-opacity="0.0" />
-              </linearGradient>
-              <linearGradient id="gradBlack" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--color-accent)" stop-opacity="0.0" />
-                <stop offset="100%" stop-color="var(--color-accent)" stop-opacity="0.35" />
-              </linearGradient>
-            </defs>
-
             <!-- Zero Equilibrium Axis -->
             <line x1="${padX}" y1="${zeroY}" x2="${width - padX}" y2="${zeroY}" stroke="var(--color-rule)" stroke-width="1.2" stroke-dasharray="4,4" />
 
-            <!-- Shaded Advantage Areas -->
-            <path d="${areaWhiteD.join(' ')}" fill="url(#gradWhite)" />
-            <path d="${areaBlackD.join(' ')}" fill="url(#gradBlack)" />
+            <!-- Shaded Advantage Areas (flat fills) -->
+            <path d="${areaWhiteD.join(' ')}" fill="var(--color-plate)" fill-opacity="0.10" />
+            <path d="${areaBlackD.join(' ')}" fill="var(--color-accent)" fill-opacity="0.10" />
 
             <!-- Trajectory Wave -->
             <path d="${lineD.join(' ')}" fill="none" stroke="var(--color-ink)" stroke-width="2.2" stroke-linejoin="round" />

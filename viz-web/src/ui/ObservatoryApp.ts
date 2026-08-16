@@ -1,6 +1,6 @@
 /**
  * Kepler-64 Observatory Master Application Component
- * State-of-the-Art Astrophysical Chess Observatory Console
+ * "forge"-inspired brutalist dark console — neon electric blue.
  */
 
 import { Chess } from 'chess.js';
@@ -259,7 +259,20 @@ export class ObservatoryApp {
     const etaFill = this.container.querySelector('#gauge-eta-fill') as HTMLElement;
     if (etaFill) {
       etaFill.style.width = `${Math.min(100, etaRatio)}%`;
-      etaFill.style.background = activeKingTidal?.isDisrupted ? 'var(--color-negative)' : 'var(--color-plate)';
+      etaFill.style.background = activeKingTidal?.isDisrupted ? 'var(--color-negative)' : 'var(--color-accent)';
+    }
+
+    // Stats band live Roche gauge
+    const statsPct = this.container.querySelector('#stats-roche-pct');
+    if (statsPct) statsPct.textContent = `${etaRatio}%`;
+
+    const statsEta = this.container.querySelector('#stats-eta-text');
+    if (statsEta) statsEta.textContent = `η = ${etaVal} / ρ = ${rocheVal}`;
+
+    const statsFill = this.container.querySelector('#stats-roche-fill') as HTMLElement;
+    if (statsFill) {
+      statsFill.style.width = `${Math.min(100, etaRatio)}%`;
+      statsFill.classList.toggle('danger', !!activeKingTidal?.isDisrupted);
     }
 
     // Score Waterfall Bars
@@ -328,64 +341,133 @@ export class ObservatoryApp {
 
   private render(): void {
     this.container.innerHTML = `
-      <!-- MASTHEAD -->
-      <header class="masthead shell">
-        <div class="masthead-main">
+      <!-- FLOATING PILL NAV -->
+      <header class="pill-nav-wrap">
+        <div class="pill-nav shell">
           <a href="#top" class="brand">
             <span>KEPLER-64</span>
             <span class="brand-badge">ROCHE ENGINE</span>
           </a>
 
-          <div class="masthead-actions">
-            <button id="nav-export-btn" class="action-secondary masthead-action-btn" title="Export Social GIF">
+          <nav class="stacked-nav" aria-label="Primary">
+            <a href="#observatory" class="stack-link">Observatory</a>
+            <a href="#compendium" class="stack-link">Compendium</a>
+            <a href="#mechanism" class="stack-link">How it Works</a>
+            <a href="#sandbox" class="stack-link">Laboratory</a>
+            <a href="#contributors" class="stack-link">Contributors</a>
+          </nav>
+
+          <div class="nav-actions">
+            <button id="nav-export-btn" class="action-primary nav-export-btn" title="Export Social GIF">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
               <span>Export GIF</span>
             </button>
-            <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-primary star-header-btn" title="Star Kepler-64 on GitHub">
+            <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-secondary star-btn" title="Star Kepler-64 on GitHub">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
               <span>★ Star</span>
             </a>
           </div>
         </div>
-
-        <nav class="nav-links nav-ribbon">
-          <a href="#observatory" class="nav-link">Observatory</a>
-          <a href="#compendium" class="nav-link">Compendium</a>
-          <a href="#mechanism" class="nav-link">How it Works</a>
-          <a href="#sandbox" class="nav-link">Laboratory</a>
-          <a href="#contributors" class="nav-link">Contributors</a>
-        </nav>
       </header>
 
-      <!-- HERO THESIS -->
+      <!-- HERO -->
       <section class="hero shell" id="top">
-        <div class="hero-inner">
-          <div class="hero-text-block">
-            <h1 class="hero-thesis">What if gravity could play chess?</h1>
-            <p class="hero-sub">
-              Kepler-64 replaces conventional chess heuristics with a differentiable N-body gravitational field.
-              Pieces exert mass, warping 2D spacetime—the enemy King gets <strong>tidally disrupted past the Roche limit</strong>.
-            </p>
+        <div class="hero-topline">
+          <span class="hero-label">Kepler-64 — Research Engine</span>
+          <p class="hero-note">We replace chess heuristics with differentiable physics — from first sketch to first tidal disruption.</p>
+        </div>
+
+        <div class="hero-stage">
+          <span class="hero-watermark" aria-hidden="true">KEPLER</span>
+
+          <aside class="hero-accent-card">
+            <div class="hero-accent-brand">KEPLER-64<sup>®</sup></div>
+            <p>We invest mass, tidal tensors and differentiable engineering into every position worth evaluating.</p>
+            <p>From idea to King collapse in under 90 plies.</p>
+            <a href="#observatory" class="hero-accent-cta">Details →</a>
+            <div class="hero-accent-est"><span>Est.</span><strong>2026</strong></div>
+          </aside>
+
+          <div class="hero-head">
+            <h1 class="hero-headline">
+              <span>Forging</span>
+              <span>gravity</span>
+              <span>that</span>
+              <span>plays chess.</span>
+            </h1>
+            <div class="hero-cta-row">
+              <a href="#observatory" class="hero-arrow-btn" aria-label="Open the Observatory">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+                  <path d="M4 12h16"></path>
+                  <path d="M13 5l7 7-7 7"></path>
+                </svg>
+              </a>
+              <span class="hero-cta-text">Open the Observatory</span>
+            </div>
           </div>
-          <!-- PRESET SELECTOR -->
-          <div class="preset-bar">
-            <span class="preset-label">OBSERVATIONS:</span>
-            ${PRESET_GAMES.map((g, idx) => `
-              <button class="preset-pill ${idx === 0 ? 'active' : ''}" data-preset-id="${g.id}">
-                ${g.title}
-              </button>
-            `).join('')}
-          </div>
+        </div>
+
+        <!-- PRESET SELECTOR -->
+        <div class="preset-bar">
+          <span class="preset-label">OBSERVATIONS:</span>
+          ${PRESET_GAMES.map((g, idx) => `
+            <button class="preset-pill ${idx === 0 ? 'active' : ''}" data-preset-id="${g.id}">
+              ${g.title}
+            </button>
+          `).join('')}
         </div>
       </section>
 
-      <!-- THE UNIFIED OBSERVATORY CONSOLE -->
+      <!-- STATS BAND -->
+      <section class="stats-band shell" id="numbers">
+        <div class="section-head">
+          <span class="section-number">01 — By the numbers</span>
+          <h2>What the engine learns.</h2>
+          <p class="section-lead">Every physical constant is a learnable leaf. The evaluation is a gradient, not a guess.</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="goal-card">
+            <div class="kpi-eyebrow">PRIMARY GOAL</div>
+            <h3>Differentiable Evaluation</h3>
+            <div class="goal-figure">
+              <span class="big-stat">100<sup>%</sup></span>
+              <span class="goal-caption">end-to-end JAX auto-diff</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div>
+            <p class="kpi-note">13 of 13 physical constants are learnable leaves, optimized by gradient descent over self-play.</p>
+          </div>
+
+          <div class="live-gauge-card">
+            <div class="kpi-eyebrow">ROCHE DISRUPTION INDEX</div>
+            <div class="live-gauge-row">
+              <span class="big-stat" id="stats-roche-pct">0%</span>
+              <span class="goal-caption" id="stats-eta-text">η = 0.000 / ρ = ${this.config.roche.toFixed(2)}</span>
+            </div>
+            <div class="progress-track warm"><div id="stats-roche-fill" class="progress-fill warm" style="width:0%;"></div></div>
+            <p class="kpi-note">The enemy King collapses when η &gt; ρ<sub>roche</sub>.</p>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card"><span class="kpi-label">LEARNABLE LEAVES</span><span class="kpi-value">13</span><span class="kpi-change">13 / 13 trained</span></div>
+          <div class="kpi-card"><span class="kpi-label">LATTICE</span><span class="kpi-value">64×64</span><span class="kpi-change">2D spacetime</span></div>
+          <div class="kpi-card"><span class="kpi-label">MULTIVERSE</span><span class="kpi-value">K = 8</span><span class="kpi-change">posterior worlds</span></div>
+          <div class="kpi-card"><span class="kpi-label">ROCHE LIMIT</span><span class="kpi-value">ρ 0.80</span><span class="kpi-change">rupture threshold</span></div>
+        </div>
+      </section>
+
+      <!-- OBSERVATORY CONSOLE -->
       <section class="observatory-console-section shell" id="observatory">
+        <div class="section-head compact">
+          <span class="section-number">02 — Observatory</span>
+          <h2>Watch gravity play.</h2>
+        </div>
+
         <div class="observatory-cockpit-grid">
-          <!-- LEFT: FUSED BOARD INSTRUMENT + DIRECT PLAYBACK CONTROLS + SPARKLINE -->
+          <!-- LEFT: FUSED BOARD INSTRUMENT + PLAYBACK -->
           <div class="board-column">
             <div class="board-with-barometer">
-              <!-- VERTICAL GRAVITATIONAL BAROMETER -->
               <div class="vertical-barometer" title="Net Spacetime Curvature (White vs Black)">
                 <div class="barometer-track">
                   <div id="barometer-fill" class="barometer-fill"></div>
@@ -393,13 +475,11 @@ export class ObservatoryApp {
                 <span id="barometer-val-text" class="barometer-label">+0.0</span>
               </div>
 
-              <!-- BOARD CANVAS -->
               <div class="board-container">
                 <canvas id="board-canvas" class="board-canvas"></canvas>
               </div>
             </div>
 
-            <!-- DIRECT PLAYBACK & SCRUBBER CONTROLS (TIED DIRECTLY TO BOARD) -->
             <div class="transport-bar">
               <div class="transport-buttons">
                 <button id="btn-first" class="action-secondary transport-btn" title="First Move">⏮</button>
@@ -422,13 +502,11 @@ export class ObservatoryApp {
               </div>
             </div>
 
-            <!-- PANORAMIC TRAJECTORY TIMELINE (DIRECTLY BELOW CONTROLS) -->
             <div id="sparkline-container" class="cockpit-sparkline-wrap"></div>
 
-            <!-- HOVER HUD & LAYER TOGGLES STRIP -->
             <div class="board-footer-strip">
               <div class="hover-hud">
-                <span id="hover-hud-text">Tap or hover any square to inspect local force & mass</span>
+                <span id="hover-hud-text">Tap or hover any square to inspect local force &amp; mass</span>
               </div>
               <div class="layer-toggles">
                 <button class="toggle-chip active" data-layer="showContours">Contours</button>
@@ -440,7 +518,7 @@ export class ObservatoryApp {
             </div>
           </div>
 
-          <!-- RIGHT: BALANCED TELEMETRY & CANDIDATE DUAL-PANE -->
+          <!-- RIGHT: TELEMETRY -->
           <div class="telemetry-column">
             <div class="telemetry-card">
               <div class="telemetry-header">
@@ -451,20 +529,17 @@ export class ObservatoryApp {
                 <div id="readout-status" class="telemetry-status status-safe">● TIDAL EQUILIBRIUM</div>
               </div>
 
-              <!-- ROCHE DISRUPTION GAUGE -->
               <div class="roche-gauge-box">
                 <div class="gauge-header">
                   <span>King Roche Disruption Index (η)</span>
-                  <span id="gauge-eta-text">η = 0.000 / ρ = 0.80</span>
+                  <span id="gauge-eta-text">η = 0.000 / ρ = ${this.config.roche.toFixed(2)}</span>
                 </div>
                 <div class="roche-track">
                   <div id="gauge-eta-fill" class="roche-fill" style="width:15%;"></div>
                 </div>
               </div>
 
-              <!-- DUAL PANE: WATERFALL (LEFT) + CANDIDATE MATRIX (RIGHT) -->
               <div class="telemetry-dual-grid">
-                <!-- WATERFALL -->
                 <div>
                   <div class="pane-subtitle">SCORE DECOMPOSITION</div>
                   <ul class="waterfall-ledger">
@@ -496,7 +571,6 @@ export class ObservatoryApp {
                   </ul>
                 </div>
 
-                <!-- CANDIDATE MATRIX -->
                 <div class="candidates-pane">
                   <div class="candidates-pane-header">
                     <span>TOP CANDIDATES</span>
@@ -508,7 +582,6 @@ export class ObservatoryApp {
                 </div>
               </div>
 
-              <!-- NET POSITION SCORE BAR -->
               <div class="net-score-bar">
                 <span class="net-score-label">NET POSITION SCORE:</span>
                 <span id="total-score-val" class="net-score-val">+0.00 native</span>
@@ -518,40 +591,41 @@ export class ObservatoryApp {
         </div>
       </section>
 
-      <!-- INTERACTIVE RESEARCH COMPENDIUM (SPLIT-VIEW NOTEBOOK) -->
-      <section id="compendium-section" style="padding:var(--space-section) 0; background:#f8fafc; border-top:var(--rule-thin) solid var(--color-rule); border-bottom:var(--rule-thin) solid var(--color-rule);">
+      <!-- COMPENDIUM -->
+      <section class="compendium-band" id="compendium-section">
         <div id="field-guide-mount"></div>
       </section>
 
-      <!-- ULTRAMARINE MECHANISM PLATE -->
+      <!-- MECHANISM PLATE -->
       <section class="mechanism-plate" id="mechanism">
         <div class="shell">
-          <div class="badge-tag" style="background:rgba(255,255,255,0.15); color:#fdba74;">ANALYTICAL ENGINE</div>
+          <span class="section-number">03 — How it works</span>
+          <div class="badge-tag">ANALYTICAL ENGINE</div>
           <h2>The physics is the evaluator.</h2>
-          <p style="max-width:65ch; margin-top:var(--space-sm); opacity:0.9;">
+          <p class="section-lead" style="opacity:0.9; max-width:65ch; margin-top:var(--space-sm);">
             Kepler-64 evaluates every legal move through an explicit gravitational and tidal tensor calculation.
             Every constant of this universe is a learnable leaf optimized through JAX gradient descent.
           </p>
 
           <div class="equation-box">
-            <div style="color:#fdba74; font-weight:700; margin-bottom:8px;">1. PLUMMER POTENTIAL FIELD</div>
+            <div class="equation-label">1. PLUMMER POTENTIAL FIELD</div>
             <div>${latex('\\Phi(p) = -G \\sum_{j=1}^{64} \\frac{|m_j| \\cdot \\sigma(c - \\lVert p - r_j \\rVert)}{\\sqrt{\\lVert p - r_j \\rVert^2 + \\varepsilon^2}}', true)}</div>
-            
-            <div style="color:#fdba74; font-weight:700; margin-top:20px; margin-bottom:8px;">2. TIDAL TENSOR (HESSIAN) & LINE OF FAILURE</div>
+
+            <div class="equation-label">2. TIDAL TENSOR (HESSIAN) &amp; LINE OF FAILURE</div>
             <div>${latex('\\mathbf{A} = \\nabla\\nabla\\Phi\\big|_{\\text{King}} = \\begin{pmatrix} \\Phi_{xx} & \\Phi_{xy} \\\\ \\Phi_{yx} & \\Phi_{yy} \\end{pmatrix} \\quad \\implies \\quad \\lambda_1, \\lambda_2, \\; \\vec{v}_1', true)}</div>
 
-            <div style="color:#fdba74; font-weight:700; margin-top:20px; margin-bottom:8px;">3. ROCHE DISRUPTION WIN CRITERION</div>
+            <div class="equation-label">3. ROCHE DISRUPTION WIN CRITERION</div>
             <div>${latex('\\eta = \\frac{R_g^3 \\cdot \\lambda_1}{m_{\\text{ref}}^2} \\quad \\implies \\quad \\text{King collapses when } \\eta > \\rho_{\\text{roche}}', true)}</div>
           </div>
         </div>
       </section>
 
-      <!-- UNIVERSE SANDBOX & SLIDERS -->
-      <section class="shell" id="sandbox" style="padding-bottom:var(--space-section);">
-        <div style="margin-bottom:var(--space-lg);">
-          <span class="badge-tag">INTERACTIVE LABORATORY</span>
+      <!-- SANDBOX -->
+      <section class="shell sandbox-section" id="sandbox">
+        <div class="section-head compact">
+          <span class="section-number">04 — Laboratory</span>
           <h2>Universal Physics Laboratory</h2>
-          <p style="color:var(--color-muted); max-width:65ch;">
+          <p class="section-lead" style="max-width:65ch;">
             Adjust the fundamental physical laws of the chess universe in real time and watch the gravitational topography and tidal tension warp instantly.
           </p>
         </div>
@@ -562,7 +636,7 @@ export class ObservatoryApp {
               <span>Gravitational Constant (G)</span>
               <span id="slider-g-val">${this.config.G.toFixed(2)}</span>
             </div>
-            <input id="slider-g" type="range" min="0.1" max="4.0" step="0.05" value="${this.config.G}" class="scrubber-slider" />
+            <input id="slider-g" type="range" min="0.1" max="4.0" step="0.05" value="${this.config.G}" />
           </div>
 
           <div class="slider-group">
@@ -570,7 +644,7 @@ export class ObservatoryApp {
               <span>Plummer Softening (ε)</span>
               <span id="slider-eps-val">${this.config.eps.toFixed(2)}</span>
             </div>
-            <input id="slider-eps" type="range" min="0.1" max="2.5" step="0.05" value="${this.config.eps}" class="scrubber-slider" />
+            <input id="slider-eps" type="range" min="0.1" max="2.5" step="0.05" value="${this.config.eps}" />
           </div>
 
           <div class="slider-group">
@@ -578,7 +652,7 @@ export class ObservatoryApp {
               <span>Speed of Light Gate (c)</span>
               <span id="slider-c-val">${this.config.c.toFixed(2)} sq/ply</span>
             </div>
-            <input id="slider-c" type="range" min="1.0" max="10.0" step="0.1" value="${this.config.c}" class="scrubber-slider" />
+            <input id="slider-c" type="range" min="1.0" max="10.0" step="0.1" value="${this.config.c}" />
           </div>
 
           <div class="slider-group">
@@ -586,24 +660,33 @@ export class ObservatoryApp {
               <span>Roche Critical Limit (ρ)</span>
               <span id="slider-roche-val">${this.config.roche.toFixed(2)}</span>
             </div>
-            <input id="slider-roche" type="range" min="0.1" max="2.0" step="0.05" value="${this.config.roche}" class="scrubber-slider" />
+            <input id="slider-roche" type="range" min="0.1" max="2.0" step="0.05" value="${this.config.roche}" />
           </div>
         </div>
       </section>
 
-      <!-- CONTRIBUTORS & ATTRIBUTION SECTION -->
-      <div id="contributors-mount"></div>
+      <!-- CONTRIBUTORS -->
+      <section class="shell">
+        <div id="contributors-mount"></div>
+      </section>
 
       <!-- FOOTER -->
-      <footer style="border-top:var(--rule-thin) solid var(--color-ink); padding:var(--space-xl) 0; background:var(--color-white);">
+      <footer class="site-footer">
+        <div class="footer-wordmark" aria-hidden="true">KEPLER-64</div>
         <div class="shell footer-inner">
-          <div style="font-family:var(--font-mono); font-size:0.82rem; color:var(--color-muted);">
-            Kepler-64 © 2026 · Created by <strong>Ripuranjan Baruah</strong> · Open-Source Research
+          <div class="footer-meta">
+            <a href="#top" class="brand">
+              <span>KEPLER-64</span>
+              <span class="brand-badge">ROCHE ENGINE</span>
+            </a>
+            <div class="footer-note">
+              Kepler-64 © 2026 · Created by <strong>Ripuranjan Baruah</strong> · Open-Source Research
+            </div>
           </div>
           <div class="footer-links">
-            <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-secondary" style="padding:5px 10px; font-size:0.75rem;">GitHub Repository</a>
-            <a href="https://github.com/r-baruah/kepler-64/blob/main/REFERENCES.md" target="_blank" rel="noreferrer" class="action-secondary" style="padding:5px 10px; font-size:0.75rem;">References</a>
-            <a href="https://github.com/r-baruah/kepler-64/issues" target="_blank" rel="noreferrer" class="action-secondary" style="padding:5px 10px; font-size:0.75rem;">Report Issue</a>
+            <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-secondary">GitHub Repository</a>
+            <a href="https://github.com/r-baruah/kepler-64/blob/main/REFERENCES.md" target="_blank" rel="noreferrer" class="action-secondary">References</a>
+            <a href="https://github.com/r-baruah/kepler-64/issues" target="_blank" rel="noreferrer" class="action-secondary">Report Issue</a>
           </div>
         </div>
       </footer>
