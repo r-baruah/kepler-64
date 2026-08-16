@@ -90,8 +90,11 @@ export class ContributorsSection {
 
         <!-- Live GitHub contributors grid -->
         <div class="contributors-dynamic">
-          <div class="contributors-status" id="contributors-status">
-            <span class="status-dot"></span> Syncing contributors from GitHub…
+          <div class="contributors-status-bar">
+            <div class="contributors-status" id="contributors-status">
+              <span class="status-dot"></span> Syncing contributors from GitHub…
+            </div>
+            <button id="contributors-refresh" class="contributors-refresh" type="button" title="Re-check GitHub (rate-limit aware)">↻ Refresh</button>
           </div>
           <div class="contributors-grid contributors-grid--cards" id="contributors-dynamic-grid"></div>
         </div>
@@ -121,12 +124,12 @@ export class ContributorsSection {
     void this.loadContributors();
   }
 
-  private async loadContributors(): Promise<void> {
+  private async loadContributors(force = false): Promise<void> {
     const status = this.container.querySelector('#contributors-status') as HTMLElement | null;
     const grid = this.container.querySelector('#contributors-dynamic-grid') as HTMLElement | null;
     if (!status || !grid) return;
 
-    const data = await fetchContributors();
+    const data = await fetchContributors(force);
 
     if (data && data.length > 0) {
       // The founder has a dedicated spotlight card; list everyone else here.
@@ -165,6 +168,10 @@ export class ContributorsSection {
   }
 
   private attachEvents(): void {
+    this.container.querySelector('#contributors-refresh')?.addEventListener('click', () => {
+      void this.loadContributors(true);
+    });
+
     const copyBtn = this.container.querySelector('#btn-copy-bibtex');
     copyBtn?.addEventListener('click', () => {
       const code = `@software{baruah2026kepler64,\n  author       = {Baruah, Ripuranjan},\n  title        = {Kepler-64: Differentiable N-Body Gravitational Chess Engine},\n  year         = {2026},\n  publisher    = {GitHub},\n  journal      = {GitHub Repository},\n  howpublished = {\\url{https://github.com/r-baruah/kepler-64}}\n}`;
