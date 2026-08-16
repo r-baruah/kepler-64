@@ -8,6 +8,7 @@ import { Chess } from 'chess.js';
 import { KeplerBoard } from './board';
 import { evaluatePosition } from './evaluate';
 import { DIST_64 } from './gravity';
+import { PIECE_MASSES } from './constants';
 import type { ConstantsConfig } from './constants';
 import type { BotPersona } from './personas';
 import { sampleUniverses, evaluateAcrossUniverses } from './multiverse';
@@ -26,6 +27,7 @@ export interface SearchResult {
 interface MoveLike {
   from: string;
   to: string;
+  captured?: string;
 }
 
 function squareFromAlgebraic(alg: string): number {
@@ -40,6 +42,22 @@ function lorentzGamma(from: string, to: string, config: ConstantsConfig): number
   return 1 / Math.sqrt(Math.max(0.05, 1 - ratio * ratio));
 }
 
+function computeDestinationExcess(
+  baseExcess: Record<number, number> | null,
+  config: ConstantsConfig,
+  move: MoveLike,
+  fromSq: number,
+  toSq: number
+): number {
+  const carried = (baseExcess && fromSq >= 0) ? (baseExcess[fromSq] ?? 0) : 0;
+  if (move.captured) {
+    const victimBase = PIECE_MASSES[move.captured] ?? 0;
+    const victimExcess = baseExcess?.[toSq] ?? 0;
+    return carried + config.accEta * (victimBase + victimExcess);
+  }
+  return carried + (baseExcess?.[toSq] ?? 0);
+}
+
 function buildBoost(
   board: KeplerBoard,
   config: ConstantsConfig,
@@ -49,7 +67,6 @@ function buildBoost(
   const boost = new Float32Array(64);
 
   const fromSq = move ? squareFromAlgebraic(move.from) : -1;
-  const carried = (baseExcess && fromSq >= 0) ? (baseExcess[fromSq] ?? 0) : 0;
 
   if (baseExcess) {
     for (const key of Object.keys(baseExcess)) {
@@ -60,14 +77,16 @@ function buildBoost(
 
   if (move) {
     const toSq = squareFromAlgebraic(move.to);
+    const destinationExcess = computeDestinationExcess(baseExcess, config, move, fromSq, toSq);
 
-    // Relocate the moving piece's accreted mass to its destination.
+    // Relocate the moving piece's accreted mass to its destination,
+    // consuming the victim's prior excess and accreting the captured mass.
     if (fromSq >= 0) boost[fromSq] = 0;
-    boost[toSq] += carried;
+    boost[toSq] = destinationExcess;
 
     const gamma = lorentzGamma(move.from, move.to, config);
     const base = board.squares[toSq]?.mass ?? 0;
-    const total = base + (baseExcess?.[toSq] ?? 0) + carried;
+    const total = base + destinationExcess;
     boost[toSq] += (gamma - 1) * total;
   }
 
@@ -76,7 +95,8 @@ function buildBoost(
 
 function relocateExcess(
   baseExcess: Record<number, number> | null,
-  move: MoveLike | null
+  move: MoveLike | null,
+  config: ConstantsConfig
 ): Record<number, number> | null {
   if (!baseExcess) return null;
   if (!move) return { ...baseExcess };
@@ -84,9 +104,8 @@ function relocateExcess(
   const fromSq = squareFromAlgebraic(move.from);
   const toSq = squareFromAlgebraic(move.to);
   const relocated: Record<number, number> = { ...baseExcess };
-  const carried = relocated[fromSq] ?? 0;
   relocated[fromSq] = 0;
-  relocated[toSq] = (relocated[toSq] ?? 0) + carried;
+  relocated[toSq] = computeDestinationExcess(baseExcess, config, move, fromSq, toSq);
   return relocated;
 }
 
@@ -142,7 +161,7 @@ export function searchBestMove(
 
   // 2-ply: probe the opponent's best reply for each beam candidate.
   const refined = beam.map((cand) => {
-    const relocatedExcess = relocateExcess(baseExcess, cand.m);
+    const relocatedExcess = relocateExcess(baseExcess, cand.m, persona.config);
     chess.move(cand.m);
     let reply: number;
     let replySan = '';

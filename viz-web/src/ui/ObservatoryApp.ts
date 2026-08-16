@@ -49,6 +49,8 @@ export class ObservatoryApp {
   private multiverseGen = 0;
   private searchGen = 0;
   private sparklineDebounce: number | undefined;
+  private collapseCacheKey = '';
+  private collapseCache: number[] = [];
 
   private canvasRenderer!: UnifiedCanvas;
   private exportModal!: ExportModal;
@@ -75,6 +77,10 @@ export class ObservatoryApp {
   private initGame(game: PresetGame): void {
     this.mode = 'replay';
     this.isBotThinking = false;
+    if (this.sparklineDebounce) {
+      window.clearTimeout(this.sparklineDebounce);
+      this.sparklineDebounce = undefined;
+    }
     this.cleanupWorker();
     this.cleanupMultiverseWorker();
     this.config = { ...this.replayConfig };
@@ -203,7 +209,8 @@ export class ObservatoryApp {
         {
           from: (m.from.charCodeAt(1) - 49) * 8 + (m.from.charCodeAt(0) - 97),
           to: (m.to.charCodeAt(1) - 49) * 8 + (m.to.charCodeAt(0) - 97),
-        }
+        },
+        tempBoard
       );
       const evalRes = evaluatePosition(tempBoard, this.config);
       points.push({
@@ -221,6 +228,9 @@ export class ObservatoryApp {
   }
 
   private computeCollapsePlies(): number[] {
+    const key = `${this.startFen}|${this.moves.map((m) => m.san).join(' ')}|${JSON.stringify(this.config)}`;
+    if (key === this.collapseCacheKey) return this.collapseCache;
+
     const plies: number[] = [];
     const tempChess = this.startFen ? new Chess(this.startFen) : new Chess();
     const tempBoard = new KeplerBoard();
@@ -233,13 +243,16 @@ export class ObservatoryApp {
         {
           from: (m.from.charCodeAt(1) - 49) * 8 + (m.from.charCodeAt(0) - 97),
           to: (m.to.charCodeAt(1) - 49) * 8 + (m.to.charCodeAt(0) - 97),
-        }
+        },
+        tempBoard
       );
       const breakdown = evaluatePosition(tempBoard, this.config);
       if (breakdown.whiteKingTidal?.isDisrupted || breakdown.blackKingTidal?.isDisrupted) {
         plies.push(i);
       }
     }
+    this.collapseCacheKey = key;
+    this.collapseCache = plies;
     return plies;
   }
 
@@ -258,13 +271,17 @@ export class ObservatoryApp {
       this.sparkline.setMultiverseData(data.points, this.currentPlyIndex);
     };
 
-    worker.onerror = () => this.cleanupMultiverseWorker();
+    worker.onerror = () => {
+      if (gen !== this.multiverseGen) return;
+      this.cleanupMultiverseWorker();
+    };
 
     worker.postMessage({
       startFen: this.startFen ?? undefined,
       moves: this.moves.map((m) => m.san),
       config: this.config,
       sampleCount: 5,
+      boosts: this.computeMultiverseBoosts(),
     });
   }
 
@@ -309,7 +326,8 @@ export class ObservatoryApp {
         {
           from: (m.from.charCodeAt(1) - 49) * 8 + (m.from.charCodeAt(0) - 97),
           to: (m.to.charCodeAt(1) - 49) * 8 + (m.to.charCodeAt(0) - 97),
-        }
+        },
+        evalBoard
       );
       const res = evaluatePosition(evalBoard, this.config);
       moveEvaluations.push({
@@ -360,7 +378,8 @@ export class ObservatoryApp {
 
   private computePlyBoost(
     movesUpTo: any[],
-    lastMoveObj: { from: number; to: number } | null
+    lastMoveObj: { from: number; to: number } | null,
+    board: KeplerBoard
   ): Float32Array {
     const ledger = buildAccretionLedger(movesUpTo, this.config.accEta);
 
@@ -374,11 +393,30 @@ export class ObservatoryApp {
       const dist = DIST_64[lastMoveObj.from * 64 + lastMoveObj.to];
       const ratio = Math.min(0.95, dist / Math.max(0.1, this.config.c));
       const gamma = 1 / Math.sqrt(Math.max(0.05, 1 - ratio * ratio));
-      const baseMass = this.board.squares[lastMoveObj.to]?.mass ?? 0;
+      const baseMass = board.squares[lastMoveObj.to]?.mass ?? 0;
       boost[lastMoveObj.to] += (gamma - 1) * (baseMass + (ledger.excessBySquare[lastMoveObj.to] ?? 0));
     }
 
     return boost;
+  }
+
+  private computeMultiverseBoosts(): Float32Array[] {
+    const boosts: Float32Array[] = [];
+    const tempChess = this.startFen ? new Chess(this.startFen) : new Chess();
+    const tempBoard = new KeplerBoard();
+
+    for (let i = 0; i < this.moves.length; i++) {
+      const m = this.moves[i];
+      tempChess.move(m);
+      tempBoard.loadFen(tempChess.fen());
+      const lastMoveObj = {
+        from: (m.from.charCodeAt(1) - 49) * 8 + (m.from.charCodeAt(0) - 97),
+        to: (m.to.charCodeAt(1) - 49) * 8 + (m.to.charCodeAt(0) - 97),
+      };
+      boosts.push(this.computePlyBoost(this.moves.slice(0, i + 1), lastMoveObj, tempBoard));
+    }
+
+    return boosts;
   }
 
   private updateAccretionHud(ledger: AccretionLedger): void {
@@ -579,6 +617,10 @@ export class ObservatoryApp {
 
   private startPlayMode(side: 'w' | 'b', personaId: string): void {
     if (this.isPlaying) this.toggleAutoplay();
+    if (this.sparklineDebounce) {
+      window.clearTimeout(this.sparklineDebounce);
+      this.sparklineDebounce = undefined;
+    }
     this.cleanupWorker();
     this.cleanupMultiverseWorker();
 
@@ -634,7 +676,10 @@ export class ObservatoryApp {
     const headers = chess.header();
     const white = headers.White ?? 'White';
     const black = headers.Black ?? 'Black';
-    const headerFen = headers.FEN || headers.SetUp;
+    const fenHeader = (headers.FEN ?? '').trim();
+    const headerFen = fenHeader.split(/\s+/).length === 6
+      ? fenHeader
+      : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
     const synthetic: PresetGame = {
       id: 'imported-pgn',
@@ -646,7 +691,7 @@ export class ObservatoryApp {
       black,
       date: headers.Date ?? '',
       event: headers.Event ?? '',
-      initialFen: headerFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      initialFen: headerFen,
       highlightPly: Math.max(0, chess.history().length - 1),
       pgn,
     };
@@ -658,6 +703,10 @@ export class ObservatoryApp {
   private handleImportFen(fen: string): void {
     this.cleanupWorker();
     this.cleanupMultiverseWorker();
+    if (this.sparklineDebounce) {
+      window.clearTimeout(this.sparklineDebounce);
+      this.sparklineDebounce = undefined;
+    }
     this.isBotThinking = false;
     this.mode = 'replay';
     this.config = { ...this.replayConfig };
@@ -816,6 +865,7 @@ export class ObservatoryApp {
     };
 
     worker.onerror = () => {
+      if (gen !== this.searchGen) return;
       this.cleanupWorker();
       this.isBotThinking = false;
       this.updateBotStatus('Search worker crashed');
@@ -833,6 +883,7 @@ export class ObservatoryApp {
       this.searchWorker.terminate();
       this.searchWorker = null;
     }
+    this.searchGen += 1;
   }
 
   private cleanupMultiverseWorker(): void {
@@ -840,6 +891,7 @@ export class ObservatoryApp {
       this.multiverseWorker.terminate();
       this.multiverseWorker = null;
     }
+    this.multiverseGen += 1;
   }
 
   private toggleAutoplay(): void {

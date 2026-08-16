@@ -34,6 +34,12 @@ export class ExportModal {
     this.game = currentGame;
     this.config = currentConfig;
     this.container.style.display = 'flex';
+
+    const titleEl = this.container.querySelector('#export-game-title');
+    if (titleEl) {
+      titleEl.textContent = this.game.title;
+    }
+
     this.updatePreview();
   }
 
@@ -66,7 +72,7 @@ export class ExportModal {
         </div>
 
         <p style="font-size:0.88rem; color:var(--color-muted); margin-bottom:var(--space-md);">
-          Renders a complete, professional widescreen Observatory HUD (Board + Vertical Barometer + Live Telemetry + Panoramic Trajectory Wave + Watermark) for <strong>${this.esc(this.game.title)}</strong>, formatted for Hacker News, Reddit, and Twitter/X.
+          Renders a complete, professional widescreen Observatory HUD (Board + Vertical Barometer + Live Telemetry + Panoramic Trajectory Wave + Watermark) for <strong id="export-game-title">${this.esc(this.game.title)}</strong>, formatted for Hacker News, Reddit, and Twitter/X.
         </p>
 
         <div class="export-options-grid">

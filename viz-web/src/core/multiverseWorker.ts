@@ -13,11 +13,12 @@ const scope = self as unknown as {
 };
 
 scope.onmessage = (e: MessageEvent) => {
-  const { startFen, moves, config, sampleCount } = (e.data ?? {}) as {
+  const { startFen, moves, config, sampleCount, boosts } = (e.data ?? {}) as {
     startFen?: string;
     moves?: string[];
     config?: ConstantsConfig;
     sampleCount?: number;
+    boosts?: Float32Array[];
   };
   try {
     if (!config || !Array.isArray(moves)) throw new Error('Bad multiverse request');
@@ -25,7 +26,7 @@ scope.onmessage = (e: MessageEvent) => {
     const chess = new Chess(startFen);
     const points = moves.map((san, i) => {
       chess.move(san);
-      const { mean, sigma, scores } = evaluateAcrossUniverses(chess.fen(), samples);
+      const { mean, sigma, scores } = evaluateAcrossUniverses(chess.fen(), samples, boosts?.[i]);
       return { ply: i, moveSan: san, mean, sigma, spaghetti: scores };
     });
     scope.postMessage({ ok: true, points });

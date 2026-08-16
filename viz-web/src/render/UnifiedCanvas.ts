@@ -59,9 +59,10 @@ export class UnifiedCanvas {
   private animFrame: number | null = null;
   private pulseTimer: number | null = null;
 
-  // Memoized expensive-layer cache (heatmap + contours and evaluation).
+  // Memoized expensive-layer cache (heatmap + contours, vectors, evaluation).
   private cacheKey: string | null = null;
   private heatmapCanvas: HTMLCanvasElement | null = null;
+  private cachedForces: { fx: Float32Array; fy: Float32Array } | null = null;
   private cachedBreakdown: ScoreBreakdown | null = null;
 
   // Hover state
@@ -196,6 +197,7 @@ export class UnifiedCanvas {
 
     this.cacheKey = null;
     this.heatmapCanvas = null;
+    this.cachedForces = null;
     this.cachedBreakdown = null;
   }
 
@@ -477,7 +479,7 @@ export class UnifiedCanvas {
   }
 
   private buildCacheKey(width: number, height: number): string {
-    const layerFlags = `${this.layers.showHeatmap ? 1 : 0}${this.layers.showContours ? 1 : 0}`;
+    const layerFlags = `${this.layers.showHeatmap ? 1 : 0}${this.layers.showContours ? 1 : 0}${this.layers.showVectors ? 1 : 0}`;
     // toFen() does not include massBoost, which changes massVector() for
     // accretion/Lorentz boosts; keep it in the key so equal FENs with
     // different boosts still invalidate the expensive-layer cache.
@@ -663,7 +665,14 @@ export class UnifiedCanvas {
 
     // 6. Draw Gravitational Force Vectors (Streamlines)
     if (this.layers.showVectors) {
-      const forces = forceField(masses, this.config.eps, this.config.G, this.config.c);
+      let forces: { fx: Float32Array; fy: Float32Array };
+      if (cacheChanged || !this.cachedForces) {
+        forces = forceField(masses, this.config.eps, this.config.G, this.config.c);
+        this.cachedForces = forces;
+      } else {
+        forces = this.cachedForces;
+      }
+
       ctx.save();
       ctx.strokeStyle = 'rgba(240, 100, 38, 0.65)';
       ctx.fillStyle = 'rgba(240, 100, 38, 0.65)';
@@ -707,16 +716,18 @@ export class UnifiedCanvas {
 
     // 7. Evaluate Position and Render Tidal Tensors
     let breakdown: ScoreBreakdown;
+    let breakdownFreshlyComputed = false;
     if (cacheChanged || !this.cachedBreakdown) {
       breakdown = evaluatePosition(this.board, this.config);
       this.cachedBreakdown = breakdown;
+      breakdownFreshlyComputed = true;
     } else {
       breakdown = this.cachedBreakdown;
     }
 
     this.cacheKey = cacheKey;
 
-    if (this.onEvaluateCallback) {
+    if (breakdownFreshlyComputed && this.onEvaluateCallback) {
       this.onEvaluateCallback(breakdown);
     }
 
