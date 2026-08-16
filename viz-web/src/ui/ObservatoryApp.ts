@@ -502,8 +502,6 @@ export class ObservatoryApp {
               </div>
             </div>
 
-            <div id="sparkline-container" class="cockpit-sparkline-wrap"></div>
-
             <div class="board-footer-strip">
               <div class="hover-hud">
                 <span id="hover-hud-text">Tap or hover any square to inspect local force &amp; mass</span>
@@ -518,8 +516,9 @@ export class ObservatoryApp {
             </div>
           </div>
 
-          <!-- RIGHT: TELEMETRY -->
+          <!-- RIGHT: TRAJECTORY + TELEMETRY -->
           <div class="telemetry-column">
+            <div id="sparkline-container" class="cockpit-sparkline-wrap"></div>
             <div class="telemetry-card">
               <div class="telemetry-header">
                 <div>
