@@ -1,6 +1,19 @@
 /**
  * Kepler-64 Project Contributors & Scientific Attribution Component
+ * Founder spotlight + a live, rate-limit-safe grid of GitHub contributors.
  */
+
+import { fetchContributors } from '../core/github';
+import type { GitHubContributor } from '../core/github';
+
+function esc(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 export class ContributorsSection {
   private container: HTMLElement;
@@ -22,13 +35,13 @@ export class ContributorsSection {
         </div>
 
         <div class="contributors-grid">
-          <!-- Founder Card -->
+          <!-- Founder Spotlight -->
           <div class="creator-card founder-card">
             <div class="creator-header">
               <div class="creator-avatar">RB</div>
               <div>
                 <h3 class="creator-name">Ripuranjan Baruah</h3>
-                <div class="creator-role">Original Creator & Lead Architect</div>
+                <div class="creator-role">Original Creator &amp; Lead Architect</div>
               </div>
               <div class="founder-badge">FOUNDER</div>
             </div>
@@ -46,13 +59,13 @@ export class ContributorsSection {
             </div>
           </div>
 
-          <!-- Open Source Community & Research Card -->
+          <!-- Dynamic contributor summary (populated after fetch) -->
           <div class="creator-card">
             <div class="creator-header">
               <div class="creator-avatar" style="background:var(--color-plate);">OS</div>
               <div>
                 <h3 class="creator-name">Open Source Community</h3>
-                <div class="creator-role">Research, Benchmarks & Optimization</div>
+                <div class="creator-role">Research, Benchmarks &amp; Optimization</div>
               </div>
             </div>
             <p class="creator-bio">
@@ -73,6 +86,14 @@ export class ContributorsSection {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Live GitHub contributors grid -->
+        <div class="contributors-dynamic">
+          <div class="contributors-status" id="contributors-status">
+            <span class="status-dot"></span> Syncing contributors from GitHub…
+          </div>
+          <div class="contributors-grid contributors-grid--cards" id="contributors-dynamic-grid"></div>
         </div>
 
         <!-- Citation Box -->
@@ -97,6 +118,50 @@ export class ContributorsSection {
     `;
 
     this.attachEvents();
+    void this.loadContributors();
+  }
+
+  private async loadContributors(): Promise<void> {
+    const status = this.container.querySelector('#contributors-status') as HTMLElement | null;
+    const grid = this.container.querySelector('#contributors-dynamic-grid') as HTMLElement | null;
+    if (!status || !grid) return;
+
+    const data = await fetchContributors();
+
+    if (data && data.length > 0) {
+      // The founder has a dedicated spotlight card; list everyone else here.
+      const others = data.filter((c) => c.login.toLowerCase() !== 'r-baruah');
+
+      status.innerHTML = `<span class="status-dot status-dot--live"></span> ${data.length} contributor${data.length === 1 ? '' : 's'} · live from GitHub`;
+
+      if (others.length === 0) {
+        grid.innerHTML = `
+          <p class="contributors-empty">
+            No additional contributors yet — <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer">be the first to contribute</a>.
+          </p>`;
+        return;
+      }
+
+      grid.innerHTML = others.map((c) => this.cardHtml(c)).join('');
+      return;
+    }
+
+    // Rate-limited / offline / no data: show a graceful snapshot notice.
+    status.innerHTML = `<span class="status-dot status-dot--cached"></span> Offline snapshot — GitHub rate limit reached`;
+    grid.innerHTML = `
+      <p class="contributors-empty">
+        Live contributor data is temporarily unavailable. Contributions from the open-source community are still credited in the repository history.
+      </p>`;
+  }
+
+  private cardHtml(c: GitHubContributor): string {
+    const label = `${c.contributions} commit${c.contributions === 1 ? '' : 's'}`;
+    return `
+      <a class="contributor-card" href="${esc(c.htmlUrl)}" target="_blank" rel="noreferrer" title="${esc(c.login)}">
+        <img class="contributor-avatar" src="${esc(c.avatarUrl)}&amp;s=96" alt="${esc(c.login)}" loading="lazy" width="96" height="96" />
+        <span class="contributor-login">@${esc(c.login)}</span>
+        <span class="contributor-count">${esc(label)}</span>
+      </a>`;
   }
 
   private attachEvents(): void {
