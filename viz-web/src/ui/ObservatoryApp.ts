@@ -28,6 +28,7 @@ import type { AccretionLedger } from '../core/accretion';
 export class ObservatoryApp {
   private container: HTMLElement;
   private config: ConstantsConfig = { ...DEFAULT_CONSTANTS };
+  private replayConfig: ConstantsConfig = { ...DEFAULT_CONSTANTS };
   private currentGame: PresetGame = PRESET_GAMES[0];
   private chess: Chess = new Chess();
   private board: KeplerBoard = new KeplerBoard();
@@ -70,6 +71,9 @@ export class ObservatoryApp {
     this.mode = 'replay';
     this.isBotThinking = false;
     this.cleanupWorker();
+    this.config = { ...this.replayConfig };
+    this.syncConfigToUi();
+    if (this.canvasRenderer) this.canvasRenderer.setConfig(this.config);
     this.currentGame = game;
     this.chess = new Chess();
     this.chess.loadPgn(game.pgn);
@@ -464,6 +468,9 @@ export class ObservatoryApp {
     if (this.isPlaying) this.toggleAutoplay();
     this.cleanupWorker();
 
+    if (this.mode === 'replay') {
+      this.replayConfig = { ...this.config };
+    }
     this.mode = 'play';
     this.playerColor = side;
     this.personaId = personaId;
@@ -573,7 +580,10 @@ export class ObservatoryApp {
     const from = this.sqToAlg(fromSq);
     const to = this.sqToAlg(toSq);
     const legal = this.liveChess.moves({ verbose: true });
-    const move = legal.find((m) => m.from === from && m.to === to);
+    const matching = legal.filter((m) => m.from === from && m.to === to);
+    const move = matching.find((m) => m.promotion === 'q')
+      ?? matching.find((m) => !m.promotion)
+      ?? matching[0];
     if (!move) return;
 
     let applied = false;
