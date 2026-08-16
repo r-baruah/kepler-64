@@ -183,6 +183,9 @@ export class ObservatoryApp {
   }
 
   private updateSparklineData(): void {
+    const collapsePlies = this.computeCollapsePlies();
+    this.sparkline.setCollapsePlies(collapsePlies);
+
     if (this.multiverseEnabled) {
       this.updateMultiverseSparkline();
       return;
@@ -204,6 +207,21 @@ export class ObservatoryApp {
       });
     }
     this.sparkline.setData(points, this.currentPlyIndex);
+  }
+
+  private computeCollapsePlies(): number[] {
+    const plies: number[] = [];
+    const tempChess = this.startFen ? new Chess(this.startFen) : new Chess();
+    const tempBoard = new KeplerBoard();
+    for (let i = 0; i < this.moves.length; i++) {
+      tempChess.move(this.moves[i]);
+      tempBoard.loadFen(tempChess.fen());
+      const breakdown = evaluatePosition(tempBoard, this.config);
+      if (breakdown.whiteKingTidal?.isDisrupted || breakdown.blackKingTidal?.isDisrupted) {
+        plies.push(i);
+      }
+    }
+    return plies;
   }
 
   private updateMultiverseSparkline(): void {
@@ -335,16 +353,18 @@ export class ObservatoryApp {
       k: { w: '♔', b: '♚' },
     };
 
-    const consumedBySq: Record<number, string[]> = {};
+    const consumedBySq: Record<number, { type: string; color: 'w' | 'b' }[]> = {};
     ledger.history.forEach((h) => {
-      (consumedBySq[h.captorSquare] ??= []).push(h.victimType);
+      (consumedBySq[h.captorSquare] ??= []).push({ type: h.victimType, color: h.victimColor });
     });
 
     list.innerHTML = entries.map((e) => {
       const piece = this.board.squares[e.sq]!;
       const glyph = GLYPHS[piece.type]?.[piece.color] ?? piece.type;
       const total = piece.mass + e.excess;
-      const consumed = (consumedBySq[e.sq] ?? []).map((t) => GLYPHS[t]?.b ?? t).join(', ');
+      const consumed = (consumedBySq[e.sq] ?? [])
+        .map((t) => GLYPHS[t.type]?.[t.color] ?? t.type)
+        .join(', ');
       const fileChar = String.fromCharCode(97 + (e.sq % 8));
       const rank = Math.floor(e.sq / 8) + 1;
       return `<li class="accretion-item">

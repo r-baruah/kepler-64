@@ -13,6 +13,7 @@ export interface AccretionEvent {
   to: string;
   captorSquare: number;
   victimType: string;
+  victimColor: 'w' | 'b';
   victimMass: number;
   gainedMass: number;
 }
@@ -29,7 +30,7 @@ function squareFromAlgebraic(algebraic: string): number {
 }
 
 export function buildAccretionLedger(
-  moves: { from: string; to: string; captured?: string; flags?: string; san: string }[],
+  moves: { from: string; to: string; captured?: string; flags?: string; san: string; color?: string }[],
   eta: number = ACCRETION_ETA
 ): AccretionLedger {
   const excess = new Float32Array(64);
@@ -59,6 +60,7 @@ export function buildAccretionLedger(
         to: move.to,
         captorSquare: toSq,
         victimType: move.captured,
+        victimColor: move.color === 'w' ? 'b' : 'w',
         victimMass,
         gainedMass: gained,
       });

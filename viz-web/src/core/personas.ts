@@ -42,7 +42,7 @@ export const BOT_PERSONAS: BotPersona[] = [
   {
     id: 'quantum',
     label: 'Quantum Multiverse Bot',
-    blurb: 'Samples 5 alternate universes per move and chooses the minimax line with lowest Bayesian risk.',
+    blurb: 'Samples 5 alternate universes per move and chooses the minimax line with highest Bayesian expectation.',
     config: { ...DEFAULT_CONSTANTS },
     search: 'quantum',
     beam: 5,

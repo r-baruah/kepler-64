@@ -144,7 +144,7 @@ export function searchBestMove(
   refined.sort((a, b) => (b.reply * sign) - (a.reply * sign));
   const best = refined[0];
 
-  const modeLabel = persona.search === 'quantum' ? 'Bayesian risk' : '2-ply beam';
+  const modeLabel = persona.search === 'quantum' ? 'Bayesian expectation' : '2-ply beam';
   return {
     san: best.m.san,
     from: best.m.from,

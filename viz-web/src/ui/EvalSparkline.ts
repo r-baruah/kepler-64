@@ -32,6 +32,7 @@ export class EvalSparkline {
   private points: SparklinePoint[] = [];
   private mvPoints: MultiverseSparkPoint[] | null = null;
   private currentPly: number = 0;
+  private collapsePlies: number[] = [];
   private onSelectPlyCallback?: (ply: number) => void;
 
   constructor(container: HTMLElement) {
@@ -59,6 +60,24 @@ export class EvalSparkline {
 
   public onSelectPly(cb: (ply: number) => void): void {
     this.onSelectPlyCallback = cb;
+  }
+
+  public setCollapsePlies(plies: number[]): void {
+    this.collapsePlies = plies;
+    this.render();
+  }
+
+  private collapseMarkerSvg(count: number): string {
+    if (!this.collapsePlies.length || count <= 1) return '';
+    const width = 800;
+    const padX = 20;
+    return this.collapsePlies
+      .filter((ply) => ply >= 0 && ply < count)
+      .map((ply) => {
+        const x = padX + (ply / (count - 1)) * (width - 2 * padX);
+        return `<path d="M ${x.toFixed(1)} 2 L ${(x - 4).toFixed(1)} 9 L ${(x + 4).toFixed(1)} 9 Z" fill="var(--color-danger, #d33)" stroke="var(--color-ink)" stroke-width="0.6" />`;
+      })
+      .join('\n            ');
   }
 
   private render(): void {
@@ -151,6 +170,9 @@ export class EvalSparkline {
 
             <!-- Active Cursor Marker -->
             <circle id="timeline-cursor-dot" cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="5.5" fill="var(--color-accent)" stroke="var(--color-ink)" stroke-width="2" />
+
+            <!-- Tidal Collapse Markers -->
+            ${this.collapseMarkerSvg(n)}
           </svg>
         </div>
       </div>
@@ -251,6 +273,9 @@ export class EvalSparkline {
 
             <!-- Active Cursor Marker -->
             <circle id="timeline-cursor-dot" cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="5.5" fill="var(--color-accent)" stroke="var(--color-ink)" stroke-width="2" />
+
+            <!-- Tidal Collapse Markers -->
+            ${this.collapseMarkerSvg(coords.length)}
           </svg>
         </div>
       </div>
