@@ -761,11 +761,6 @@ export class ObservatoryApp {
 
       <!-- HERO -->
       <section class="hero shell" id="top">
-        <div class="hero-topline">
-          <span class="hero-label">Kepler-64 — Research Engine</span>
-          <p class="hero-note">We replace chess heuristics with differentiable physics — from first sketch to first tidal disruption.</p>
-        </div>
-
         <div class="hero-stage">
           <span class="hero-watermark" aria-hidden="true">KEPLER</span>
 
@@ -796,16 +791,6 @@ export class ObservatoryApp {
           </div>
         </div>
 
-        <!-- PRESET SELECTOR -->
-        <div class="preset-bar">
-          <span class="preset-label">OBSERVATIONS:</span>
-          ${PRESET_GAMES.map((g, idx) => `
-            <button class="preset-pill ${idx === 0 ? 'active' : ''}" data-preset-id="${g.id}">
-              ${g.title}
-            </button>
-          `).join('')}
-          <button id="btn-import-game" class="preset-pill import-pill">Import Game</button>
-        </div>
       </section>
 
       <!-- STATS BAND -->
@@ -852,6 +837,17 @@ export class ObservatoryApp {
         <div class="section-head compact">
           <span class="section-number">02 — Observatory</span>
           <h2>Watch gravity play.</h2>
+        </div>
+
+        <!-- PRESET SELECTOR -->
+        <div class="preset-bar">
+          <span class="preset-label">OBSERVATIONS:</span>
+          ${PRESET_GAMES.map((g, idx) => `
+            <button class="preset-pill ${idx === 0 ? 'active' : ''}" data-preset-id="${g.id}">
+              ${g.title}
+            </button>
+          `).join('')}
+          <button id="btn-import-game" class="preset-pill import-pill">Import Game</button>
         </div>
 
         <div class="mode-deck">

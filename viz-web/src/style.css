@@ -223,18 +223,17 @@ h1, h2, h3, h4 {
   border-radius: 999px;
 }
 
-/* Stacking nav (rework of "StackingNavbar") */
+/* Horizontal pill nav */
 .stacked-nav {
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
 .stack-link {
-  position: relative;
   display: inline-flex;
   align-items: center;
   padding: 9px 16px;
-  border-radius: 999px;
   background: rgba(17, 17, 17, 0.04);
   border: var(--rule-thin) solid var(--color-rule);
   color: var(--color-muted);
@@ -243,23 +242,10 @@ h1, h2, h3, h4 {
   font-size: 0.76rem;
   font-weight: 600;
   white-space: nowrap;
-  backdrop-filter: blur(10px);
-  transition: transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1),
-    background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.stack-link:nth-child(1) { z-index: 5; }
-.stack-link:nth-child(2) { z-index: 4; transform: translateX(-34px); }
-.stack-link:nth-child(3) { z-index: 3; transform: translateX(-68px); }
-.stack-link:nth-child(4) { z-index: 2; transform: translateX(-102px); }
-.stack-link:nth-child(5) { z-index: 1; transform: translateX(-136px); }
-
-.stacked-nav:hover .stack-link {
-  transform: translateX(0);
-}
-
-.stacked-nav:hover .stack-link:hover {
-  transform: translateX(0) translateY(-2px);
+.stack-link:hover {
   background: var(--color-ink);
   color: var(--color-paper);
   border-color: var(--color-ink);
@@ -288,33 +274,6 @@ h1, h2, h3, h4 {
   display: flex;
   flex-direction: column;
   padding: 0;
-}
-
-.hero-topline {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-lg);
-  padding: 14px 0 18px;
-  flex-shrink: 0;
-}
-
-.hero-label {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--color-ink);
-  white-space: nowrap;
-}
-
-.hero-note {
-  font-size: 0.9rem;
-  color: var(--color-muted);
-  max-width: 44ch;
-  text-align: right;
-  line-height: 1.4;
 }
 
 .hero-stage {
@@ -460,11 +419,9 @@ h1, h2, h3, h4 {
 .preset-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
   flex-wrap: wrap;
-  padding: 14px 0 6px;
-  border-top: var(--rule-thin) solid var(--color-rule);
-  flex-shrink: 0;
+  gap: 8px;
+  margin-bottom: var(--space-md);
 }
 
 .preset-label {
@@ -1930,23 +1887,12 @@ h1, h2, h3, h4 {
 
   .stacked-nav::-webkit-scrollbar { display: none; }
 
-  .stack-link,
-  .stack-link:nth-child(n) {
-    transform: none;
+  .stack-link {
     flex-shrink: 0;
   }
 
   .nav-actions {
     margin-left: auto;
-  }
-
-  .hero-topline {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .hero-note {
-    text-align: left;
   }
 
   .hero-stage {
