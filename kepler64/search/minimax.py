@@ -241,7 +241,11 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
                             parent_masses=current_mv, stats=stats, ctx=ctx,
                             ply=ply)
         if null_val >= beta:
-            return beta
+            # Fail-soft: return the bound, not beta. Returning the flat `beta`
+            # here is harmless for null move, but the same fail-hard pattern in
+            # quiescence was producing false mates (a zero-window probe against
+            # a mate-inflated alpha returned beta, which negated to +MATE).
+            return null_val
 
     killers = ctx.killers if ctx is not None else None
     history = ctx.history if ctx is not None else None
@@ -255,20 +259,29 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
     best = -INF
     best_move = None
     first = True
-    for m in ordered:
+    for mi, m in enumerate(ordered):
         child = board.apply(m)
         mv = child_mass_vector(board, m, current_mv, child_board=child)
+        is_capture = board.is_capture(m)
+        gives_check = child.in_check(child.turn == 0)
         if first:
             val = -negamax(engine, child, depth - 1, -beta, -alpha, mv,
                            parent_masses=current_mv, stats=stats, ctx=ctx,
                            ply=ply + 1)
             first = False
         else:
-            # PVS: zero-window probe, re-search only when the score climbs
-            # inside the window. (Gate must be alpha < val < beta; the old
-            # -beta < val < -alpha form let fail-soft zero-window values leak
-            # through as exact at interior nodes.)
-            val = -negamax(engine, child, depth - 1, -alpha - 1, -alpha, mv,
+            # LMR (Late Move Reduction): late, quiet, non-checking moves are
+            # probed at reduced depth first. Only a reduced score that climbs
+            # inside the window earns a full-depth re-search. Captures and
+            # checks are always searched at full width (they are forcing).
+            reduce = (depth >= 3 and mi >= 3 and not is_capture and not gives_check)
+            r = 1 + (mi - 3) // 6 if reduce else 0
+            reduced_depth = max(depth - 1 - r, 1)
+            # PVS: zero-window probe (possibly at reduced depth), re-search
+            # only when the score climbs inside the window. (Gate must be
+            # alpha < val < beta; the old -beta < val < -alpha form let
+            # fail-soft zero-window values leak through as exact.)
+            val = -negamax(engine, child, reduced_depth, -alpha - 1, -alpha, mv,
                            parent_masses=current_mv, stats=stats, ctx=ctx,
                            ply=ply + 1)
             if alpha < val < beta:
@@ -288,6 +301,11 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
                 k1, k2 = ctx.killers[ply]
                 ctx.killers[ply] = [best_move, k1]
                 ctx.history[best_move[0] * 64 + best_move[1]] += depth * depth
+            break
+        # A forced mate is found: with flat mate scoring nothing scores higher,
+        # and continuing would push alpha to the mate ceiling, corrupting the
+        # remaining zero-window probes into false +MATE values. Stop the node.
+        if best >= MATE - 1:
             break
 
     # TT store (side-to-move values, full-state key). Fail-soft flagging:
@@ -331,7 +349,11 @@ def _quiesce(engine, board: FastBoard, alpha: float, beta: float,
     stand = _score_position(current_mv, engine.constants, board.turn,
                             parent=parent)
     if stand >= beta:
-        return beta
+        # Fail-soft: return the exact stand-pat value, not the flat beta. A
+        # fail-hard `return beta` here, inside a zero-window probe whose beta
+        # is -MATE (alpha was already pushed to a mate), negates to a FALSE
+        # +MATE at the parent — the "every quiet move scores mate" bug.
+        return stand
     if stand > alpha:
         alpha = stand
 
@@ -344,11 +366,23 @@ def _quiesce(engine, board: FastBoard, alpha: float, beta: float,
                                      -_mass_capture_value(board, m)))
         moves = evasions[:14]
     else:
-        caps = [m for m in moves if board.is_capture(m)]
-        if not caps:
+        # Stand-pat quiescence: expand captures AND quiet checking moves. A
+        # quiet move that gives check is forcing — ignoring it at the horizon
+        # is the classic way a search hangs pieces to a discovered check or a
+        # mate it never saw.
+        caps = []
+        checks = []
+        for m in moves:
+            if board.is_capture(m):
+                caps.append(m)
+            else:
+                nb = board.apply(m)
+                if nb.in_check(nb.turn == 0):
+                    checks.append(m)
+        if not caps and not checks:
             return alpha
         caps.sort(key=lambda m: -_mass_capture_value(board, m))
-        moves = caps[:10]
+        moves = caps[:10] + checks[:4]
 
     # Score all candidate children in ONE vmap sweep (side-to-move perspective),
     # with parent threading so the move-sensitivity (delta) terms are active.
@@ -372,7 +406,7 @@ def _quiesce(engine, board: FastBoard, alpha: float, beta: float,
                             qdepth - 1, parent_masses=current_mv, stats=stats,
                             ctx=ctx)
         if val >= beta:
-            return beta
+            return val
         if val > alpha:
             alpha = val
     return alpha
@@ -401,6 +435,52 @@ def _root_static_order(board: FastBoard, engine, parent_mv):
                          parents=jnp.stack([parent_mv] * len(masses)))
     order = sorted(range(len(moves)), key=lambda i: -float(scores[i]))
     return [moves[i] for i in order]
+
+
+def _search_root_iteration(engine, board, parent_mv, ordered, d, alpha, beta,
+                           seen, stats, ctx, t0, time_ms):
+    """Search one root depth with the given window.
+
+    Returns (iter_best, iter_score, scored, timed_out). A timed-out iteration
+    returns the moves scored so far and flags ``timed_out`` so the caller can
+    keep the last completed depth rather than a partial one.
+    """
+    iter_best, iter_score = None, -INF
+    first = True
+    scored = []
+    for m in ordered:
+        if time_ms is not None and (time.perf_counter() - t0) * 1000.0 > time_ms:
+            return iter_best, iter_score, scored, True
+        child = board.apply(m)
+        mv = child_mass_vector(board, m, parent_mv, child_board=child)
+        if seen is not None and child_in_seen(child, seen):
+            # Closed orbit: the same physical state already occurred on the
+            # line. A cycle exchanges no net mass flux — a draw by physics. Do
+            # not pick it over any real progress; search-time reuse is wasted
+            # on it (score it as 0 and move on).
+            val = 0.0 if d > 1 else -INF
+        elif first:
+            val = -negamax(engine, child, d - 1, -beta, -alpha, mv,
+                           parent_masses=parent_mv, stats=stats, ctx=ctx, ply=1)
+            first = False
+        else:
+            val = -negamax(engine, child, d - 1, -alpha - 1, -alpha, mv,
+                           parent_masses=parent_mv, stats=stats, ctx=ctx, ply=1)
+            if alpha < val < beta:
+                val = -negamax(engine, child, d - 1, -beta, -alpha, mv,
+                               parent_masses=parent_mv, stats=stats, ctx=ctx,
+                               ply=1)
+        if val > iter_score:
+            iter_score, iter_best = val, m
+        if val > alpha:
+            alpha = val
+        scored.append((m, val))
+        # A forced mate is found at the root: nothing scores higher with flat
+        # mate scoring, and continuing would let the mate-inflated alpha corrupt
+        # the remaining zero-window probes into false +MATE values.
+        if iter_score >= MATE - 1:
+            break
+    return iter_best, iter_score, scored, False
 
 
 def iterative_search(engine, board: FastBoard, max_depth: int = 4,
@@ -437,55 +517,54 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
     best, best_score = None, None
     t0 = time.perf_counter()
     scored = []
-    _last_scored = scored
+    prev_score = None
 
     for d in range(1, max_depth + 1):
-        alpha, beta = -INF, INF
-        iter_best, iter_score = None, -INF
         if d == 1:
             ordered = _root_static_order(board, engine, parent_mv)
         else:
             ordered = _ordered_moves(board, engine.constants, tt_move=None,
                                      killers=None, history=None, ply=0,
                                      root_pv=root_pv)
-        first = True
-        for m in ordered:
-            if time_ms is not None and (time.perf_counter() - t0) * 1000.0 > time_ms:
-                # Budget spent mid-iteration: keep the last complete result.
-                # Never fall back to a searcher-blind move (first generated):
-                # the current iteration's ordering already encodes the static
-                # verdict when no move has been committed yet.
+
+        # Aspiration window: from depth 3 onward assume the previous iteration's
+        # score holds and search a narrow window first. A fail-low/high re-search
+        # full-width below, so the returned value is identical to a full-width
+        # search — the window is a pure time-saver, never a change in verdict.
+        if prev_score is not None and d >= 3:
+            delta = 60.0 + 20.0 * d
+            alpha, beta = prev_score - delta, prev_score + delta
+        else:
+            alpha, beta = -INF, INF
+
+        iter_best, iter_score, iter_scored, timed_out = _search_root_iteration(
+            engine, board, parent_mv, ordered, d, alpha, beta, seen, stats,
+            ctx, t0, time_ms)
+
+        if timed_out:
+            # Budget spent mid-iteration: keep the last complete result. Never
+            # fall back to a searcher-blind move (first generated): the current
+            # iteration's ordering already encodes the static verdict when no
+            # move has been committed yet.
+            if best is None:
+                best = ordered[0]
+            return best, (best_score if best_score is not None else 0.0)
+
+        # Aspiration fail: the true score left the window — re-search full-width.
+        if prev_score is not None and d >= 3 and (
+                iter_score <= alpha or iter_score >= beta):
+            iter_best, iter_score, iter_scored, timed_out = _search_root_iteration(
+                engine, board, parent_mv, ordered, d, -INF, INF, seen, stats,
+                ctx, t0, time_ms)
+            if timed_out:
                 if best is None:
                     best = ordered[0]
                 return best, (best_score if best_score is not None else 0.0)
-            child = board.apply(m)
-            mv = child_mass_vector(board, m, parent_mv, child_board=child)
-            if seen is not None and child_in_seen(child, seen):
-                # Closed orbit: the same physical state already occurred on
-                # the line. A cycle exchanges no net mass flux — a draw by
-                # physics. Do not pick it over any real progress; search-time
-                # reuse is wasted on it (score it as 0 and move on).
-                val = 0.0 if d > 1 else -INF
-            elif first:
-                val = -negamax(engine, child, d - 1, -beta, -alpha, mv,
-                               parent_masses=parent_mv, stats=stats, ctx=ctx,
-                               ply=1)
-                first = False
-            else:
-                val = -negamax(engine, child, d - 1, -alpha - 1, -alpha, mv,
-                               parent_masses=parent_mv, stats=stats, ctx=ctx,
-                               ply=1)
-                if alpha < val < beta:
-                    val = -negamax(engine, child, d - 1, -beta, -alpha, mv,
-                                   parent_masses=parent_mv, stats=stats,
-                                   ctx=ctx, ply=1)
-            if val > iter_score:
-                iter_score, iter_best = val, m
-            if val > alpha:
-                alpha = val
-            scored.append((m, val))
+
+        scored = iter_scored
         best, best_score = iter_best, iter_score
         root_pv = iter_best
+        prev_score = best_score
         if time_ms is not None and (time.perf_counter() - t0) * 1000.0 > time_ms:
             break
 
