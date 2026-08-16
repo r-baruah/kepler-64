@@ -22,7 +22,9 @@ export function drawTidalStressEllipse(
 
   ctx.save();
   ctx.translate(kingX, kingY);
-  ctx.rotate(angleRad);
+  // Board-space eigenvectors are computed in a y-up frame; the canvas is
+  // y-down, so negate the rotation to avoid mirrored off-axis ellipses.
+  ctx.rotate(-angleRad);
 
   // 1. Fill ellipse with soft gradient
   ctx.beginPath();

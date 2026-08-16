@@ -32,9 +32,9 @@ export function drawAccretionHalos(
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Outer ring
+    // Outer ring (distinct radius so it does not overlap the inner ring)
     ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.arc(cx, cy, radius * 1.4, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255, 90, 0, 0.45)';
     ctx.lineWidth = 1.5;
     ctx.stroke();

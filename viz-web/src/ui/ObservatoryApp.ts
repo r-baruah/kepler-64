@@ -25,15 +25,6 @@ import type { MultiverseSparkPoint } from './EvalSparkline';
 import { buildAccretionLedger } from '../core/accretion';
 import type { AccretionLedger } from '../core/accretion';
 
-function sanitizeHeader(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 export class ObservatoryApp {
   private container: HTMLElement;
   private config: ConstantsConfig = { ...DEFAULT_CONSTANTS };
@@ -55,6 +46,9 @@ export class ObservatoryApp {
   private multiverseWorker: Worker | null = null;
   private multiverseEnabled = false;
   private accretionExcess: Record<number, number> = {};
+  private multiverseGen = 0;
+  private searchGen = 0;
+  private sparklineDebounce: number | undefined;
 
   private canvasRenderer!: UnifiedCanvas;
   private exportModal!: ExportModal;
@@ -82,6 +76,7 @@ export class ObservatoryApp {
     this.mode = 'replay';
     this.isBotThinking = false;
     this.cleanupWorker();
+    this.cleanupMultiverseWorker();
     this.config = { ...this.replayConfig };
     this.syncConfigToUi();
     if (this.canvasRenderer) {
@@ -96,7 +91,7 @@ export class ObservatoryApp {
     this.chess = this.startFen ? new Chess(this.startFen) : new Chess();
     if (game.pgn) this.chess.loadPgn(game.pgn);
     this.moves = this.chess.history({ verbose: true });
-    this.currentPlyIndex = Math.min(game.highlightPly, this.moves.length - 1);
+    this.currentPlyIndex = Math.max(0, Math.min(game.highlightPly, this.moves.length - 1));
     this.syncBoardToPly(this.currentPlyIndex);
 
     const slider = this.container?.querySelector('#ply-slider') as HTMLInputElement;
@@ -193,6 +188,7 @@ export class ObservatoryApp {
       this.updateMultiverseSparkline();
       return;
     }
+    this.cleanupMultiverseWorker();
 
     const tempChess = this.startFen ? new Chess(this.startFen) : new Chess();
     const tempBoard = new KeplerBoard();
@@ -202,6 +198,13 @@ export class ObservatoryApp {
       const m = this.moves[i];
       tempChess.move(m);
       tempBoard.loadFen(tempChess.fen());
+      tempBoard.massBoost = this.computePlyBoost(
+        this.moves.slice(0, i + 1),
+        {
+          from: (m.from.charCodeAt(1) - 49) * 8 + (m.from.charCodeAt(0) - 97),
+          to: (m.to.charCodeAt(1) - 49) * 8 + (m.to.charCodeAt(0) - 97),
+        }
+      );
       const evalRes = evaluatePosition(tempBoard, this.config);
       points.push({
         ply: i,
@@ -212,13 +215,26 @@ export class ObservatoryApp {
     this.sparkline.setData(points, this.currentPlyIndex);
   }
 
+  private scheduleSparklineRefresh(): void {
+    if (this.sparklineDebounce) window.clearTimeout(this.sparklineDebounce);
+    this.sparklineDebounce = window.setTimeout(() => this.updateSparklineData(), 120);
+  }
+
   private computeCollapsePlies(): number[] {
     const plies: number[] = [];
     const tempChess = this.startFen ? new Chess(this.startFen) : new Chess();
     const tempBoard = new KeplerBoard();
     for (let i = 0; i < this.moves.length; i++) {
-      tempChess.move(this.moves[i]);
+      const m = this.moves[i];
+      tempChess.move(m);
       tempBoard.loadFen(tempChess.fen());
+      tempBoard.massBoost = this.computePlyBoost(
+        this.moves.slice(0, i + 1),
+        {
+          from: (m.from.charCodeAt(1) - 49) * 8 + (m.from.charCodeAt(0) - 97),
+          to: (m.to.charCodeAt(1) - 49) * 8 + (m.to.charCodeAt(0) - 97),
+        }
+      );
       const breakdown = evaluatePosition(tempBoard, this.config);
       if (breakdown.whiteKingTidal?.isDisrupted || breakdown.blackKingTidal?.isDisrupted) {
         plies.push(i);
@@ -228,11 +244,14 @@ export class ObservatoryApp {
   }
 
   private updateMultiverseSparkline(): void {
+    this.multiverseGen++;
+    const gen = this.multiverseGen;
     if (this.multiverseWorker) this.multiverseWorker.terminate();
     const worker = new Worker(new URL('../core/multiverseWorker.ts', import.meta.url), { type: 'module' });
     this.multiverseWorker = worker;
 
     worker.onmessage = (e: MessageEvent) => {
+      if (gen !== this.multiverseGen || !this.multiverseEnabled) return;
       this.cleanupMultiverseWorker();
       const data = e.data as { ok?: boolean; points?: MultiverseSparkPoint[]; error?: string } | undefined;
       if (!data?.ok || !data.points) return;
@@ -285,6 +304,13 @@ export class ObservatoryApp {
     sampleMoves.forEach((m) => {
       tempChess.move(m);
       evalBoard.loadFen(tempChess.fen());
+      evalBoard.massBoost = this.computePlyBoost(
+        [...this.moves.slice(0, this.currentPlyIndex + 1), m],
+        {
+          from: (m.from.charCodeAt(1) - 49) * 8 + (m.from.charCodeAt(0) - 97),
+          to: (m.to.charCodeAt(1) - 49) * 8 + (m.to.charCodeAt(0) - 97),
+        }
+      );
       const res = evaluatePosition(evalBoard, this.config);
       moveEvaluations.push({
         san: m.san,
@@ -324,12 +350,35 @@ export class ObservatoryApp {
       const ratio = Math.min(0.95, dist / Math.max(0.1, this.config.c));
       const gamma = 1 / Math.sqrt(Math.max(0.05, 1 - ratio * ratio));
       const baseMass = this.board.squares[lastMoveObj.to]?.mass ?? 0;
-      boost[lastMoveObj.to] += (gamma - 1) * baseMass;
+      boost[lastMoveObj.to] += (gamma - 1) * (baseMass + (ledger.excessBySquare[lastMoveObj.to] ?? 0));
     }
 
     this.board.massBoost = boost;
     if (this.canvasRenderer) this.canvasRenderer.setAccretion(this.accretionExcess);
     this.updateAccretionHud(ledger);
+  }
+
+  private computePlyBoost(
+    movesUpTo: any[],
+    lastMoveObj: { from: number; to: number } | null
+  ): Float32Array {
+    const ledger = buildAccretionLedger(movesUpTo, this.config.accEta);
+
+    const boost = new Float32Array(64);
+    Object.entries(ledger.excessBySquare).forEach(([sqStr, excess]) => {
+      boost[parseInt(sqStr, 10)] += excess;
+    });
+
+    // Relativistic Lorentz escalation for the most recent move.
+    if (lastMoveObj) {
+      const dist = DIST_64[lastMoveObj.from * 64 + lastMoveObj.to];
+      const ratio = Math.min(0.95, dist / Math.max(0.1, this.config.c));
+      const gamma = 1 / Math.sqrt(Math.max(0.05, 1 - ratio * ratio));
+      const baseMass = this.board.squares[lastMoveObj.to]?.mass ?? 0;
+      boost[lastMoveObj.to] += (gamma - 1) * (baseMass + (ledger.excessBySquare[lastMoveObj.to] ?? 0));
+    }
+
+    return boost;
   }
 
   private updateAccretionHud(ledger: AccretionLedger): void {
@@ -531,6 +580,7 @@ export class ObservatoryApp {
   private startPlayMode(side: 'w' | 'b', personaId: string): void {
     if (this.isPlaying) this.toggleAutoplay();
     this.cleanupWorker();
+    this.cleanupMultiverseWorker();
 
     if (this.mode === 'replay') {
       this.replayConfig = { ...this.config };
@@ -540,6 +590,7 @@ export class ObservatoryApp {
     this.personaId = personaId;
     this.isBotThinking = false;
     this.liveChess = new Chess();
+    this.startFen = null;
     this.moves = [];
     this.currentPlyIndex = 0;
 
@@ -581,20 +632,21 @@ export class ObservatoryApp {
     const chess = new Chess();
     chess.loadPgn(pgn);
     const headers = chess.header();
-    const whiteName = sanitizeHeader(headers.White ?? 'White');
-    const blackName = sanitizeHeader(headers.Black ?? 'Black');
+    const white = headers.White ?? 'White';
+    const black = headers.Black ?? 'Black';
+    const headerFen = headers.FEN || headers.SetUp;
 
     const synthetic: PresetGame = {
       id: 'imported-pgn',
       title: headers.White || headers.Black
-        ? `${whiteName} vs ${blackName}`
+        ? `${white} vs ${black}`
         : 'Imported Game',
       subtitle: 'Custom PGN analysis',
-      white: whiteName,
-      black: blackName,
-      date: sanitizeHeader(headers.Date ?? ''),
-      event: sanitizeHeader(headers.Event ?? ''),
-      initialFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      white,
+      black,
+      date: headers.Date ?? '',
+      event: headers.Event ?? '',
+      initialFen: headerFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       highlightPly: Math.max(0, chess.history().length - 1),
       pgn,
     };
@@ -605,8 +657,12 @@ export class ObservatoryApp {
 
   private handleImportFen(fen: string): void {
     this.cleanupWorker();
+    this.cleanupMultiverseWorker();
     this.isBotThinking = false;
     this.mode = 'replay';
+    this.config = { ...this.replayConfig };
+    this.syncConfigToUi();
+    if (this.canvasRenderer) this.canvasRenderer.setConfig(this.config);
     this.startFen = fen;
     this.moves = [];
     this.currentPlyIndex = 0;
@@ -722,10 +778,14 @@ export class ObservatoryApp {
     this.isBotThinking = true;
     this.updateBotStatus('Kepler-64 is thinking…');
 
+    this.searchGen++;
+    const gen = this.searchGen;
+
     const worker = new Worker(new URL('../core/searchWorker.ts', import.meta.url), { type: 'module' });
     this.searchWorker = worker;
 
     worker.onmessage = (e: MessageEvent) => {
+      if (gen !== this.searchGen) return;
       this.cleanupWorker();
       this.isBotThinking = false;
 
@@ -1330,7 +1390,7 @@ export class ObservatoryApp {
           this.canvasRenderer.setConfig(this.config);
         }
         if (this.sparkline) {
-          this.updateSparklineData();
+          this.scheduleSparklineRefresh();
         }
       });
     };

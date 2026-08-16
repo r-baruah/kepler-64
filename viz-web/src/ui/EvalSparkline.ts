@@ -166,14 +166,14 @@ export class EvalSparkline {
             <!-- Trajectory Wave -->
             <path d="${lineD.join(' ')}" fill="none" stroke="var(--color-ink)" stroke-width="2.2" stroke-linejoin="round" />
 
+            <!-- Tidal Collapse Markers (behind cursor so they never cover it) -->
+            ${this.collapseMarkerSvg(n)}
+
             <!-- Active Cursor Vertical Line -->
             <line id="timeline-cursor-line" x1="${activeCoord.x.toFixed(1)}" y1="4" x2="${activeCoord.x.toFixed(1)}" y2="${height - 4}" stroke="var(--color-accent)" stroke-width="1.8" stroke-dasharray="2,2" />
 
             <!-- Active Cursor Marker -->
             <circle id="timeline-cursor-dot" cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="5.5" fill="var(--color-accent)" stroke="var(--color-ink)" stroke-width="2" />
-
-            <!-- Tidal Collapse Markers -->
-            ${this.collapseMarkerSvg(n)}
           </svg>
         </div>
       </div>
@@ -272,14 +272,14 @@ export class EvalSparkline {
             <!-- Mean Trajectory -->
             <path d="${meanLineD.join(' ')}" fill="none" stroke="var(--color-ink)" stroke-width="2.2" stroke-linejoin="round" />
 
+            <!-- Tidal Collapse Markers (behind cursor so they never cover it) -->
+            ${this.collapseMarkerSvg(coords.length)}
+
             <!-- Active Cursor Vertical Line -->
             <line id="timeline-cursor-line" x1="${activeCoord.x.toFixed(1)}" y1="4" x2="${activeCoord.x.toFixed(1)}" y2="${height - 4}" stroke="var(--color-accent)" stroke-width="1.8" stroke-dasharray="2,2" />
 
             <!-- Active Cursor Marker -->
             <circle id="timeline-cursor-dot" cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="5.5" fill="var(--color-accent)" stroke="var(--color-ink)" stroke-width="2" />
-
-            <!-- Tidal Collapse Markers -->
-            ${this.collapseMarkerSvg(coords.length)}
           </svg>
         </div>
       </div>
@@ -418,25 +418,23 @@ export class EvalSparkline {
   }
 
   private computeSingleClampSpan(): number {
-    let minScore = -4.0;
-    let maxScore = 4.0;
-    this.points.forEach((p) => {
-      if (p.score < minScore) minScore = p.score;
-      if (p.score > maxScore) maxScore = p.score;
-    });
-    return Math.max(8.0, Math.max(Math.abs(minScore), Math.abs(maxScore)) * 2.0);
+    const magnitudes = this.points.map((p) => Math.abs(p.score)).sort((a, b) => a - b);
+    const idx = Math.floor(0.9 * magnitudes.length);
+    const robustAbs = magnitudes[idx] ?? 0;
+    return Math.max(8.0, robustAbs * 2.0);
   }
 
   private computeMultiverseClampSpan(): number {
-    let maxAbs = 0;
+    const magnitudes: number[] = [];
     this.mvPoints!.forEach((p) => {
-      const sigma = p.sigma;
-      const top = p.mean + sigma;
-      const bottom = p.mean - sigma;
-      const abs = Math.max(Math.abs(top), Math.abs(bottom));
-      if (abs > maxAbs) maxAbs = abs;
+      magnitudes.push(Math.abs(p.mean));
+      magnitudes.push(Math.abs(p.mean + p.sigma));
+      magnitudes.push(Math.abs(p.mean - p.sigma));
     });
-    return Math.max(8.0, maxAbs * 2.0);
+    magnitudes.sort((a, b) => a - b);
+    const idx = Math.floor(0.9 * magnitudes.length);
+    const robustAbs = magnitudes[idx] ?? 0;
+    return Math.max(8.0, robustAbs * 2.0);
   }
 
   private buildMultiverseCoords(): { clampSpan: number; coords: MultiverseCoord[] } {

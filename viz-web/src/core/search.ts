@@ -48,6 +48,9 @@ function buildBoost(
 ): Float32Array {
   const boost = new Float32Array(64);
 
+  const fromSq = move ? squareFromAlgebraic(move.from) : -1;
+  const carried = (baseExcess && fromSq >= 0) ? (baseExcess[fromSq] ?? 0) : 0;
+
   if (baseExcess) {
     for (const key of Object.keys(baseExcess)) {
       const sq = parseInt(key, 10);
@@ -57,12 +60,34 @@ function buildBoost(
 
   if (move) {
     const toSq = squareFromAlgebraic(move.to);
+
+    // Relocate the moving piece's accreted mass to its destination.
+    if (fromSq >= 0) boost[fromSq] = 0;
+    boost[toSq] += carried;
+
     const gamma = lorentzGamma(move.from, move.to, config);
     const base = board.squares[toSq]?.mass ?? 0;
-    boost[toSq] += (gamma - 1) * base;
+    const total = base + (baseExcess?.[toSq] ?? 0) + carried;
+    boost[toSq] += (gamma - 1) * total;
   }
 
   return boost;
+}
+
+function relocateExcess(
+  baseExcess: Record<number, number> | null,
+  move: MoveLike | null
+): Record<number, number> | null {
+  if (!baseExcess) return null;
+  if (!move) return { ...baseExcess };
+
+  const fromSq = squareFromAlgebraic(move.from);
+  const toSq = squareFromAlgebraic(move.to);
+  const relocated: Record<number, number> = { ...baseExcess };
+  const carried = relocated[fromSq] ?? 0;
+  relocated[fromSq] = 0;
+  relocated[toSq] = (relocated[toSq] ?? 0) + carried;
+  return relocated;
 }
 
 function scoreFenWhite(
@@ -84,6 +109,7 @@ function leafScore(
 ): number {
   if (persona.search === 'quantum' && persona.quantumSamples > 0) {
     const board = new KeplerBoard(fen);
+    // Lorentz boost uses the persona's base `c` here (a deliberate approximation).
     const boost = buildBoost(board, persona.config, baseExcess, move);
     const samples = sampleUniverses(persona.config, persona.quantumSamples);
     const { mean, sigma } = evaluateAcrossUniverses(fen, samples, boost);
@@ -116,6 +142,7 @@ export function searchBestMove(
 
   // 2-ply: probe the opponent's best reply for each beam candidate.
   const refined = beam.map((cand) => {
+    const relocatedExcess = relocateExcess(baseExcess, cand.m);
     chess.move(cand.m);
     let reply: number;
     let replySan = '';
@@ -127,7 +154,7 @@ export function searchBestMove(
       let best: number | null = null;
       for (const r of replies) {
         chess.move(r);
-        const s = scoreFenWhite(chess.fen(), persona.config, baseExcess, r);
+        const s = scoreFenWhite(chess.fen(), persona.config, relocatedExcess, r);
         chess.undo();
         if (best === null || (s * -sign) > (best * -sign)) {
           best = s;

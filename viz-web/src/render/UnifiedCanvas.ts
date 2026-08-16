@@ -59,6 +59,11 @@ export class UnifiedCanvas {
   private animFrame: number | null = null;
   private pulseTimer: number | null = null;
 
+  // Memoized expensive-layer cache (heatmap + contours and evaluation).
+  private cacheKey: string | null = null;
+  private heatmapCanvas: HTMLCanvasElement | null = null;
+  private cachedBreakdown: ScoreBreakdown | null = null;
+
   // Hover state
   private hoveredSquare: number | null = null;
   private onHoverCallback?: (info: SquareHoverInfo | null) => void;
@@ -79,6 +84,36 @@ export class UnifiedCanvas {
   private onMoveCallback?: (fromSq: number, toSq: number) => void;
   private onEvaluateCallback?: (breakdown: ScoreBreakdown) => void;
   private orientation: 'w' | 'b' = 'w';
+
+  // Bound listener references so destroy() can remove them.
+  private boundCanvasMouseDown = this.handlePointerDown.bind(this);
+  private boundCanvasMouseMove = this.handleMouseMove.bind(this);
+  private boundCanvasMouseLeave = this.handleMouseLeave.bind(this);
+  private boundWindowMouseMove = this.handleWindowMouseMove.bind(this);
+  private boundWindowMouseUp = this.handlePointerUp.bind(this);
+  private boundTouchStart = (e: TouchEvent): void => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      this.startDrag(touch.clientX, touch.clientY);
+    }
+  };
+  private boundTouchMove = (e: TouchEvent): void => {
+    if (this.isDragging && e.touches.length === 1) {
+      if (e.cancelable) e.preventDefault();
+      const touch = e.touches[0];
+      this.updateDrag(touch.clientX, touch.clientY);
+    }
+  };
+  private boundTouchEnd = (e: TouchEvent): void => {
+    if (this.isDragging) {
+      if (e.changedTouches.length > 0) {
+        const touch = e.changedTouches[0];
+        this.endDrag(touch.clientX, touch.clientY);
+      } else {
+        this.endDrag();
+      }
+    }
+  };
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -124,7 +159,7 @@ export class UnifiedCanvas {
     const shouldPulse =
       this.layers.showAccretion || this.layers.showWavefronts || this.layers.showLorentz;
     if (shouldPulse && this.pulseTimer === null) {
-      this.pulseTimer = window.setInterval(() => this.render(), 150);
+      this.pulseTimer = window.setInterval(() => this.render(), 200);
     } else if (!shouldPulse && this.pulseTimer !== null) {
       window.clearInterval(this.pulseTimer);
       this.pulseTimer = null;
@@ -138,6 +173,30 @@ export class UnifiedCanvas {
   public setOrientation(color: 'w' | 'b'): void {
     this.orientation = color;
     this.render();
+  }
+
+  public destroy(): void {
+    if (this.pulseTimer !== null) {
+      window.clearInterval(this.pulseTimer);
+      this.pulseTimer = null;
+    }
+    if (this.animFrame !== null) {
+      cancelAnimationFrame(this.animFrame);
+      this.animFrame = null;
+    }
+
+    this.canvas.removeEventListener('mousedown', this.boundCanvasMouseDown);
+    this.canvas.removeEventListener('mousemove', this.boundCanvasMouseMove);
+    this.canvas.removeEventListener('mouseleave', this.boundCanvasMouseLeave);
+    window.removeEventListener('mousemove', this.boundWindowMouseMove);
+    window.removeEventListener('mouseup', this.boundWindowMouseUp);
+    this.canvas.removeEventListener('touchstart', this.boundTouchStart);
+    window.removeEventListener('touchmove', this.boundTouchMove);
+    window.removeEventListener('touchend', this.boundTouchEnd);
+
+    this.cacheKey = null;
+    this.heatmapCanvas = null;
+    this.cachedBreakdown = null;
   }
 
   private disp(sq: number): number {
@@ -205,38 +264,16 @@ export class UnifiedCanvas {
   }
 
   private attachEventListeners(): void {
-    this.canvas.addEventListener('mousedown', this.handlePointerDown.bind(this));
-    this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
-    this.canvas.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
-    window.addEventListener('mousemove', this.handleWindowMouseMove.bind(this));
-    window.addEventListener('mouseup', this.handlePointerUp.bind(this));
+    this.canvas.addEventListener('mousedown', this.boundCanvasMouseDown);
+    this.canvas.addEventListener('mousemove', this.boundCanvasMouseMove);
+    this.canvas.addEventListener('mouseleave', this.boundCanvasMouseLeave);
+    window.addEventListener('mousemove', this.boundWindowMouseMove);
+    window.addEventListener('mouseup', this.boundWindowMouseUp);
 
     // Touch support with touch-action lock
-    this.canvas.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        this.startDrag(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-
-    window.addEventListener('touchmove', (e) => {
-      if (this.isDragging && e.touches.length === 1) {
-        if (e.cancelable) e.preventDefault();
-        const touch = e.touches[0];
-        this.updateDrag(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-
-    window.addEventListener('touchend', (e) => {
-      if (this.isDragging) {
-        if (e.changedTouches.length > 0) {
-          const touch = e.changedTouches[0];
-          this.endDrag(touch.clientX, touch.clientY);
-        } else {
-          this.endDrag();
-        }
-      }
-    });
+    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    window.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+    window.addEventListener('touchend', this.boundTouchEnd);
   }
 
   private getCanvasSquare(clientX: number, clientY: number): number | null {
@@ -412,18 +449,132 @@ export class UnifiedCanvas {
     const uy = dy / d;
 
     const mu = B.m / (A.m + B.m); // secondary mass fraction
-    const alpha = Math.cbrt(mu / 3);
-
     const s60 = 0.8660254;
-    const points = [
-      { x: ax + ux * d * (1 - alpha), y: ay + uy * d * (1 - alpha), label: 'L1' },
-      { x: bx + ux * d * alpha, y: by + uy * d * alpha, label: 'L2' },
-      { x: ax - ux * d * (1 - (7 * mu) / 12), y: ay - uy * d * (1 - (7 * mu) / 12), label: 'L3' },
-      { x: ax + (ux * 0.5 - uy * s60) * d, y: ay + (uy * 0.5 + ux * s60) * d, label: 'L4' },
-      { x: ax + (ux * 0.5 + uy * s60) * d, y: ay + (uy * 0.5 - ux * s60) * d, label: 'L5' },
-    ];
+
+    let points: { x: number; y: number; label: string }[];
+    if (Math.abs(mu - 0.5) < 1e-6) {
+      // Equal dominant masses: the classical collinear approximations are
+      // singular; use the symmetric midpoint / symmetric beyond-colinear points.
+      points = [
+        { x: ax + ux * d * 0.5, y: ay + uy * d * 0.5, label: 'L1' },
+        { x: bx + ux * d * 0.55, y: by + uy * d * 0.55, label: 'L2' },
+        { x: ax - ux * d * 0.55, y: ay - uy * d * 0.55, label: 'L3' },
+        { x: ax + (ux * 0.5 - uy * s60) * d, y: ay + (uy * 0.5 + ux * s60) * d, label: 'L4' },
+        { x: ax + (ux * 0.5 + uy * s60) * d, y: ay + (uy * 0.5 - ux * s60) * d, label: 'L5' },
+      ];
+    } else {
+      const alpha = Math.cbrt(mu / 3);
+      points = [
+        { x: ax + ux * d * (1 - alpha), y: ay + uy * d * (1 - alpha), label: 'L1' },
+        { x: bx + ux * d * alpha, y: by + uy * d * alpha, label: 'L2' },
+        { x: ax - ux * d * (1 - (7 * mu) / 12), y: ay - uy * d * (1 - (7 * mu) / 12), label: 'L3' },
+        { x: ax + (ux * 0.5 - uy * s60) * d, y: ay + (uy * 0.5 + ux * s60) * d, label: 'L4' },
+        { x: ax + (ux * 0.5 + uy * s60) * d, y: ay + (uy * 0.5 - ux * s60) * d, label: 'L5' },
+      ];
+    }
 
     return points.filter((p) => p.x >= 0 && p.x <= 8 && p.y >= 0 && p.y <= 8);
+  }
+
+  private buildCacheKey(width: number, height: number): string {
+    const layerFlags = `${this.layers.showHeatmap ? 1 : 0}${this.layers.showContours ? 1 : 0}`;
+    // toFen() does not include massBoost, which changes massVector() for
+    // accretion/Lorentz boosts; keep it in the key so equal FENs with
+    // different boosts still invalidate the expensive-layer cache.
+    const massBoost = Array.from(this.board.massBoost).join(',');
+    const dragState =
+      this.isDragging && this.dragFromSq !== null
+        ? `${this.dragFromSq}:${this.hoveredSquare ?? this.dragFromSq}`
+        : '';
+    return [
+      this.board.toFen(),
+      JSON.stringify(this.config),
+      layerFlags,
+      this.orientation,
+      width,
+      height,
+      massBoost,
+      dragState,
+    ].join('|');
+  }
+
+  private buildHeatmapCanvas(
+    masses: Float32Array,
+    width: number,
+    height: number
+  ): HTMLCanvasElement | null {
+    const { grid, n, p3, p97 } = potentialOnGrid(masses, this.config.eps, this.config.G, this.config.c, 64);
+    const span = p97 - p3 || 1.0;
+
+    const combined = document.createElement('canvas');
+    combined.width = width;
+    combined.height = height;
+    const combinedCtx = combined.getContext('2d');
+    if (!combinedCtx) return null;
+
+    // Render the heatmap image data into a small buffer, then scale it into
+    // the combined layer canvas.
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = n;
+    offCanvas.height = n;
+    const offCtx = offCanvas.getContext('2d');
+    if (offCtx) {
+      const imgData = offCtx.createImageData(n, n);
+      const data = imgData.data;
+
+      for (let gy = 0; gy < n; gy++) {
+        const invGy = n - 1 - gy;
+        for (let gx = 0; gx < n; gx++) {
+          const val = grid[invGy * n + gx];
+          const t = Math.max(0, Math.min(1, (val - p3) / span));
+
+          // Deep Ultramarine -> Indigo -> Soft Amber -> Light Magma
+          const r = Math.round(18 + t * (230 - 18));
+          const g = Math.round(26 + t * (140 - 26));
+          const b = Math.round(75 + t * (45 - 75));
+          const alpha = Math.round(35 + t * 45); // Subtle, non-obscuring 15-30% opacity
+
+          const idx = (gy * n + gx) * 4;
+          data[idx] = r;
+          data[idx + 1] = g;
+          data[idx + 2] = b;
+          data[idx + 3] = alpha;
+        }
+      }
+      offCtx.putImageData(imgData, 0, 0);
+      combinedCtx.drawImage(offCanvas, 0, 0, width, height);
+    }
+
+    // Equipotential contours are drawn into the same cached layer so they are
+    // not recomputed during pulse ticks either.
+    if (this.layers.showContours) {
+      const levels: number[] = [];
+      const numLevels = 14;
+      for (let k = 1; k < numLevels; k++) {
+        levels.push(p3 + (span * k) / numLevels);
+      }
+
+      const contours = generateContourLines(grid, n, levels);
+      combinedCtx.save();
+      combinedCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      combinedCtx.lineWidth = 1.2;
+
+      contours.forEach((segments) => {
+        combinedCtx.beginPath();
+        segments.forEach((seg) => {
+          const x1 = ((seg.x1 + 0.5) / 8.0) * width;
+          const y1 = height - ((seg.y1 + 0.5) / 8.0) * height;
+          const x2 = ((seg.x2 + 0.5) / 8.0) * width;
+          const y2 = height - ((seg.y2 + 0.5) / 8.0) * height;
+          combinedCtx.moveTo(x1, y1);
+          combinedCtx.lineTo(x2, y2);
+        });
+        combinedCtx.stroke();
+      });
+      combinedCtx.restore();
+    }
+
+    return combined;
   }
 
   public render(): void {
@@ -495,72 +646,19 @@ export class UnifiedCanvas {
       if (targetSq !== null) masses[targetSq] += carried;
     }
 
-    // 4. Draw Continuous Plummer Potential Heatmap
+    const cacheKey = this.buildCacheKey(width, height);
+    const cacheChanged = cacheKey !== this.cacheKey;
+
+    // 4. Draw Continuous Plummer Potential Heatmap (+ Equipotential Contours)
     if (this.layers.showHeatmap) {
-      const { grid, n, p3, p97 } = potentialOnGrid(masses, this.config.eps, this.config.G, this.config.c, 64);
-      const span = p97 - p3 || 1.0;
-
-      const offCanvas = document.createElement('canvas');
-      offCanvas.width = n;
-      offCanvas.height = n;
-      const offCtx = offCanvas.getContext('2d');
-      if (offCtx) {
-        const imgData = offCtx.createImageData(n, n);
-        const data = imgData.data;
-
-        for (let gy = 0; gy < n; gy++) {
-          const invGy = n - 1 - gy;
-          for (let gx = 0; gx < n; gx++) {
-            const val = grid[invGy * n + gx];
-            const t = Math.max(0, Math.min(1, (val - p3) / span));
-
-            // Deep Ultramarine -> Indigo -> Soft Amber -> Light Magma
-            const r = Math.round(18 + t * (230 - 18));
-            const g = Math.round(26 + t * (140 - 26));
-            const b = Math.round(75 + t * (45 - 75));
-            const alpha = Math.round(35 + t * 45); // Subtle, non-obscuring 15-30% opacity
-
-            const idx = (gy * n + gx) * 4;
-            data[idx] = r;
-            data[idx + 1] = g;
-            data[idx + 2] = b;
-            data[idx + 3] = alpha;
-          }
-        }
-        offCtx.putImageData(imgData, 0, 0);
-
-        ctx.save();
-        ctx.drawImage(offCanvas, 0, 0, width, height);
-        ctx.restore();
+      if (cacheChanged || !this.heatmapCanvas) {
+        this.heatmapCanvas = this.buildHeatmapCanvas(masses, width, height);
       }
-
-      // 5. Draw Equipotential Contour Lines
-      if (this.layers.showContours) {
-        const levels: number[] = [];
-        const numLevels = 14;
-        for (let k = 1; k < numLevels; k++) {
-          levels.push(p3 + (span * k) / numLevels);
-        }
-
-        const contours = generateContourLines(grid, n, levels);
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.lineWidth = 1.2;
-
-        contours.forEach((segments) => {
-          ctx.beginPath();
-          segments.forEach((seg) => {
-            const x1 = ((seg.x1 + 0.5) / 8.0) * width;
-            const y1 = height - ((seg.y1 + 0.5) / 8.0) * height;
-            const x2 = ((seg.x2 + 0.5) / 8.0) * width;
-            const y2 = height - ((seg.y2 + 0.5) / 8.0) * height;
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-          });
-          ctx.stroke();
-        });
-        ctx.restore();
+      if (this.heatmapCanvas) {
+        ctx.drawImage(this.heatmapCanvas, 0, 0);
       }
+    } else {
+      this.heatmapCanvas = null;
     }
 
     // 6. Draw Gravitational Force Vectors (Streamlines)
@@ -608,7 +706,16 @@ export class UnifiedCanvas {
     }
 
     // 7. Evaluate Position and Render Tidal Tensors
-    const breakdown = evaluatePosition(this.board, this.config);
+    let breakdown: ScoreBreakdown;
+    if (cacheChanged || !this.cachedBreakdown) {
+      breakdown = evaluatePosition(this.board, this.config);
+      this.cachedBreakdown = breakdown;
+    } else {
+      breakdown = this.cachedBreakdown;
+    }
+
+    this.cacheKey = cacheKey;
+
     if (this.onEvaluateCallback) {
       this.onEvaluateCallback(breakdown);
     }
