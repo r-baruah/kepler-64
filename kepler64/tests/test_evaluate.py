@@ -2,7 +2,7 @@
 
 import jax.numpy as jnp
 
-from kepler64.core.evaluate import score_white, score_white_terms
+from kepler64.core.evaluate import score_white, score_white_terms, _eta_drift
 from kepler64.core.constants import Constants
 
 
@@ -63,3 +63,30 @@ def test_diagonal_self_energy_is_removed_from_binding():
     masses = jnp.zeros(64, dtype=jnp.float32).at[0].set(1000.0).at[63].set(-1000.0)
     terms = score_white_terms(masses, c)
     assert abs(float(terms.binding)) < 1e-3
+
+
+def test_verlet_drift_is_finite_and_positive_under_attack():
+    """The Verlet drift (impending collapse) is finite, and positive when a
+    King is pulled toward the attacking mass that tears it."""
+    c = Constants()
+    # White king a1 (0), black king h8 (63), heavy WHITE queen on g7 (54) next
+    # to the black king. The black king drifts toward the queen -> white's
+    # tidal stress on it grows -> drift > 0.
+    masses = jnp.zeros(64, dtype=jnp.float32)
+    masses = masses.at[0].set(1000.0).at[63].set(-1000.0).at[54].set(9.0)
+    white_m = jnp.where(masses > 0.0, jnp.abs(masses), 0.0)
+    drift = float(_eta_drift(white_m, 63, 1000.0, c.G, c.eps, c.c, c.Rg, c.mref))
+    assert jnp.isfinite(drift)
+    assert drift > 0.0
+
+
+def test_verlet_drift_term_is_in_score_decomposition():
+    """The drift term is part of the total and finite (no NaN in the eval)."""
+    c = Constants()
+    masses = jnp.zeros(64, dtype=jnp.float32)
+    masses = masses.at[0].set(1000.0).at[63].set(-1000.0).at[54].set(9.0)
+    terms = score_white_terms(masses, c)
+    assert jnp.isfinite(float(terms.drift))
+    assert jnp.isfinite(float(terms.total))
+    # The drift term must be one of the summed contributions.
+    assert abs(float(sum(terms[:-1])) - float(terms.total)) < 1e-3 * max(1.0, abs(float(terms.total)))

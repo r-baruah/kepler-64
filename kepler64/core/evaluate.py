@@ -98,6 +98,69 @@ def _eta_pair(masses, G, eps, c, Rg, mref):
     return eta_b, eta_w
 
 
+def _tidal_tensor_at_pos(attacker_m, pos, G, eps, c):
+    """Analytical Hessian (tidal tensor) of the gated Plummer potential at a
+    continuous position `pos`.
+
+    A_ik = sum_j G m_j gate_j [ delta_ik/s_j^3 - 3 d_j,i d_j,k / s_j^5 ],
+    the exact Hessian of Phi(p) = -G sum_j gate_j m_j / s_j with the reach gate
+    treated as a smooth mask (its derivatives are second-order and omitted).
+    This is the continuous analogue of tidal_tensor_at()'s finite differences,
+    so it resolves arbitrarily small King drifts instead of snapping to a
+    lattice square.
+    """
+    d = _COORDS - pos                         # (64, 2)
+    dist = jnp.sqrt(jnp.sum(d**2, axis=-1))   # (64,)
+    s2 = jnp.sum(d**2, axis=-1) + eps**2      # (64,)
+    s = jnp.sqrt(s2)
+    s3 = s2 * s                               # s^3
+    s5 = s3 * s2                              # s^5
+    gate = jax.nn.sigmoid(c - dist)
+    w = G * jnp.abs(attacker_m) * gate        # (64,) gated weighted masses
+    tr = jnp.sum(w / s3)
+    xx = jnp.sum(w * d[:, 0] ** 2 / s5)
+    xy = jnp.sum(w * d[:, 0] * d[:, 1] / s5)
+    yy = jnp.sum(w * d[:, 1] ** 2 / s5)
+    return jnp.array([[tr - 3.0 * xx, -3.0 * xy],
+                      [-3.0 * xy, tr - 3.0 * yy]])
+
+
+def _eta_at_pos(attacker_m, pos, king_mass, G, eps, c, Rg, mref):
+    """Tidal-disruption index at a continuous position."""
+    A = _tidal_tensor_at_pos(attacker_m, pos, G, eps, c)
+    lam1, _ = eig2x2(A)
+    Rg_eff = Rg * (jnp.abs(king_mass) / 1000.0) ** (1.0 / 3.0)
+    return (Rg_eff**3) * lam1 / (mref**2 + 1e-9)
+
+
+def _eta_drift(attacker_m, king_sq, king_mass, G, eps, c, Rg, mref,
+               steps=4, dt=0.1):
+    """Projected tidal-stress change (impending collapse) for one King.
+
+    A short energy-conserving Leapfrog rollout advances the King's continuous
+    coordinate under the ATTACKER's field (the field that tears it), and the
+    tidal index at the projected location minus the current one is the net dη
+    over the horizon. Positive = the King is drifting into higher stress.
+    """
+    am = jnp.abs(attacker_m)
+    pos = _COORDS[king_sq]
+    vel = jnp.zeros(2, dtype=pos.dtype)
+
+    def _step(carry, _):
+        p, v = carry
+        d = _COORDS - p
+        r2 = jnp.sum(d**2, axis=-1) + eps**2
+        a = G * jnp.einsum("i,ij->j", am / (r2 * jnp.sqrt(r2)), d)
+        v = v + a * dt
+        p = p + v * dt
+        return (p, v), p
+
+    (p_end, _), _ = jax.lax.scan(_step, (pos, vel), None, length=steps)
+    eta_now = _eta_at_pos(attacker_m, pos, king_mass, G, eps, c, Rg, mref)
+    eta_end = _eta_at_pos(attacker_m, p_end, king_mass, G, eps, c, Rg, mref)
+    return eta_end - eta_now
+
+
 class EvalTerms(NamedTuple):
     tidal_enemy: float
     tidal_self: float
@@ -109,6 +172,7 @@ class EvalTerms(NamedTuple):
     delta_com: float
     delta_inertia: float
     delta_entropy: float
+    drift: float
     total: float
 
 
@@ -117,7 +181,7 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
                 Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
                 lambda_delta: float = 0.0, com_gain: float = 0.0,
                 inertia_gain: float = 0.0, entropy_gain: float = 0.0,
-                parent_masses=None):
+                lambda_drift: float = 0.0, parent_masses=None):
     """Evaluation from White's perspective (positive = good for White).
 
     When `parent_masses` is supplied, the move-sensitivity (delta) terms are
@@ -150,12 +214,21 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
     bonus_b = bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
     pen_w = -bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_b[wk] + 1e-9) - roche))
 
+    # Verlet tidal-drift (impending collapse): project each King forward under
+    # the OPPONENT's field and read the change in tidal stress at the projected
+    # location. Source-attributed like eta_b/eta_w: white's field tears the
+    # black King (good for White when growing), black's tears the white King.
+    drift_b = _eta_drift(white_m, bk, jnp.abs(masses[bk]), G, eps, c, Rg, mref)
+    drift_w = _eta_drift(black_m, wk, jnp.abs(masses[wk]), G, eps, c, Rg, mref)
+
     # If either King is missing (corrupted board), the disruption/force terms
     # are meaningless — neutralize them instead of silently scoring at a1.
     eta_w = jnp.where(kings_ok, eta_w, 0.0)
     eta_b = jnp.where(kings_ok, eta_b, 0.0)
     bonus_b = jnp.where(kings_ok, bonus_b, 0.0)
     pen_w = jnp.where(kings_ok, pen_w, 0.0)
+    drift_b = jnp.where(kings_ok, drift_b, 0.0)
+    drift_w = jnp.where(kings_ok, drift_w, 0.0)
 
     # Gravitational BINDING ENERGY edge (army-internal cohesion):
     #   U_bind_white = dot(white_co, U_wc) / 2
@@ -276,10 +349,14 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
             + (_shannon_entropy(black_co) - p_b_entropy)
         entropy_term = entropy_gain * entropy_delta
 
+    drift_term = lambda_drift * (drift_b - drift_w)
+
     total = (eta_b - eta_w + bonus_b + pen_w + global_edge + material
-             + delta_eta_term + com_term + inertia_term + entropy_term)
+             + delta_eta_term + com_term + inertia_term + entropy_term
+             + drift_term)
     return EvalTerms(eta_b, -eta_w, bonus_b, pen_w, global_edge, material,
-                     delta_eta_term, com_term, inertia_term, entropy_term, total)
+                     delta_eta_term, com_term, inertia_term, entropy_term,
+                     drift_term, total)
 
 
 def _score_body(masses, G: float, eps: float, c: float, roche: float,
@@ -287,19 +364,22 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
                 Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
                 lambda_delta: float = 0.0, com_gain: float = 0.0,
                 inertia_gain: float = 0.0, entropy_gain: float = 0.0,
-                parent_masses=None):
+                lambda_drift: float = 0.0, parent_masses=None):
     return _score_terms_body(masses, G, eps, c, roche, bonus, kgain, gamma,
                              Rg, mref, mat_gain, lambda_delta, com_gain,
-                             inertia_gain, entropy_gain, parent_masses).total
+                             inertia_gain, entropy_gain, lambda_drift,
+                             parent_masses).total
 
 
 @jax.jit
 def _score_core_static(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
                        mref, mat_gain, lambda_delta=0.0, com_gain=0.0,
-                       inertia_gain=0.0, entropy_gain=0.0, parent_masses=None):
+                       inertia_gain=0.0, entropy_gain=0.0, lambda_drift=0.0,
+                       parent_masses=None):
     return _score_terms_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
                              mref, mat_gain, lambda_delta, com_gain,
-                             inertia_gain, entropy_gain, parent_masses).total
+                             inertia_gain, entropy_gain, lambda_drift,
+                             parent_masses).total
 
 
 def _shannon_entropy(m):
@@ -324,7 +404,7 @@ def score_white(masses: "jnp.ndarray", constants, parent=None) -> float:
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
         constants.mref, constants.mat_gain, constants.lambda_delta,
         constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        parent,
+        constants.lambda_drift, parent,
     )
 
 
@@ -339,7 +419,7 @@ def score_white_terms(masses: "jnp.ndarray", constants, parent=None) -> EvalTerm
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
         constants.mref, constants.mat_gain, constants.lambda_delta,
         constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        parent,
+        constants.lambda_drift, parent,
     )
 
 
@@ -394,8 +474,8 @@ def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants
     reach gate `c` is clipped back to its physical prior [1, 10]. `mref` is a
     fixed unit scale (not a trainable weight), so it is held constant.
     """
-    keys = _jr.split(key, 13)
-    kG, ke, kc, kr, kb, kkg, kg, kR, kmg, kld, kcg, kig, keg = keys
+    keys = _jr.split(key, 14)
+    kG, ke, kc, kr, kb, kkg, kg, kR, kmg, kld, kcg, kig, keg, kdr = keys
     return Constants(
         G=base.G * (1.0 + sigma * _jr.normal(kG)),
         eps=base.eps * (1.0 + sigma * _jr.normal(ke)),
@@ -411,6 +491,7 @@ def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants
         com_gain=base.com_gain * (1.0 + sigma * _jr.normal(kcg)),
         inertia_gain=base.inertia_gain * (1.0 + sigma * _jr.normal(kig)),
         entropy_gain=base.entropy_gain * (1.0 + sigma * _jr.normal(keg)),
+        lambda_drift=base.lambda_drift * (1.0 + sigma * _jr.normal(kdr)),
     )
 
 
