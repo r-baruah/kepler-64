@@ -17,6 +17,8 @@ import { EvalSparkline } from './EvalSparkline';
 import { FieldGuideComponent } from './FieldGuide';
 import { ContributorsSection } from './ContributorsSection';
 import { latex } from './katexUtil';
+import { BOT_PERSONAS, getPersona } from '../core/personas';
+import type { SearchResult } from '../core/search';
 
 export class ObservatoryApp {
   private container: HTMLElement;
@@ -28,6 +30,12 @@ export class ObservatoryApp {
   private currentPlyIndex = 0;
   private isPlaying = false;
   private playIntervalId?: number;
+  private mode: 'replay' | 'play' = 'replay';
+  private playerColor: 'w' | 'b' = 'w';
+  private personaId: string = BOT_PERSONAS[0].id;
+  private liveChess: Chess = new Chess();
+  private isBotThinking = false;
+  private searchWorker: Worker | null = null;
 
   private canvasRenderer!: UnifiedCanvas;
   private exportModal!: ExportModal;
@@ -47,6 +55,9 @@ export class ObservatoryApp {
   }
 
   private initGame(game: PresetGame): void {
+    this.mode = 'replay';
+    this.isBotThinking = false;
+    this.cleanupWorker();
     this.currentGame = game;
     this.chess = new Chess();
     this.chess.loadPgn(game.pgn);
@@ -67,6 +78,7 @@ export class ObservatoryApp {
     if (this.sparkline) {
       this.updateSparklineData();
     }
+    this.updateModeDeckUI();
   }
 
   private syncBoardToPly(plyIndex: number): void {
@@ -119,6 +131,10 @@ export class ObservatoryApp {
           hud.textContent = 'Hover over any square to inspect local gravitational force & mass';
         }
       }
+    });
+
+    this.canvasRenderer.onMove((fromSq, toSq) => {
+      this.handleUserMove(fromSq, toSq);
     });
 
     this.syncBoardToPly(this.currentPlyIndex);
@@ -302,6 +318,227 @@ export class ObservatoryApp {
     }
   }
 
+  // ---------- Play vs Kepler-64 ----------
+
+  private updateModeDeckUI(): void {
+    this.container.querySelectorAll('.mode-chip').forEach((chip) => {
+      chip.classList.toggle('active', chip.getAttribute('data-mode') === this.mode);
+    });
+
+    const playDeck = this.container.querySelector('#play-deck') as HTMLElement | null;
+    if (playDeck) playDeck.style.display = this.mode === 'play' ? 'flex' : 'none';
+
+    this.container.querySelectorAll('.side-chip').forEach((chip) => {
+      chip.classList.toggle('active', chip.getAttribute('data-side') === this.playerColor);
+    });
+
+    const select = this.container.querySelector('#persona-select') as HTMLSelectElement | null;
+    if (select) select.value = this.personaId;
+
+    this.updatePersonaBlurb();
+
+    const transportIds = ['#btn-first', '#btn-prev', '#btn-play', '#btn-next', '#btn-last', '#ply-slider'];
+    transportIds.forEach((id) => {
+      const el = this.container.querySelector(id) as HTMLButtonElement | HTMLInputElement | null;
+      if (!el) return;
+      if (this.mode === 'play') el.setAttribute('disabled', 'true');
+      else el.removeAttribute('disabled');
+    });
+  }
+
+  private updatePersonaBlurb(): void {
+    const el = this.container.querySelector('#persona-blurb');
+    if (el) el.textContent = getPersona(this.personaId).blurb;
+  }
+
+  private updateBotStatus(text: string): void {
+    const el = this.container.querySelector('#bot-status-text');
+    if (el) el.textContent = text;
+    const root = this.container.querySelector('#bot-status');
+    if (root) root.classList.toggle('thinking', this.isBotThinking);
+  }
+
+  private syncConfigToUi(): void {
+    const map: Array<[string, keyof ConstantsConfig, string]> = [
+      ['g', 'G', ''],
+      ['eps', 'eps', ''],
+      ['c', 'c', ' sq/ply'],
+      ['roche', 'roche', ''],
+    ];
+    map.forEach(([id, key, unit]) => {
+      const el = this.container.querySelector(`#slider-${id}`) as HTMLInputElement | null;
+      const valEl = this.container.querySelector(`#slider-${id}-val`);
+      if (el) el.value = this.config[key].toString();
+      if (valEl) valEl.textContent = `${this.config[key].toFixed(2)}${unit}`;
+    });
+  }
+
+  private sqToAlg(sq: number): string {
+    return String.fromCharCode(97 + (sq % 8)) + (Math.floor(sq / 8) + 1);
+  }
+
+  private startPlayMode(side: 'w' | 'b', personaId: string): void {
+    if (this.isPlaying) this.toggleAutoplay();
+    this.cleanupWorker();
+
+    this.mode = 'play';
+    this.playerColor = side;
+    this.personaId = personaId;
+    this.isBotThinking = false;
+    this.liveChess = new Chess();
+    this.moves = [];
+    this.currentPlyIndex = 0;
+
+    // Enter the persona's physical universe.
+    this.config = { ...getPersona(personaId).config };
+    this.syncConfigToUi();
+    if (this.canvasRenderer) this.canvasRenderer.setConfig(this.config);
+
+    this.syncBoardToPly(0);
+    this.updateSparklineData();
+
+    const slider = this.container.querySelector('#ply-slider') as HTMLInputElement | null;
+    if (slider) {
+      slider.max = '0';
+      slider.value = '0';
+    }
+    const plyIndicator = this.container.querySelector('#ply-indicator');
+    if (plyIndicator) plyIndicator.textContent = 'Ready';
+
+    this.updateModeDeckUI();
+
+    if (this.liveChess.turn() === this.playerColor) {
+      this.updateBotStatus('Your move');
+    } else {
+      this.updateBotStatus('Kepler-64 moves first…');
+      this.scheduleBotMove();
+    }
+  }
+
+  private switchToReplay(): void {
+    this.cleanupWorker();
+    this.isBotThinking = false;
+    this.initGame(this.currentGame);
+  }
+
+  private handleUserMove(fromSq: number, toSq: number): void {
+    if (this.mode !== 'play') return;
+    if (this.isBotThinking) return;
+    if (this.liveChess.turn() !== this.playerColor) return;
+
+    const from = this.sqToAlg(fromSq);
+    const to = this.sqToAlg(toSq);
+    const legal = this.liveChess.moves({ verbose: true });
+    const move = legal.find((m) => m.from === from && m.to === to);
+    if (!move) return;
+
+    let applied = false;
+    try {
+      applied = !!this.liveChess.move({ from, to, promotion: move.promotion });
+    } catch {
+      applied = false;
+    }
+    if (!applied) return;
+
+    this.refreshLiveGame();
+    this.maybeScheduleBot();
+  }
+
+  private refreshLiveGame(): void {
+    this.moves = this.liveChess.history({ verbose: true });
+    this.currentPlyIndex = Math.max(0, this.moves.length - 1);
+    this.syncBoardToPly(this.currentPlyIndex);
+    this.updateSparklineData();
+
+    const slider = this.container.querySelector('#ply-slider') as HTMLInputElement | null;
+    if (slider) {
+      slider.max = Math.max(0, this.moves.length - 1).toString();
+      slider.value = this.currentPlyIndex.toString();
+    }
+    const plyIndicator = this.container.querySelector('#ply-indicator');
+    if (plyIndicator) {
+      plyIndicator.textContent = this.moves.length
+        ? `Ply ${this.currentPlyIndex + 1} / ${this.moves.length}`
+        : 'Ready';
+    }
+  }
+
+  private maybeScheduleBot(): void {
+    if (this.mode !== 'play') return;
+    if (this.liveChess.isGameOver()) {
+      this.updateBotStatus(this.gameOverText());
+      return;
+    }
+    if (this.liveChess.turn() === this.playerColor) {
+      this.updateBotStatus('Your move');
+      return;
+    }
+    this.scheduleBotMove();
+  }
+
+  private gameOverText(): string {
+    if (this.liveChess.isCheckmate()) {
+      const winner = this.liveChess.turn() === 'w' ? 'Black' : 'White';
+      return `${winner} wins by gravitational collapse`;
+    }
+    if (this.liveChess.isStalemate()) return 'Stalemate — tidal equilibrium';
+    if (this.liveChess.isDraw()) return 'Draw — tidal equilibrium';
+    return 'Game over';
+  }
+
+  private scheduleBotMove(): void {
+    this.isBotThinking = true;
+    this.updateBotStatus('Kepler-64 is thinking…');
+
+    const worker = new Worker(new URL('../core/searchWorker.ts', import.meta.url), { type: 'module' });
+    this.searchWorker = worker;
+
+    worker.onmessage = (e: MessageEvent) => {
+      this.cleanupWorker();
+      this.isBotThinking = false;
+
+      const data = e.data as { ok?: boolean; result?: SearchResult; error?: string } | undefined;
+      if (!data?.ok || !data.result) {
+        this.updateBotStatus(data?.error ? `Search error: ${data.error}` : 'Search failed');
+        return;
+      }
+
+      const mv = data.result;
+      let applied = false;
+      try {
+        applied = !!this.liveChess.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
+      } catch {
+        applied = false;
+      }
+      if (!applied) {
+        this.updateBotStatus('Illegal bot move rejected');
+        return;
+      }
+
+      this.refreshLiveGame();
+      if (this.liveChess.isGameOver()) {
+        this.updateBotStatus(`${this.gameOverText()} · ${mv.san}`);
+      } else {
+        this.updateBotStatus(`Kepler-64 played ${mv.san} · ${mv.note}`);
+      }
+    };
+
+    worker.onerror = () => {
+      this.cleanupWorker();
+      this.isBotThinking = false;
+      this.updateBotStatus('Search worker crashed');
+    };
+
+    worker.postMessage({ fen: this.liveChess.fen(), personaId: this.personaId });
+  }
+
+  private cleanupWorker(): void {
+    if (this.searchWorker) {
+      this.searchWorker.terminate();
+      this.searchWorker = null;
+    }
+  }
+
   private toggleAutoplay(): void {
     if (this.isPlaying) {
       this.isPlaying = false;
@@ -329,6 +566,7 @@ export class ObservatoryApp {
   }
 
   private setPly(index: number): void {
+    if (this.mode === 'play') return;
     this.currentPlyIndex = Math.max(0, Math.min(this.moves.length - 1, index));
     this.syncBoardToPly(this.currentPlyIndex);
 
@@ -462,6 +700,34 @@ export class ObservatoryApp {
         <div class="section-head compact">
           <span class="section-number">02 — Observatory</span>
           <h2>Watch gravity play.</h2>
+        </div>
+
+        <div class="mode-deck">
+          <div class="mode-switch">
+            <span class="deck-label">MODE</span>
+            <button class="mode-chip active" data-mode="replay">▶ Replay</button>
+            <button class="mode-chip" data-mode="play">Play vs Kepler</button>
+          </div>
+
+          <div id="play-deck" class="play-deck" style="display:none;">
+            <span class="deck-label">SIDE</span>
+            <button class="side-chip active" data-side="w">White</button>
+            <button class="side-chip" data-side="b">Black</button>
+
+            <span class="deck-label">PERSONA</span>
+            <select id="persona-select" class="persona-select">
+              ${BOT_PERSONAS.map((p) => `<option value="${p.id}">${p.label}</option>`).join('')}
+            </select>
+
+            <button id="btn-new-game" class="action-secondary new-game-btn">↺ New Game</button>
+
+            <span id="bot-status" class="bot-status">
+              <span class="bot-status-dot"></span>
+              <span id="bot-status-text"></span>
+            </span>
+
+            <span id="persona-blurb" class="persona-blurb"></span>
+          </div>
         </div>
 
         <div class="observatory-cockpit-grid">
@@ -692,6 +958,7 @@ export class ObservatoryApp {
     `;
 
     this.attachEvents();
+    this.updateModeDeckUI();
   }
 
   private attachEvents(): void {
@@ -718,6 +985,42 @@ export class ObservatoryApp {
           this.canvasRenderer.setLayers({ [layer]: isActive });
         }
       });
+    });
+
+    // Mode deck: replay vs play-vs-Kepler
+    this.container.querySelectorAll('.mode-chip').forEach((chip) => {
+      chip.addEventListener('click', (e) => {
+        const mode = (e.currentTarget as HTMLElement).getAttribute('data-mode');
+        if (mode === 'play') {
+          this.startPlayMode(this.playerColor, this.personaId);
+        } else {
+          this.switchToReplay();
+        }
+      });
+    });
+
+    this.container.querySelectorAll('.side-chip').forEach((chip) => {
+      chip.addEventListener('click', (e) => {
+        const side = (e.currentTarget as HTMLElement).getAttribute('data-side') as 'w' | 'b';
+        if (this.mode === 'play') {
+          this.startPlayMode(side, this.personaId);
+        } else {
+          this.playerColor = side;
+          this.updateModeDeckUI();
+        }
+      });
+    });
+
+    this.container.querySelector('#persona-select')?.addEventListener('change', (e) => {
+      this.personaId = (e.target as HTMLSelectElement).value;
+      this.updatePersonaBlurb();
+      if (this.mode === 'play') {
+        this.startPlayMode(this.playerColor, this.personaId);
+      }
+    });
+
+    this.container.querySelector('#btn-new-game')?.addEventListener('click', () => {
+      this.startPlayMode(this.playerColor, this.personaId);
     });
 
     // Transport buttons
@@ -779,6 +1082,7 @@ export class ObservatoryApp {
 
     // Keyboard navigation
     window.addEventListener('keydown', (e) => {
+      if (this.mode === 'play') return;
       if (e.key === 'ArrowLeft') {
         if (this.currentPlyIndex > 0) this.setPly(this.currentPlyIndex - 1);
       } else if (e.key === 'ArrowRight') {

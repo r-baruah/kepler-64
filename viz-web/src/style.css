@@ -924,6 +924,136 @@ h1, h2, h3, h4 {
   border-color: var(--color-ink);
 }
 
+/* ---------- Mode deck (Replay / Play vs Kepler) ---------- */
+.mode-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-white);
+  border: var(--rule-thin) solid var(--color-rule);
+  margin-bottom: var(--space-md);
+}
+
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.deck-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  margin-right: 2px;
+}
+
+.mode-chip {
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: var(--rule-thin) solid var(--color-rule);
+  background: var(--color-white);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.mode-chip:hover { border-color: var(--color-plate); }
+
+.mode-chip.active {
+  background: var(--color-plate);
+  color: var(--color-accent-ink);
+  border-color: var(--color-plate);
+}
+
+.play-deck {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: var(--rule-thin) dashed var(--color-rule);
+}
+
+.side-chip {
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: var(--rule-thin) solid var(--color-rule);
+  background: var(--color-white);
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.side-chip:hover { border-color: var(--color-accent); color: var(--color-ink); }
+.side-chip.active { background: var(--color-ink); color: var(--color-paper); border-color: var(--color-ink); }
+
+.persona-select {
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: var(--rule-thin) solid var(--color-ink);
+  cursor: pointer;
+}
+
+.new-game-btn {
+  padding: 6px 12px;
+  font-size: 0.72rem;
+}
+
+.bot-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  padding: 5px 10px;
+  background: rgba(17, 17, 17, 0.04);
+  border: var(--rule-thin) solid var(--color-rule);
+}
+
+.bot-status-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--color-positive);
+  flex-shrink: 0;
+}
+
+.bot-status.thinking .bot-status-dot {
+  background: var(--color-accent);
+  animation: k64-blink 0.8s steps(2, start) infinite;
+}
+
+@keyframes k64-blink {
+  to { visibility: hidden; }
+}
+
+.persona-blurb {
+  flex-basis: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--color-muted);
+}
+
+.transport-btn:disabled,
+.transport-play-btn:disabled,
+.scrubber-slider:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ---------- Telemetry ---------- */
 .telemetry-column {
   display: flex;
