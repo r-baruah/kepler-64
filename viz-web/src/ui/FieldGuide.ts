@@ -144,8 +144,9 @@ export class FieldGuideComponent {
       <div class="field-guide-notebook shell" id="compendium">
         <!-- Header -->
         <div class="notebook-header">
+          <span class="section-number">05 — Compendium</span>
           <span class="badge-tag">KEPLER-64 SCIENTIFIC COMPENDIUM</span>
-          <h2>The Mathematical & Physical Foundations</h2>
+          <h2>The Mathematical &amp; Physical Foundations</h2>
           <p class="section-lead">
             An interactive textbook companion explaining the differentiable tensor physics behind Kepler-64.
           </p>

@@ -19,6 +19,7 @@ export class KeplerBoard {
   public epSquare: string | null = null;
   public halfmove = 0;
   public fullmove = 1;
+  public massBoost: Float32Array = new Float32Array(64);
 
   constructor(fen?: string) {
     if (fen) {
@@ -28,6 +29,7 @@ export class KeplerBoard {
 
   public loadFen(fen: string): void {
     this.squares = new Array(64).fill(null);
+    this.massBoost = new Float32Array(64);
     const parts = fen.trim().split(/\s+/);
     const pos = parts[0];
     this.turn = (parts[1] === 'b' ? 'b' : 'w');
@@ -98,7 +100,7 @@ export class KeplerBoard {
     for (let i = 0; i < 64; i++) {
       const p = this.squares[i];
       if (p) {
-        mv[i] = (p.color === 'w' ? p.mass : -p.mass);
+        mv[i] = (p.color === 'w' ? p.mass + this.massBoost[i] : -(p.mass + this.massBoost[i]));
       } else {
         mv[i] = 0;
       }

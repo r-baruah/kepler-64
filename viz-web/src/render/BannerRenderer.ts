@@ -3,6 +3,9 @@
  * Renders a full high-fidelity Observatory HUD (Board + Vertical Barometer +
  * Live Telemetry + Candidate Move Matrix + Panoramic Trajectory Wave + Watermark)
  * onto a single canvas for social sharing.
+ *
+ * Layout mirrors the on-screen Observatory: board on the left, and the
+ * gravitational trajectory + telemetry stacked on the right.
  */
 
 import { Chess } from 'chess.js';
@@ -72,47 +75,44 @@ export class BannerRenderer {
     if (!ctx) return;
 
     // Background paper
-    ctx.fillStyle = '#ebf1f6';
+    ctx.fillStyle = '#f5f4ef';
     ctx.fillRect(0, 0, width, height);
 
     const pad = 14;
-    const topHeight = height - 104; // Top section for Board + Telemetry
+    const boardSize = height - 2 * pad; // Square board uses the full height
 
-    // 1. Draw Vertical Gravitational Barometer
+    // 1. Vertical Gravitational Barometer
     const barometerX = pad;
     const barometerY = pad;
     const barometerW = 16;
-    const barometerH = topHeight - 2 * pad;
+    const barometerH = boardSize;
     this.drawVerticalBarometer(ctx, board, config, barometerX, barometerY, barometerW, barometerH);
 
-    // 2. Draw Board
+    // 2. Board
     const boardX = barometerX + barometerW + 10;
     const boardY = pad;
-    const boardSize = barometerH;
     this.drawBoard(ctx, board, config, boardX, boardY, boardSize, lastMove);
 
-    // 3. Draw Telemetry HUD + Candidate Moves Matrix
-    const hudX = boardX + boardSize + 14;
-    const hudY = pad;
-    const hudWidth = width - hudX - pad;
-    const hudHeight = boardSize;
-    this.drawTelemetryHUD(ctx, board, config, hudX, hudY, hudWidth, hudHeight, gameTitle, moveSan, plyNum, totalPlies);
+    // 3. Right column: Trajectory (top) + Telemetry (bottom)
+    const rightX = boardX + boardSize + 14;
+    const rightW = width - rightX - pad;
 
-    // 4. Draw Panoramic Gravitational Trajectory Strip
-    const timelineX = pad;
-    const timelineY = topHeight - 6;
-    const timelineW = width - 2 * pad;
-    const timelineH = 74;
-    this.drawTrajectoryWave(ctx, timelineX, timelineY, timelineW, timelineH, trajectoryPoints, plyNum);
+    const trajectoryY = pad;
+    const trajectoryH = 74;
+    this.drawTrajectoryWave(ctx, rightX, trajectoryY, rightW, trajectoryH, trajectoryPoints, plyNum);
 
-    // 5. Draw Watermark & Attribution Footer
+    const hudY = trajectoryY + trajectoryH + 10;
+    const hudH = boardSize - trajectoryH - 10;
+    this.drawTelemetryHUD(ctx, board, config, rightX, hudY, rightW, hudH, gameTitle, moveSan, plyNum, totalPlies);
+
+    // 4. Watermark & Attribution Footer
     const footerY = height - 8;
     ctx.font = '600 9px Sometype Mono, monospace';
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#62615a';
     ctx.fillText('KEPLER-64 · Differentiable Astrophysical Chess · Created by Ripuranjan Baruah', pad, footerY);
 
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#2448b8';
+    ctx.fillStyle = '#0069ff';
     ctx.font = '700 9px Sometype Mono, monospace';
     ctx.fillText('github.com/r-baruah/kepler-64', width - pad, footerY);
     ctx.textAlign = 'left';
@@ -137,17 +137,17 @@ export class BannerRenderer {
     // Track
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, bw, bh);
-    ctx.strokeStyle = '#172235';
+    ctx.strokeStyle = '#111111';
     ctx.lineWidth = 1.2;
     ctx.strokeRect(0, 0, bw, bh);
 
     // Liquid Fill
     const fillH = (bh * pct) / 100;
-    ctx.fillStyle = scoreW >= 0 ? '#2448b8' : '#f06426';
+    ctx.fillStyle = scoreW >= 0 ? '#0069ff' : '#ff5a00';
     ctx.fillRect(1, bh - fillH, bw - 2, fillH);
 
     // Center Zero tick
-    ctx.strokeStyle = '#172235';
+    ctx.strokeStyle = '#111111';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(0, bh / 2);
@@ -172,7 +172,7 @@ export class BannerRenderer {
     // Outer Board Container
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, bsize, bsize);
-    ctx.strokeStyle = '#172235';
+    ctx.strokeStyle = '#111111';
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, bsize, bsize);
 
@@ -194,7 +194,7 @@ export class BannerRenderer {
 
     // Last move highlight
     if (lastMove) {
-      ctx.fillStyle = 'rgba(240, 100, 38, 0.35)';
+      ctx.fillStyle = 'rgba(255, 90, 0, 0.30)';
       for (const sq of [lastMove.from, lastMove.to]) {
         const f = sq % 8;
         const r = Math.floor(sq / 8);
@@ -215,16 +215,22 @@ export class BannerRenderer {
       const imgData = offCtx.createImageData(n, n);
       const data = imgData.data;
 
+      const HEAT_PALETTE: ReadonlyArray<readonly [number, number, number]> = [
+        [18, 26, 75],
+        [58, 45, 86],
+        [98, 66, 88],
+        [140, 88, 77],
+        [185, 112, 60],
+        [230, 140, 45],
+      ];
       for (let gy = 0; gy < n; gy++) {
         const invGy = n - 1 - gy;
         for (let gx = 0; gx < n; gx++) {
           const val = grid[invGy * n + gx];
           const t = Math.max(0, Math.min(1, (val - p3) / span));
-
-          const r = Math.round(18 + t * (230 - 18));
-          const g = Math.round(26 + t * (140 - 26));
-          const b = Math.round(75 + t * (45 - 75));
-          const alpha = Math.round(35 + t * 45);
+          const band = Math.min(5, Math.floor(t * 6));
+          const [r, g, b] = HEAT_PALETTE[band];
+          const alpha = 35 + band * 9;
 
           const idx = (gy * n + gx) * 4;
           data[idx] = r;
@@ -293,7 +299,7 @@ export class BannerRenderer {
 
     // Board Coordinate labels (a-h, 1-8)
     ctx.font = '600 8px Sometype Mono, monospace';
-    ctx.fillStyle = 'rgba(23, 34, 53, 0.6)';
+    ctx.fillStyle = 'rgba(17, 17, 17, 0.55)';
     for (let f = 0; f < 8; f++) {
       ctx.fillText(String.fromCharCode(97 + f), f * sqSize + 2, bsize - 2);
     }
@@ -325,40 +331,40 @@ export class BannerRenderer {
     // Card background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, hwidth, hheight);
-    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeStyle = '#dcdad2';
     ctx.lineWidth = 1;
     ctx.strokeRect(0, 0, hwidth, hheight);
 
     const pad = 12;
     let currY = pad + 8;
 
-    // Header brand & URL
+    // Header brand & ply
     ctx.font = '700 10px Sometype Mono, monospace';
-    ctx.fillStyle = '#2448b8';
+    ctx.fillStyle = '#0050c0';
     ctx.fillText('KEPLER-64 // ROCHE ENGINE', pad, currY);
 
     ctx.textAlign = 'right';
     ctx.font = '600 9px Sometype Mono, monospace';
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#62615a';
     ctx.fillText(`Ply ${plyNum + 1}/${totalPlies}`, hwidth - pad, currY);
     ctx.textAlign = 'left';
 
     currY += 15;
-    ctx.font = '600 10px Familjen Grotesk, sans-serif';
-    ctx.fillStyle = '#64748b';
+    ctx.font = '600 10px Space Grotesk, sans-serif';
+    ctx.fillStyle = '#62615a';
     ctx.fillText(gameTitle, pad, currY);
 
     currY += 22;
     // Big Move Text
-    ctx.font = '700 18px Familjen Grotesk, sans-serif';
-    ctx.fillStyle = '#172235';
+    ctx.font = '700 18px Space Grotesk, sans-serif';
+    ctx.fillStyle = '#111111';
     ctx.fillText(moveSan, pad, currY);
 
     // Status Badge
     const isDisrupted = (breakdown.blackKingTidal?.isDisrupted || breakdown.whiteKingTidal?.isDisrupted);
     const statusText = isDisrupted ? '⚠ ROCHE DISRUPTION' : '● TIDAL EQUILIBRIUM';
     ctx.font = '700 9px Sometype Mono, monospace';
-    ctx.fillStyle = isDisrupted ? '#b91c1c' : '#1e6091';
+    ctx.fillStyle = isDisrupted ? '#d92f00' : '#0050c0';
     ctx.textAlign = 'right';
     ctx.fillText(statusText, hwidth - pad, currY - 3);
     ctx.textAlign = 'left';
@@ -370,20 +376,20 @@ export class BannerRenderer {
     const etaRatio = activeKingTidal ? Math.min(100, Math.round((activeKingTidal.eta / config.roche) * 100)) : 0;
 
     ctx.font = '600 9px Sometype Mono, monospace';
-    ctx.fillStyle = '#172235';
+    ctx.fillStyle = '#111111';
     ctx.fillText(`Roche Disruption (η = ${etaVal} / ρ = ${config.roche.toFixed(2)})`, pad, currY);
 
     currY += 4;
     const trackW = hwidth - 2 * pad;
-    ctx.fillStyle = '#e2e8f0';
+    ctx.fillStyle = '#eae8e0';
     ctx.fillRect(pad, currY, trackW, 4);
-    ctx.fillStyle = isDisrupted ? '#dc2626' : '#2448b8';
+    ctx.fillStyle = isDisrupted ? '#ff3b00' : '#0069ff';
     ctx.fillRect(pad, currY, (trackW * etaRatio) / 100, 4);
 
     currY += 16;
     // Waterfall Ledger
-    ctx.font = '700 9px Familjen Grotesk, sans-serif';
-    ctx.fillStyle = '#172235';
+    ctx.font = '700 9px Space Grotesk, sans-serif';
+    ctx.fillStyle = '#111111';
     ctx.fillText('EVALUATION DECOMPOSITION', pad, currY);
 
     currY += 11;
@@ -397,7 +403,7 @@ export class BannerRenderer {
 
     rows.forEach((r) => {
       ctx.font = '500 8.5px Sometype Mono, monospace';
-      ctx.fillStyle = '#475569';
+      ctx.fillStyle = '#62615a';
       ctx.fillText(r.name, pad, currY);
 
       const valStr = (r.val >= 0 ? '+' : '') + r.val.toFixed(2);
@@ -406,20 +412,20 @@ export class BannerRenderer {
       ctx.textAlign = 'left';
 
       // Bar
-      const barX = pad + 95;
-      const barW = hwidth - 2 * pad - 140;
-      ctx.fillStyle = '#e2e8f0';
+      const barX = pad + 88;
+      const barW = hwidth - 2 * pad - 132;
+      ctx.fillStyle = '#eae8e0';
       ctx.fillRect(barX, currY - 6, barW, 3.5);
 
       const fillW = Math.min(barW, Math.round((Math.abs(r.val) / r.max) * barW));
-      ctx.fillStyle = r.val >= 0 ? '#16a34a' : '#dc2626';
+      ctx.fillStyle = r.val >= 0 ? '#0069ff' : '#ff5a00';
       ctx.fillRect(barX, currY - 6, fillW, 3.5);
 
       currY += 13;
     });
 
     currY += 2;
-    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeStyle = '#dcdad2';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(pad, currY);
@@ -428,24 +434,24 @@ export class BannerRenderer {
 
     currY += 14;
     ctx.font = '700 9.5px Sometype Mono, monospace';
-    ctx.fillStyle = '#172235';
+    ctx.fillStyle = '#111111';
     ctx.fillText('NET POSITION SCORE:', pad, currY);
 
     ctx.textAlign = 'right';
     ctx.font = '700 12px Sometype Mono, monospace';
-    ctx.fillStyle = '#2448b8';
+    ctx.fillStyle = '#0069ff';
     ctx.fillText(`${(breakdown.totalScoreMover >= 0 ? '+' : '') + breakdown.totalScoreMover.toFixed(2)} native`, hwidth - pad, currY);
     ctx.textAlign = 'left';
 
-    // 5. CANDIDATE MOVES MATRIX (BELOW NET SCORE)
+    // Candidate Moves Matrix
     currY += 14;
-    ctx.fillStyle = '#f8fafc';
+    ctx.fillStyle = '#f5f4ef';
     ctx.fillRect(pad, currY - 10, hwidth - 2 * pad, 62);
-    ctx.strokeStyle = '#e2e8f0';
+    ctx.strokeStyle = '#dcdad2';
     ctx.strokeRect(pad, currY - 10, hwidth - 2 * pad, 62);
 
     ctx.font = '700 8.5px Sometype Mono, monospace';
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#62615a';
     ctx.fillText('TOP CANDIDATE MOVES (EVAL)', pad + 6, currY);
 
     const tempChess = new Chess(board.toFen());
@@ -470,12 +476,12 @@ export class BannerRenderer {
     currY += 13;
     moveEvaluations.forEach((m, idx) => {
       ctx.font = '700 8.5px Sometype Mono, monospace';
-      ctx.fillStyle = '#2448b8';
+      ctx.fillStyle = '#0050c0';
       ctx.fillText(`#${idx + 1} ${m.san}`, pad + 6, currY);
 
       ctx.textAlign = 'right';
       ctx.font = '600 8.5px Sometype Mono, monospace';
-      ctx.fillStyle = '#172235';
+      ctx.fillStyle = '#111111';
       ctx.fillText(`${(m.score >= 0 ? '+' : '') + m.score.toFixed(2)}`, hwidth - pad - 6, currY);
       ctx.textAlign = 'left';
 
@@ -502,17 +508,17 @@ export class BannerRenderer {
     // Card background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, tw, th);
-    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeStyle = '#dcdad2';
     ctx.lineWidth = 1;
     ctx.strokeRect(0, 0, tw, th);
 
     // Label
     ctx.font = '700 8px Sometype Mono, monospace';
-    ctx.fillStyle = '#2448b8';
+    ctx.fillStyle = '#0050c0';
     ctx.fillText('GRAVITATIONAL TRAJECTORY HORIZON', 10, 11);
 
     const padX = 12;
-    const padY = 14;
+    const padY = 16;
     const waveH = th - padY - 5;
     const zeroY = padY + waveH / 2.0;
 
@@ -536,7 +542,7 @@ export class BannerRenderer {
     }
 
     // Zero equilibrium line
-    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeStyle = '#dcdad2';
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -545,9 +551,8 @@ export class BannerRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Area fills
-    // White advantage (above zero)
-    ctx.fillStyle = 'rgba(36, 72, 184, 0.18)';
+    // Area fills (flat, no gradients)
+    ctx.fillStyle = 'rgba(0, 105, 255, 0.12)';
     ctx.beginPath();
     ctx.moveTo(coords[0].x, zeroY);
     coords.forEach((c) => {
@@ -557,8 +562,7 @@ export class BannerRenderer {
     ctx.closePath();
     ctx.fill();
 
-    // Black advantage (below zero)
-    ctx.fillStyle = 'rgba(240, 100, 38, 0.18)';
+    ctx.fillStyle = 'rgba(255, 90, 0, 0.12)';
     ctx.beginPath();
     ctx.moveTo(coords[0].x, zeroY);
     coords.forEach((c) => {
@@ -569,7 +573,7 @@ export class BannerRenderer {
     ctx.fill();
 
     // Trajectory wave stroke
-    ctx.strokeStyle = '#172235';
+    ctx.strokeStyle = '#111111';
     ctx.lineWidth = 1.8;
     ctx.beginPath();
     coords.forEach((c, idx) => {
@@ -580,7 +584,7 @@ export class BannerRenderer {
 
     // Active Ply Indicator
     const activeCoord = coords[activePly] || coords[0];
-    ctx.strokeStyle = '#f06426';
+    ctx.strokeStyle = '#ff5a00';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([2, 2]);
     ctx.beginPath();
@@ -589,8 +593,8 @@ export class BannerRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = '#f06426';
-    ctx.strokeStyle = '#172235';
+    ctx.fillStyle = '#ff5a00';
+    ctx.strokeStyle = '#111111';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(activeCoord.x, activeCoord.y, 3.5, 0, Math.PI * 2);
