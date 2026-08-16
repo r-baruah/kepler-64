@@ -930,6 +930,9 @@ export class ObservatoryApp {
                 <button class="toggle-chip" data-layer="showVectors">Vectors</button>
                 <button class="toggle-chip active" data-layer="showTidalStress">Tidal Tensors</button>
                 <button class="toggle-chip active" data-layer="showAccretion">Accretion</button>
+                <button class="toggle-chip" data-layer="showWavefronts">Light Cone</button>
+                <button class="toggle-chip" data-layer="showLorentz">Kinetic</button>
+                <button class="toggle-chip" data-layer="showLagrange">Lagrange</button>
                 <button class="toggle-chip" data-layer="multiverse">Multiverse</button>
               </div>
             </div>

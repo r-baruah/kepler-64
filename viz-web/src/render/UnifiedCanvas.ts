@@ -7,7 +7,7 @@ import { KeplerBoard } from '../core/board';
 import type { Piece } from '../core/board';
 import type { ConstantsConfig } from '../core/constants';
 import { DEFAULT_CONSTANTS } from '../core/constants';
-import { potentialOnGrid, forceField } from '../core/gravity';
+import { potentialOnGrid, forceField, DIST_64 } from '../core/gravity';
 import { evaluatePosition } from '../core/evaluate';
 import type { ScoreBreakdown } from '../core/evaluate';
 import { generateContourLines } from './ContourRenderer';
@@ -20,6 +20,9 @@ export interface RenderLayers {
   showVectors: boolean;
   showTidalStress: boolean;
   showAccretion: boolean;
+  showWavefronts: boolean;
+  showLorentz: boolean;
+  showLagrange: boolean;
 }
 
 export interface SquareHoverInfo {
@@ -43,6 +46,9 @@ export class UnifiedCanvas {
     showVectors: false,
     showTidalStress: true,
     showAccretion: true,
+    showWavefronts: false,
+    showLorentz: false,
+    showLagrange: false,
   };
 
   private pieceImages: Map<string, HTMLImageElement> = new Map();
@@ -350,6 +356,34 @@ export class UnifiedCanvas {
     this.render();
   }
 
+  private computeLagrangePoints(): { x: number; y: number; label: string }[] {
+    const wk = this.board.findKingSquare('w');
+    const bk = this.board.findKingSquare('b');
+    if (wk === null || bk === null) return [];
+
+    const wx = (wk % 8) + 0.5;
+    const wy = Math.floor(wk / 8) + 0.5;
+    const bx = (bk % 8) + 0.5;
+    const by = Math.floor(bk / 8) + 0.5;
+
+    const dx = bx - wx;
+    const dy = by - wy;
+    const d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d;
+    const uy = dy / d;
+
+    const s60 = 0.8660254;
+    const points = [
+      { x: (wx + bx) / 2, y: (wy + by) / 2, label: 'L1' },
+      { x: bx + ux * d * 0.55, y: by + uy * d * 0.55, label: 'L2' },
+      { x: wx - ux * d * 0.55, y: wy - uy * d * 0.55, label: 'L3' },
+      { x: wx + (ux * 0.5 - uy * s60) * d, y: wy + (uy * 0.5 + ux * s60) * d, label: 'L4' },
+      { x: wx + (ux * 0.5 + uy * s60) * d, y: wy + (uy * 0.5 - ux * s60) * d, label: 'L5' },
+    ];
+
+    return points.filter((p) => p.x >= 0 && p.x <= 8 && p.y >= 0 && p.y <= 8);
+  }
+
   public render(): void {
     const width = this.canvas.width;
     const height = this.canvas.height;
@@ -539,7 +573,105 @@ export class UnifiedCanvas {
       }
     }
 
-    // 7b. Draw Accretion Halos (Layer 2)
+    // 7b. Draw Retarded Gravitational Wavefronts (finite c)
+    if (this.layers.showWavefronts && this.lastMove) {
+      const origin = this.lastMove.from;
+      const of = origin % 8;
+      const or = Math.floor(origin / 8);
+      const cx = (of + 0.5) * sqSize;
+      const cy = ((7 - or) + 0.5) * sqSize;
+      const cSq = this.config.c;
+
+      ctx.save();
+      const ripples = [1, 0.62, 0.3];
+      ripples.forEach((f, idx) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, cSq * f * sqSize, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0, 105, 255, ${0.5 - idx * 0.14})`;
+        ctx.lineWidth = idx === 0 ? 1.6 : 1.2;
+        ctx.setLineDash(idx === 0 ? [5, 5] : []);
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+
+      // Horizon indicator: squares outside the light cone have not felt the update.
+      ctx.strokeStyle = 'rgba(17, 17, 17, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      for (let sq = 0; sq < 64; sq++) {
+        if (DIST_64[origin * 64 + sq] <= cSq) continue;
+        const f = sq % 8;
+        const r = Math.floor(sq / 8);
+        ctx.strokeRect(f * sqSize + 1.5, (7 - r) * sqSize + 1.5, sqSize - 3, sqSize - 3);
+      }
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // 7c. Draw Kinetic Trails (Lorentz escalation)
+    if (this.layers.showLorentz && this.lastMove) {
+      const from = this.lastMove.from;
+      const to = this.lastMove.to;
+      const dist = DIST_64[from * 64 + to];
+      if (dist >= 2) {
+        const ratio = Math.min(0.95, dist / this.config.c);
+        const rel = ratio > 0.6;
+        const ff = from % 8;
+        const fr = Math.floor(from / 8);
+        const tf = to % 8;
+        const tr = Math.floor(to / 8);
+        const sx = (ff + 0.5) * sqSize;
+        const sy = ((7 - fr) + 0.5) * sqSize;
+        const ex = (tf + 0.5) * sqSize;
+        const ey = ((7 - tr) + 0.5) * sqSize;
+
+        ctx.save();
+        const strokes = rel ? 4 : 2;
+        for (let i = 1; i <= strokes; i++) {
+          const t = i / (strokes + 1);
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + (ex - sx) * t, sy + (ey - sy) * t);
+          ctx.strokeStyle = `rgba(0, 229, 255, ${(rel ? 0.4 : 0.18) * (1 - t)})`;
+          ctx.lineWidth = rel ? 2.2 : 1.2;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    // 7d. Draw Lagrange Equilibrium Points
+    if (this.layers.showLagrange) {
+      const lp = this.computeLagrangePoints();
+      ctx.save();
+      lp.forEach((p) => {
+        const px = p.x * sqSize;
+        const py = (8 - p.y) * sqSize;
+        const triangular = p.label === 'L4' || p.label === 'L5';
+        const arm = sqSize * 0.18;
+
+        ctx.beginPath();
+        ctx.moveTo(px - arm, py);
+        ctx.lineTo(px + arm, py);
+        ctx.moveTo(px, py - arm);
+        ctx.lineTo(px, py + arm);
+        ctx.strokeStyle = triangular ? 'rgba(255, 90, 0, 0.6)' : 'rgba(0, 105, 255, 0.65)';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(px, py, 2, 0, Math.PI * 2);
+        ctx.fillStyle = triangular ? 'rgba(255, 90, 0, 0.8)' : 'rgba(0, 105, 255, 0.8)';
+        ctx.fill();
+
+        ctx.font = '700 9px Sometype Mono, monospace';
+        ctx.fillStyle = 'rgba(17, 17, 17, 0.6)';
+        ctx.fillText(p.label, px + 3, py - 3);
+      });
+      ctx.restore();
+    }
+
+    // 7e. Draw Accretion Halos (Layer 2)
     if (this.layers.showAccretion) {
       drawAccretionHalos(ctx, this.board, this.accretionExcess, sqSize);
     }
@@ -598,6 +730,49 @@ export class UnifiedCanvas {
     if (this.captureStream) {
       const t = Math.min(1, (performance.now() - this.captureStream.startTime) / 300);
       drawCaptureStream(ctx, this.captureStream.fromSq, this.captureStream.toSq, sqSize, t);
+    }
+
+    // 9c. Draw Relativistic Glow (Lorentz escalation)
+    if (this.layers.showLorentz && this.lastMove) {
+      const dist = DIST_64[this.lastMove.from * 64 + this.lastMove.to];
+      const ratio = Math.min(0.95, dist / this.config.c);
+      if (ratio > 0.6) {
+        const to = this.lastMove.to;
+        const f = to % 8;
+        const r = Math.floor(to / 8);
+        const cx = (f + 0.5) * sqSize;
+        const cy = ((7 - r) + 0.5) * sqSize;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, sqSize * 0.58, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.7)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 9d. Draw Gravitational Anchors (piece on a Lagrange point)
+    if (this.layers.showLagrange) {
+      const lp = this.computeLagrangePoints();
+      for (let sq = 0; sq < 64; sq++) {
+        const piece = this.board.squares[sq];
+        if (!piece || (piece.type !== 'n' && piece.type !== 'b')) continue;
+        const px = (sq % 8) + 0.5;
+        const py = Math.floor(sq / 8) + 0.5;
+        if (!lp.some((p) => Math.hypot(p.x - px, p.y - py) < 0.75)) continue;
+
+        const f = sq % 8;
+        const r = Math.floor(sq / 8);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 105, 255, 0.9)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(f * sqSize + 2, (7 - r) * sqSize + 2, sqSize - 4, sqSize - 4);
+        ctx.font = '700 8px Sometype Mono, monospace';
+        ctx.fillStyle = 'rgba(0, 105, 255, 0.95)';
+        ctx.fillText('ANCHOR', f * sqSize + 3, (7 - r) * sqSize + 11);
+        ctx.restore();
+      }
     }
 
     // 10. Board Outer Coordinates (a-h, 1-8)
