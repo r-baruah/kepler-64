@@ -23,6 +23,7 @@ from kepler64.core.transitions import child_mass_vector
 from kepler64.core.evaluate import score_white
 from kepler64.search.minimax import (
     negamax, iterative_search, INF, _SearchCtx,
+    _root_static_order, _search_root_iteration,
 )
 
 START = chess.STARTING_FEN
@@ -47,6 +48,35 @@ def test_mate_in_one_is_found():
     child = b.copy()
     child.push(mv)
     assert child.is_checkmate()
+
+
+def test_no_false_mate_after_a_real_mate():
+    """Regression: a real mate must not leak a +MATE score onto non-mate moves.
+
+    In this position Qg7# is mate but Qg8+ hangs the queen (black replies
+    Kxg8). The old fail-hard quiescence returned `beta` on a zero-window probe
+    whose beta was -MATE (alpha already pushed to a mate), so every later quiet
+    move was falsely scored +MATE and the multiverse head could pick Qg8+.
+    Any move scored as a mate must actually be checkmate.
+    """
+    eng = RocheEngine()
+    b = chess.Board("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1")
+    fb = FastBoard.from_chess(b)
+    parent_mv = fb.mass_vector()
+    ctx = _SearchCtx()
+    ordered = _root_static_order(fb, eng, parent_mv)
+    _, _, scored, _ = _search_root_iteration(
+        eng, fb, parent_mv, ordered, 2, -INF, INF, None, None, ctx, 0.0, None)
+    found_mate = False
+    for m, v in scored:
+        if v >= 1000.0:
+            move = chess.Move(m[0], m[1], chess.PieceType(m[2]) if m[2] else None)
+            san = b.san(move)
+            child = b.copy()
+            child.push(move)
+            assert child.is_checkmate(), f"{san} scored {v} but is not checkmate"
+            found_mate = True
+    assert found_mate, "search failed to find the mate"
 
 
 def test_king_advance_is_not_rewarded():
@@ -99,7 +129,9 @@ def test_search_values_match_plain_negamax_reference():
         best = -INF
         for m in board.legal_moves():
             child = board.apply(m)
-            mv = child_mass_vector(board, m, current_mv)
+            # Mirror the real search: pass child_board so the Lorentz velocity
+            # boost (mass_vector's relativistic term) is applied identically.
+            mv = child_mass_vector(board, m, current_mv, child_board=child)
             val = -reference(engine, child, depth - 1, -beta, -alpha, mv,
                             parent_masses=current_mv)
             if val > best:
