@@ -30,9 +30,9 @@ from ..core.constants import Constants as _Constants
 
 @jax.jit
 def _unpack(p):
-    # 13 trainable physical leaves (the 9 original + 4 delta-term gains).
+    # 14 trainable physical leaves (the 9 original + 4 delta-term gains + drift).
     return (p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
-            p[9], p[10], p[11], p[12])
+            p[9], p[10], p[11], p[12], p[13])
 
 
 def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
@@ -53,7 +53,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                   a random legal move by `margin`) — an easier landscape than
                   the sharp cross-entropy over all K children.
     """
-    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg = _unpack(params)
+    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr = _unpack(params)
     G     = jnp.clip(G,     0.01,  50.0)   # gravity must stay attractive (positive)
     eps   = jnp.clip(eps,   0.01,  20.0)   # Plummer softening must stay positive
     c     = jnp.clip(c,     1.0,   10.0)   # monotonicity prior (hard clamp)
@@ -64,6 +64,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     com_gain = jnp.clip(cg, 0.0, 10.0)
     inertia_gain = jnp.clip(ig, 0.0, 1.0)
     entropy_gain = jnp.clip(eg, 0.0, 5.0)
+    lambda_drift = jnp.clip(dr, 0.0, 10.0)
     # mref is a FIXED unit scale (not trained) — keeps the tidal index well
     # conditioned. mat_gain is now a trained leaf (passed through params).
     _mref = _Constants().mref
@@ -71,7 +72,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # ---- outcome term ----------------------------------------------------
     # _score_core is White-perspective; Y is from White's view, so this is
     # consistent for both sides to move. (Outcome term is static — no parent.)
-    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain))(M)
+    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift))(M)
     y = (Y + 1.0) / 2.0  # 0 (black win) .. 1 (white win)
     ce = -jnp.mean(y * jax.nn.log_sigmoid(S) + (1.0 - y) * jax.nn.log_sigmoid(-S))
 
@@ -85,7 +86,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                         kgain=kgain, gamma=gamma, Rg=Rg, mref=_mref,
                         mat_gain=mat_gain, lambda_delta=lambda_delta,
                         com_gain=com_gain, inertia_gain=inertia_gain,
-                        entropy_gain=entropy_gain)
+                        entropy_gain=entropy_gain, lambda_drift=lambda_drift)
 
     def _policy_row(child_m, msk, turn, row_key, parent):
         if use_multiverse:
@@ -96,7 +97,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                 lambda mm, ck: multiverse_score_white(mm, _const, ck, K=K, sigma=sigma, parent=parent)
             )(child_m, child_keys)
         else:
-            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, parent))(child_m)
+            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift, parent))(child_m)
         side = jnp.where(turn > 0.0, white, -white)  # Black-to-move: best = most negative White score
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         return jax.nn.log_softmax(side / tau)
@@ -125,7 +126,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # graph stays static (JAX cannot branch on a traced scalar).  In
     # outcome-only mode moves_m is a single dummy row, which makes mr=0 too.
     def _margin_row(child_m, msk, turn, ei, parent):
-        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, parent))(child_m)
+        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift, parent))(child_m)
         side = jnp.where(turn > 0.0, white, -white)
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         exp = side[ei]
@@ -140,8 +141,8 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
 
 
 @jax.jit
-def _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, parent):
-    white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, parent))(child_m)
+def _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift, parent):
+    white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift, parent))(child_m)
     side = jnp.where(turn > 0.0, white, -white)
     side = jnp.where(msk > 0.5, side, -jnp.inf)
     return side
@@ -169,7 +170,7 @@ def policy_metrics(constants, M, Y, turns, moves_m, mask, expert_idx):
     turns = jnp.asarray(turns, dtype=jnp.float32)
 
     def _one(child_m, msk, turn, ei, parent):
-        side = _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, constants.lambda_delta, constants.com_gain, constants.inertia_gain, constants.entropy_gain, parent)
+        side = _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, constants.lambda_delta, constants.com_gain, constants.inertia_gain, constants.entropy_gain, constants.lambda_drift, parent)
         # rank of expert: 1 + number of children scored strictly higher
         better = jnp.sum(side > side[ei])
         rank = better + 1

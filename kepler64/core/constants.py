@@ -49,6 +49,12 @@ class Constants:
     com_gain: float = 40.0       # center-of-mass advance/aggression delta (was 25.0)
     inertia_gain: float = 12.0   # attack/defense concentration delta (was 8.0)
     entropy_gain: float = 4.0    # coordination-vs-scatter delta (was 2.5)
+    # Verlet tidal-drift gain: weight of the "impending collapse" term. A short
+    # symplectic (Leapfrog) rollout projects each King's continuous coordinate
+    # forward under the OPPONENT's field and reads the change in tidal stress at
+    # the projected location vs now (dη over the horizon). It is the physics-
+    # native "threat a few plies out" signal a static eval cannot see.
+    lambda_drift: float = 1.0
     # Gravitational material edge: you command more mass -> stronger field.
     # On-theme (mass == matter) and gives the search a clean capture/advantage
     # gradient so it plays real chess instead of drifting to a flat equilibrium.
