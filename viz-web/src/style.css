@@ -1746,6 +1746,83 @@ h1, h2, h3, h4 {
   border-radius: 8px;
 }
 
+/* ---------- Import modal ---------- */
+.import-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin: var(--space-sm) 0 4px;
+}
+
+.import-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 150px;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: var(--rule-thin) solid var(--color-rule);
+}
+
+.import-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.import-file-input {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.import-hint {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--color-muted);
+}
+
+.import-divider {
+  height: 1px;
+  background: var(--color-rule);
+  margin: var(--space-md) 0;
+}
+
+.import-fen-input {
+  width: 100%;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-ink);
+  background: var(--color-white);
+  border: var(--rule-thin) solid var(--color-rule);
+}
+
+.import-status {
+  margin: var(--space-md) 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  min-height: 1em;
+}
+
+.import-status-error { color: var(--color-negative); }
+.import-status-ok { color: var(--color-plate); }
+
+.import-pill {
+  border-style: dashed;
+  border-color: var(--color-plate);
+  color: var(--color-plate);
+}
+
 /* ---------- Breakpoints ---------- */
 @media (max-width: 950px) {
   .observatory-cockpit-grid {

@@ -16,6 +16,7 @@ import { ExportModal } from './ExportModal';
 import { EvalSparkline } from './EvalSparkline';
 import { FieldGuideComponent } from './FieldGuide';
 import { ContributorsSection } from './ContributorsSection';
+import { PgnImportModal } from './PgnImportModal';
 import { latex } from './katexUtil';
 import { BOT_PERSONAS, getPersona } from '../core/personas';
 import type { SearchResult } from '../core/search';
@@ -42,6 +43,7 @@ export class ObservatoryApp {
   private sparkline!: EvalSparkline;
   private fieldGuide!: FieldGuideComponent;
   private contributors!: ContributorsSection;
+  private importModal!: PgnImportModal;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -52,6 +54,10 @@ export class ObservatoryApp {
     this.initFieldGuide();
     this.initContributors();
     this.exportModal = new ExportModal(this.currentGame, this.config);
+    this.importModal = new PgnImportModal({
+      onImportPgn: (pgn) => this.handleImportPgn(pgn),
+      onImportFen: (fen) => this.handleImportFen(fen),
+    });
   }
 
   private initGame(game: PresetGame): void {
@@ -421,6 +427,67 @@ export class ObservatoryApp {
     this.initGame(this.currentGame);
   }
 
+  private handleImportPgn(pgn: string): void {
+    const chess = new Chess();
+    chess.loadPgn(pgn);
+    const headers = chess.header();
+
+    const synthetic: PresetGame = {
+      id: 'imported-pgn',
+      title: headers.White || headers.Black
+        ? `${headers.White ?? 'White'} vs ${headers.Black ?? 'Black'}`
+        : 'Imported Game',
+      subtitle: 'Custom PGN analysis',
+      white: headers.White ?? 'White',
+      black: headers.Black ?? 'Black',
+      date: headers.Date ?? '',
+      event: headers.Event ?? '',
+      initialFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      highlightPly: Math.max(0, chess.history().length - 1),
+      pgn,
+    };
+
+    this.container.querySelectorAll('.preset-pill').forEach((p) => p.classList.remove('active'));
+    this.initGame(synthetic);
+  }
+
+  private handleImportFen(fen: string): void {
+    this.cleanupWorker();
+    this.isBotThinking = false;
+    this.mode = 'replay';
+    this.moves = [];
+    this.currentPlyIndex = 0;
+
+    this.currentGame = {
+      id: 'imported-fen',
+      title: 'Imported Position',
+      subtitle: 'Custom FEN analysis',
+      white: 'White',
+      black: 'Black',
+      date: '',
+      event: '',
+      initialFen: fen,
+      highlightPly: 0,
+      pgn: '',
+    };
+
+    this.board.loadFen(fen);
+    if (this.canvasRenderer) this.canvasRenderer.setBoard(this.board, null);
+    this.updateCandidateMoves();
+    this.updateSparklineData();
+
+    const slider = this.container.querySelector('#ply-slider') as HTMLInputElement | null;
+    if (slider) {
+      slider.max = '0';
+      slider.value = '0';
+    }
+    const plyIndicator = this.container.querySelector('#ply-indicator');
+    if (plyIndicator) plyIndicator.textContent = 'Position';
+
+    this.container.querySelectorAll('.preset-pill').forEach((p) => p.classList.remove('active'));
+    this.updateModeDeckUI();
+  }
+
   private handleUserMove(fromSq: number, toSq: number): void {
     if (this.mode !== 'play') return;
     if (this.isBotThinking) return;
@@ -653,6 +720,7 @@ export class ObservatoryApp {
               ${g.title}
             </button>
           `).join('')}
+          <button id="btn-import-game" class="preset-pill import-pill">Import Game</button>
         </div>
       </section>
 
@@ -1056,6 +1124,10 @@ export class ObservatoryApp {
     });
     this.container.querySelector('#btn-export-quick')?.addEventListener('click', () => {
       this.exportModal.open(this.currentGame, this.config);
+    });
+
+    this.container.querySelector('#btn-import-game')?.addEventListener('click', () => {
+      this.importModal.open();
     });
 
     // Sliders
