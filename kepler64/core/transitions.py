@@ -25,6 +25,18 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
     """
     from_sq, to_sq, promotion = (int(move[0]), int(move[1]), int(move[2]))
     masses = np.asarray(parent_masses, dtype=np.float32)
+    # Unboost the parent's relativistic factor. `parent_masses` is the output of
+    # FastBoard.mass_vector(), which already applied the Lorentz boost for the
+    # PARENT's velocity; the boost applied below (via child_board) is for the
+    # CHILD's velocity. Without unboosting first, the two factors compound
+    # multiplicatively across plies (double-Lorentz). The king is excluded from
+    # the boost in both directions, so its factor is 1 here as well.
+    if np.any(board.velocity > 0.0):
+        vp = np.asarray(board.velocity, dtype=np.float32)
+        up = vp / (vp + 6.0)
+        gp = 1.0 / np.sqrt(1.0 - up * up)
+        gp[np.abs(np.asarray(board.pieces)) == 6] = 1.0
+        masses = masses / gp
     moving = masses[from_sq]
     sign = 1.0 if moving >= 0.0 else -1.0
 

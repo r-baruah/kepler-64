@@ -64,3 +64,24 @@ def test_castling_preserves_rook_accretion():
     assert float(child[chess.H1]) == 0.0
     assert float(child[chess.E1]) == 0.0
     assert float(child[chess.F1]) == pytest.approx(5.7)
+
+
+def test_lorentz_boost_is_not_double_applied():
+    """A piece that moves twice must carry its relativistic mass once
+    (base * gamma(v_final)), not the compounded parent*child factor.
+
+    child_mass_vector receives a parent mass vector that already carries the
+    parent's Lorentz boost, then applies the child's boost on top — so without
+    an unboost step the factor compounds multiplicatively across plies.
+    """
+    fb = FastBoard.from_chess(chess.Board())
+    m1 = (chess.B1, chess.C3, 0)
+    child1 = fb.apply(m1)
+    mv1 = child_mass_vector(fb, m1, fb.mass_vector(), child_board=child1)
+    m2 = (chess.C3, chess.E4, 0)
+    child2 = child1.apply(m2)
+    mv2 = child_mass_vector(child1, m2, mv1, child_board=child2)
+    # The child's own mass_vector applies the boost exactly once from the final
+    # velocity; child_mass_vector must agree (no compound boost).
+    expected = float(child2.mass_vector()[chess.E4])
+    assert float(mv2[chess.E4]) == pytest.approx(expected, rel=1e-5)
