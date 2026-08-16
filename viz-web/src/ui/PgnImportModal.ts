@@ -158,14 +158,12 @@ export class PgnImportModal {
 
     try {
       const chess = new Chess(fen);
-      chess.fen(); // round-trip sanity
+      const normalized = chess.fen(); // normalize + validate in one pass
+      this.setStatus('Imported. Rendering gravitational topography…', false);
+      this.callbacks.onImportFen(normalized);
+      this.close();
     } catch (err) {
       this.setStatus(`Invalid FEN: ${err instanceof Error ? err.message : String(err)}`, true);
-      return;
     }
-
-    this.setStatus('Imported. Rendering gravitational topography…', false);
-    this.callbacks.onImportFen(fen);
-    this.close();
   }
 }

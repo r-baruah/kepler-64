@@ -21,16 +21,25 @@ import { PgnImportModal } from './PgnImportModal';
 import { latex } from './katexUtil';
 import { BOT_PERSONAS, getPersona } from '../core/personas';
 import type { SearchResult } from '../core/search';
-import { sampleUniverses, evaluateAcrossUniverses } from '../core/multiverse';
 import type { MultiverseSparkPoint } from './EvalSparkline';
 import { buildAccretionLedger } from '../core/accretion';
 import type { AccretionLedger } from '../core/accretion';
+
+function sanitizeHeader(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 export class ObservatoryApp {
   private container: HTMLElement;
   private config: ConstantsConfig = { ...DEFAULT_CONSTANTS };
   private replayConfig: ConstantsConfig = { ...DEFAULT_CONSTANTS };
   private currentGame: PresetGame = PRESET_GAMES[0];
+  private startFen: string | null = null;
   private chess: Chess = new Chess();
   private board: KeplerBoard = new KeplerBoard();
   private moves: any[] = [];
@@ -43,6 +52,7 @@ export class ObservatoryApp {
   private liveChess: Chess = new Chess();
   private isBotThinking = false;
   private searchWorker: Worker | null = null;
+  private multiverseWorker: Worker | null = null;
   private multiverseEnabled = false;
   private accretionExcess: Record<number, number> = {};
 
@@ -76,8 +86,12 @@ export class ObservatoryApp {
     this.syncConfigToUi();
     if (this.canvasRenderer) this.canvasRenderer.setConfig(this.config);
     this.currentGame = game;
-    this.chess = new Chess();
-    this.chess.loadPgn(game.pgn);
+    this.startFen =
+      game.initialFen && game.initialFen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+        ? game.initialFen
+        : null;
+    this.chess = this.startFen ? new Chess(this.startFen) : new Chess();
+    if (game.pgn) this.chess.loadPgn(game.pgn);
     this.moves = this.chess.history({ verbose: true });
     this.currentPlyIndex = Math.min(game.highlightPly, this.moves.length - 1);
     this.syncBoardToPly(this.currentPlyIndex);
@@ -99,7 +113,7 @@ export class ObservatoryApp {
   }
 
   private syncBoardToPly(plyIndex: number): void {
-    const tempChess = new Chess();
+    const tempChess = this.startFen ? new Chess(this.startFen) : new Chess();
     let lastMoveObj: { from: number; to: number } | null = null;
 
     for (let i = 0; i <= plyIndex; i++) {
@@ -174,7 +188,7 @@ export class ObservatoryApp {
       return;
     }
 
-    const tempChess = new Chess();
+    const tempChess = this.startFen ? new Chess(this.startFen) : new Chess();
     const tempBoard = new KeplerBoard();
     const points: { ply: number; score: number; moveSan: string }[] = [];
 
@@ -193,17 +207,25 @@ export class ObservatoryApp {
   }
 
   private updateMultiverseSparkline(): void {
-    const samples = sampleUniverses(this.config, 5);
-    const tempChess = new Chess();
-    const mvPoints: MultiverseSparkPoint[] = [];
+    if (this.multiverseWorker) this.multiverseWorker.terminate();
+    const worker = new Worker(new URL('../core/multiverseWorker.ts', import.meta.url), { type: 'module' });
+    this.multiverseWorker = worker;
 
-    for (let i = 0; i < this.moves.length; i++) {
-      const m = this.moves[i];
-      tempChess.move(m);
-      const { mean, sigma, scores } = evaluateAcrossUniverses(tempChess.fen(), samples);
-      mvPoints.push({ ply: i, moveSan: m.san, mean, sigma, spaghetti: scores });
-    }
-    this.sparkline.setMultiverseData(mvPoints, this.currentPlyIndex);
+    worker.onmessage = (e: MessageEvent) => {
+      this.cleanupMultiverseWorker();
+      const data = e.data as { ok?: boolean; points?: MultiverseSparkPoint[]; error?: string } | undefined;
+      if (!data?.ok || !data.points) return;
+      this.sparkline.setMultiverseData(data.points, this.currentPlyIndex);
+    };
+
+    worker.onerror = () => this.cleanupMultiverseWorker();
+
+    worker.postMessage({
+      startFen: this.startFen ?? undefined,
+      moves: this.moves.map((m) => m.san),
+      config: this.config,
+      sampleCount: 5,
+    });
   }
 
   private initFieldGuide(): void {
@@ -534,17 +556,19 @@ export class ObservatoryApp {
     const chess = new Chess();
     chess.loadPgn(pgn);
     const headers = chess.header();
+    const whiteName = sanitizeHeader(headers.White ?? 'White');
+    const blackName = sanitizeHeader(headers.Black ?? 'Black');
 
     const synthetic: PresetGame = {
       id: 'imported-pgn',
       title: headers.White || headers.Black
-        ? `${headers.White ?? 'White'} vs ${headers.Black ?? 'Black'}`
+        ? `${whiteName} vs ${blackName}`
         : 'Imported Game',
       subtitle: 'Custom PGN analysis',
-      white: headers.White ?? 'White',
-      black: headers.Black ?? 'Black',
-      date: headers.Date ?? '',
-      event: headers.Event ?? '',
+      white: whiteName,
+      black: blackName,
+      date: sanitizeHeader(headers.Date ?? ''),
+      event: sanitizeHeader(headers.Event ?? ''),
       initialFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       highlightPly: Math.max(0, chess.history().length - 1),
       pgn,
@@ -558,6 +582,7 @@ export class ObservatoryApp {
     this.cleanupWorker();
     this.isBotThinking = false;
     this.mode = 'replay';
+    this.startFen = fen;
     this.moves = [];
     this.currentPlyIndex = 0;
 
@@ -720,6 +745,13 @@ export class ObservatoryApp {
     if (this.searchWorker) {
       this.searchWorker.terminate();
       this.searchWorker = null;
+    }
+  }
+
+  private cleanupMultiverseWorker(): void {
+    if (this.multiverseWorker) {
+      this.multiverseWorker.terminate();
+      this.multiverseWorker = null;
     }
   }
 

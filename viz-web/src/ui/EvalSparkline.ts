@@ -187,7 +187,7 @@ export class EvalSparkline {
     const topPts: string[] = [];
     const bottomPts: string[] = [];
     coords.forEach((c) => {
-      const sigma = Math.min(c.sigma, 4.0);
+      const sigma = c.sigma;
       topPts.push(`${c.x.toFixed(1)} ${this.yFor(c.mean + sigma, clampSpan, height, padY).toFixed(1)}`);
       bottomPts.push(`${c.x.toFixed(1)} ${this.yFor(c.mean - sigma, clampSpan, height, padY).toFixed(1)}`);
     });
@@ -218,14 +218,13 @@ export class EvalSparkline {
     }
 
     const activeCoord = coords[this.currentPly] || coords[0];
-    const clampSigma = Math.min(activeCoord.sigma, 4.0);
 
     this.container.innerHTML = `
       <div class="panoramic-timeline-card">
         <div class="timeline-header-bar">
           <div style="display:flex; align-items:center; gap:var(--space-sm);">
             <span class="timeline-tag">GRAVITATIONAL TRAJECTORY</span>
-            <span class="timeline-ply-badge" id="timeline-hover-info">Multiverse Volatility: ±${clampSigma.toFixed(2)} native (σ = ${activeCoord.sigma.toFixed(2)})</span>
+            <span class="timeline-ply-badge" id="timeline-hover-info">Multiverse Volatility: σ = ${activeCoord.sigma.toFixed(2)}</span>
           </div>
           <div class="timeline-legend">
             <span class="legend-dot white-dot"></span> White Pull (+ΔE)
@@ -315,8 +314,7 @@ export class EvalSparkline {
     cursorDot.setAttribute('cy', c.y.toFixed(1));
 
     if (hoverInfo) {
-      const clampSigma = Math.min(c.sigma, 4.0);
-      hoverInfo.textContent = `Multiverse Volatility: ±${clampSigma.toFixed(2)} native (σ = ${c.sigma.toFixed(2)})`;
+      hoverInfo.textContent = `Multiverse Volatility: σ = ${c.sigma.toFixed(2)}`;
     }
   }
 
@@ -398,7 +396,7 @@ export class EvalSparkline {
   private computeMultiverseClampSpan(): number {
     let maxAbs = 0;
     this.mvPoints!.forEach((p) => {
-      const sigma = Math.min(p.sigma, 4.0);
+      const sigma = p.sigma;
       const top = p.mean + sigma;
       const bottom = p.mean - sigma;
       const abs = Math.max(Math.abs(top), Math.abs(bottom));

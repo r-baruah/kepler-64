@@ -98,6 +98,11 @@ export class UnifiedCanvas {
     this.board = board;
     this.lastMove = lastMove;
     this.selectedSquare = null;
+    this.captureStream = null;
+    if (this.animFrame !== null) {
+      cancelAnimationFrame(this.animFrame);
+      this.animFrame = null;
+    }
     this.render();
   }
 
@@ -232,7 +237,16 @@ export class UnifiedCanvas {
           const f = sq % 8;
           const r = Math.floor(sq / 8);
           const piece = this.board.squares[sq];
-          const masses = this.board.massVector();
+    let masses = this.board.massVector();
+
+    // Live field warping: relocate the dragged piece's mass under the cursor.
+    if (this.isDragging && this.dragPiece && this.dragFromSq !== null) {
+      const targetSq = this.hoveredSquare ?? this.dragFromSq;
+      const carried = masses[this.dragFromSq];
+      masses = Float32Array.from(masses);
+      masses[this.dragFromSq] = 0;
+      if (targetSq !== null) masses[targetSq] += carried;
+    }
           const forces = forceField(masses, this.config.eps, this.config.G, this.config.c);
           const fMag = Math.sqrt(forces.fx[sq] * forces.fx[sq] + forces.fy[sq] * forces.fy[sq]);
 
@@ -295,6 +309,7 @@ export class UnifiedCanvas {
     const rect = this.canvas.getBoundingClientRect();
     this.dragCanvasX = ((clientX - rect.left) / rect.width) * this.canvas.width;
     this.dragCanvasY = ((clientY - rect.top) / rect.height) * this.canvas.height;
+    this.hoveredSquare = this.getCanvasSquare(clientX, clientY);
     this.render();
   }
 
@@ -769,7 +784,7 @@ export class UnifiedCanvas {
         ctx.strokeRect(f * sqSize + 2, (7 - r) * sqSize + 2, sqSize - 4, sqSize - 4);
         ctx.font = '700 8px Sometype Mono, monospace';
         ctx.fillStyle = 'rgba(0, 105, 255, 0.95)';
-        ctx.fillText('ANCHOR', f * sqSize + 3, (7 - r) * sqSize + 11);
+        ctx.fillText('GRAV. ANCHOR', f * sqSize + 3, (7 - r) * sqSize + 11);
         ctx.restore();
       }
     }
