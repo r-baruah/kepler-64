@@ -12,11 +12,15 @@ const scope = self as unknown as {
 };
 
 scope.onmessage = (e: MessageEvent) => {
-  const { fen, personaId } = (e.data ?? {}) as { fen?: string; personaId?: string };
+  const { fen, personaId, baseExcess } = (e.data ?? {}) as {
+    fen?: string;
+    personaId?: string;
+    baseExcess?: Record<number, number>;
+  };
   try {
     if (!fen || !personaId) throw new Error('Bad search request');
     const persona = getPersona(personaId);
-    const result = searchBestMove(fen, persona);
+    const result = searchBestMove(fen, persona, baseExcess ?? null);
     scope.postMessage({ ok: true, result });
   } catch (err) {
     scope.postMessage({ ok: false, error: err instanceof Error ? err.message : String(err) });

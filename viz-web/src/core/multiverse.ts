@@ -70,9 +70,14 @@ export interface MultiverseScore {
  * Evaluates a FEN across sampled universes.
  * Returns white-perspective mean and population standard deviation.
  */
-export function evaluateAcrossUniverses(fen: string, samples: UniverseSample[]): MultiverseScore {
+export function evaluateAcrossUniverses(
+  fen: string,
+  samples: UniverseSample[],
+  boost?: Float32Array
+): MultiverseScore {
   const scores = samples.map((s) => {
     const board = new KeplerBoard(fen);
+    if (boost) board.massBoost = boost;
     return evaluatePosition(board, s.config).totalScoreWhite;
   });
 

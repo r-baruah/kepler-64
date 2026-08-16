@@ -18,6 +18,7 @@ export interface ConstantsConfig {
   com_gain: number;     // Center-of-mass advance delta
   inertia_gain: number; // Attack concentration delta
   entropy_gain: number; // Coordination entropy delta
+  accEta: number;       // Mass accretion fraction (captor keeps eta * victim mass)
 }
 
 export const DEFAULT_CONSTANTS: ConstantsConfig = {
@@ -35,6 +36,7 @@ export const DEFAULT_CONSTANTS: ConstantsConfig = {
   com_gain: 25.0,
   inertia_gain: 8.0,
   entropy_gain: 2.5,
+  accEta: 0.80,
 };
 
 export const PIECE_MASSES: Record<string, number> = {

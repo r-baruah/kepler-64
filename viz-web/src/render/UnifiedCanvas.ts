@@ -113,7 +113,6 @@ export class UnifiedCanvas {
 
   public setAccretion(excess: Record<number, number>): void {
     this.accretionExcess = excess;
-    this.render();
   }
 
   public playCaptureStream(fromSq: number, toSq: number): void {

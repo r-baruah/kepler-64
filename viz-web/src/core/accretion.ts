@@ -29,7 +29,8 @@ function squareFromAlgebraic(algebraic: string): number {
 }
 
 export function buildAccretionLedger(
-  moves: { from: string; to: string; captured?: string; flags?: string; san: string }[]
+  moves: { from: string; to: string; captured?: string; flags?: string; san: string }[],
+  eta: number = ACCRETION_ETA
 ): AccretionLedger {
   const excess = new Float32Array(64);
   const history: AccretionEvent[] = [];
@@ -49,7 +50,7 @@ export function buildAccretionLedger(
       const victimMass = PIECE_MASSES[move.captured] ?? 0;
       const victimExcess = excess[victimSq];
       excess[victimSq] = 0;
-      const gained = ACCRETION_ETA * (victimMass + victimExcess);
+      const gained = eta * (victimMass + victimExcess);
       excess[toSq] = carried + gained;
 
       history.push({

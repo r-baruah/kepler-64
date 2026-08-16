@@ -9,6 +9,7 @@ import type { ConstantsConfig } from '../core/constants';
 import { DEFAULT_CONSTANTS } from '../core/constants';
 import { PRESET_GAMES } from '../core/presets';
 import type { PresetGame } from '../core/presets';
+import { DIST_64 } from '../core/gravity';
 import { UnifiedCanvas } from '../render/UnifiedCanvas';
 import type { ScoreBreakdown } from '../core/evaluate';
 import { evaluatePosition } from '../core/evaluate';
@@ -115,6 +116,7 @@ export class ObservatoryApp {
     }
 
     this.board.loadFen(tempChess.fen());
+    this.applyPhysicalBoosts(plyIndex, lastMoveObj);
     if (this.canvasRenderer) {
       this.canvasRenderer.setBoard(this.board, lastMoveObj);
     }
@@ -122,7 +124,6 @@ export class ObservatoryApp {
       this.sparkline.setCurrentPly(plyIndex);
     }
     this.updateCandidateMoves();
-    this.refreshAccretion();
   }
 
   private initCanvas(): void {
@@ -262,10 +263,28 @@ export class ObservatoryApp {
     `).join('');
   }
 
-  private refreshAccretion(): void {
-    const movesUpTo = this.moves.slice(0, this.currentPlyIndex + 1);
-    const ledger = buildAccretionLedger(movesUpTo);
+  private applyPhysicalBoosts(
+    plyIndex: number,
+    lastMoveObj: { from: number; to: number } | null
+  ): void {
+    const ledger = buildAccretionLedger(this.moves.slice(0, plyIndex + 1), this.config.accEta);
     this.accretionExcess = ledger.excessBySquare;
+
+    const boost = new Float32Array(64);
+    Object.entries(ledger.excessBySquare).forEach(([sqStr, excess]) => {
+      boost[parseInt(sqStr, 10)] += excess;
+    });
+
+    // Relativistic Lorentz escalation for the most recent move.
+    if (lastMoveObj) {
+      const dist = DIST_64[lastMoveObj.from * 64 + lastMoveObj.to];
+      const ratio = Math.min(0.95, dist / Math.max(0.1, this.config.c));
+      const gamma = 1 / Math.sqrt(Math.max(0.05, 1 - ratio * ratio));
+      const baseMass = this.board.squares[lastMoveObj.to]?.mass ?? 0;
+      boost[lastMoveObj.to] += (gamma - 1) * baseMass;
+    }
+
+    this.board.massBoost = boost;
     if (this.canvasRenderer) this.canvasRenderer.setAccretion(this.accretionExcess);
     this.updateAccretionHud(ledger);
   }
@@ -690,7 +709,11 @@ export class ObservatoryApp {
       this.updateBotStatus('Search worker crashed');
     };
 
-    worker.postMessage({ fen: this.liveChess.fen(), personaId: this.personaId });
+    worker.postMessage({
+      fen: this.liveChess.fen(),
+      personaId: this.personaId,
+      baseExcess: this.accretionExcess,
+    });
   }
 
   private cleanupWorker(): void {
