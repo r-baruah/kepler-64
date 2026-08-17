@@ -296,8 +296,78 @@ h1, h2, h3, h4 {
 
 .star-btn {
   white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-white);
+  border: var(--rule-thick) solid var(--color-ink);
+  color: var(--color-ink);
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.star-btn::after,
+.star-cta-shimmer::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -70%;
+  width: 45%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.85),
+    rgba(0, 105, 255, 0.35),
+    rgba(255, 255, 255, 0.85),
+    transparent
+  );
+  transform: rotate(25deg);
+  animation: star-sweep 3.8s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes star-sweep {
+  0% {
+    left: -80%;
+  }
+  25%, 100% {
+    left: 150%;
+  }
+}
+
+.star-cta-shimmer {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  border: var(--rule-thick) solid var(--color-ink);
+  padding: 12px 22px;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  box-shadow: 4px 4px 0 var(--color-plate);
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.star-cta-shimmer:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 0 var(--color-plate);
+  background: var(--color-plate);
+  color: var(--color-accent-ink);
+  border-color: var(--color-plate);
+}
+
+.star-btn:hover {
+  border-color: var(--color-plate);
+  color: var(--color-plate);
+  transform: translateY(-1px);
+}
 /* ---------- Hero ---------- */
 .hero {
   min-height: calc(100vh - 96px);
@@ -519,10 +589,115 @@ h1, h2, h3, h4 {
 }
 
 /* ---------- Stats band ---------- */
+/* ---------- Layers of Absurdity Section ---------- */
+.absurdity-section {
+  padding-bottom: var(--space-section);
+}
+
+.absurdity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  width: 100%;
+}
+
+.absurdity-card {
+  background: var(--color-white);
+  border: var(--rule-thick) solid var(--color-ink);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.absurdity-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 0 var(--color-plate);
+  border-color: var(--color-plate);
+}
+
+.card-layer-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-plate);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.absurdity-card h3 {
+  font-size: 1.25rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
+.absurdity-card p {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+  flex-grow: 1;
+}
+
+.absurdity-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: var(--space-xs);
+  border-top: var(--rule-thin) dashed var(--color-rule);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--color-muted);
+}
+
+.absurdity-honesty-strip {
+  background: var(--color-plate);
+  color: var(--color-accent-ink);
+  border: var(--rule-thick) solid var(--color-ink);
+  box-shadow: 8px 8px 0 var(--color-ink);
+  padding: var(--space-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.honesty-copy {
+  max-width: 65ch;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.honesty-copy strong {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.honesty-copy span {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  opacity: 0.95;
+}
+
+/* ---------- Stats band ---------- */
 .stats-band {
   padding-bottom: var(--space-section);
 }
 
+.kpi-grid-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
 .stats-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
@@ -2066,10 +2241,17 @@ h1, h2, h3, h4 {
    ============================================================ */
 
 @media (max-width: 950px) {
+  .absurdity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kpi-grid-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
   .observatory-cockpit-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-
   .telemetry-dual-grid {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     gap: var(--space-sm);
@@ -2275,11 +2457,23 @@ h1, h2, h3, h4 {
   }
 
   /* Stats / KPIs */
-  .kpi-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  .kpi-grid,
+  .kpi-grid-5 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
     gap: 8px;
   }
 
+  .absurdity-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .absurdity-honesty-strip {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 14px;
+  }
   .goal-card,
   .live-gauge-card,
   .kpi-card {
@@ -2489,8 +2683,9 @@ h1, h2, h3, h4 {
     font-size: clamp(2rem, 11vw, 2.8rem);
   }
 
-  .kpi-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .kpi-grid,
+  .kpi-grid-5 {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   .transport-buttons {
@@ -2533,4 +2728,20 @@ h1, h2, h3, h4 {
 .bot-status-dot,
 .status-dot {
   border-radius: 50% !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .star-btn::after,
+  .star-cta-shimmer::after {
+    display: none !important;
+  }
 }

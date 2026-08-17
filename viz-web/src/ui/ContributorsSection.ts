@@ -26,7 +26,7 @@ export class ContributorsSection {
     this.container.innerHTML = `
       <div class="contributors-wrapper shell" id="contributors">
         <div class="section-badge-header">
-          <span class="section-number">06 — Contributors</span>
+          <span class="section-number">07 — Contributors</span>
           <span class="badge-tag">ORIGIN &amp; RESEARCH TEAM</span>
           <h2>Project Leadership &amp; Contributors</h2>
           <p class="section-lead">

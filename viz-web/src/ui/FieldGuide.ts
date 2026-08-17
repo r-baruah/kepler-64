@@ -49,7 +49,7 @@ export const CHAPTERS: Chapter[] = [
     demoFen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3',
     demoTitle: 'Open Game Potential Wells (e4 vs e5 wells)',
     keyMetrics: [
-      { label: 'Softening ε', value: '0.70 sq' },
+      { label: 'Softening ε', value: '0.50 sq' },
       { label: 'Newtonian Limit', value: 'lim ε→0' },
       { label: 'Core Max Depth', value: '-G·m / ε' },
     ],
@@ -83,7 +83,7 @@ export const CHAPTERS: Chapter[] = [
     demoFen: 'r1b1k2r/pppp1ppp/8/8/1b1q4/8/PPPP1PPP/R1B1KB1R b KQkq - 1 9',
     demoTitle: 'Extreme Attack: King in Critical Roche Strain',
     keyMetrics: [
-      { label: 'Critical Limit ρ', value: '0.80' },
+      { label: 'Critical Limit ρ', value: '1.00' },
       { label: 'Ref Mass m_ref', value: '3.5 m' },
       { label: 'Self-Gravity R_g', value: '1.0 sq' },
     ],
@@ -100,7 +100,7 @@ export const CHAPTERS: Chapter[] = [
     demoFen: '8/8/8/8/8/8/4k3/K6Q w - - 0 1',
     demoTitle: 'Corner-to-Corner Distance Gate (a1 to h1)',
     keyMetrics: [
-      { label: 'Speed of Light c', value: '4.82 sq/ply' },
+      { label: 'Speed of Light c', value: '4.00 sq/ply' },
       { label: 'Horizon Sigmoid', value: 'Smooth Gate' },
       { label: 'Max Reach', value: '8√2 ≈ 11.3 sq' },
     ],
@@ -144,7 +144,7 @@ export class FieldGuideComponent {
       <div class="field-guide-notebook shell" id="compendium">
         <!-- Header -->
         <div class="notebook-header">
-          <span class="section-number">05 — Compendium</span>
+          <span class="section-number">04 — Compendium</span>
           <span class="badge-tag">KEPLER-64 SCIENTIFIC COMPENDIUM</span>
           <h2>The Mathematical &amp; Physical Foundations</h2>
           <p class="section-lead">

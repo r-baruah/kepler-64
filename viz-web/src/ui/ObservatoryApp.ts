@@ -1027,12 +1027,13 @@ export class ObservatoryApp {
 
           <nav class="stacked-nav" aria-label="Primary">
             <a href="#observatory" class="stack-link">Observatory</a>
-            <a href="#compendium" class="stack-link">Compendium</a>
+            <a href="#absurdity" class="stack-link">Absurdity</a>
+            <a href="#numbers" class="stack-link">By the numbers</a>
+            <a href="#compendium-section" class="stack-link">Compendium</a>
             <a href="#mechanism" class="stack-link">How it Works</a>
             <a href="#sandbox" class="stack-link">Laboratory</a>
             <a href="#contributors" class="stack-link">Contributors</a>
           </nav>
-
           <div class="nav-actions">
             <button id="nav-export-btn" class="action-primary nav-export-btn" title="Export Social GIF">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
@@ -1080,52 +1081,12 @@ export class ObservatoryApp {
 
       </section>
 
-      <!-- STATS BAND -->
-      <section class="stats-band shell" id="numbers">
-        <div class="section-head">
-          <span class="section-number">01 — By the numbers</span>
-          <h2>What the engine learns.</h2>
-          <p class="section-lead">Every physical constant is a learnable leaf. The evaluation is a gradient, not a guess.</p>
-        </div>
-
-        <div class="stats-grid">
-          <div class="goal-card">
-            <div class="kpi-eyebrow">PRIMARY GOAL</div>
-            <h3>Differentiable Evaluation</h3>
-            <div class="goal-figure">
-              <span class="big-stat">100<sup>%</sup></span>
-              <span class="goal-caption">end-to-end JAX auto-diff</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div>
-            <p class="kpi-note">13 of 13 physical constants are learnable leaves, optimized by gradient descent over self-play.</p>
-          </div>
-
-          <div class="live-gauge-card">
-            <div class="kpi-eyebrow">ROCHE DISRUPTION INDEX</div>
-            <div class="live-gauge-row">
-              <span class="big-stat" id="stats-roche-pct">0%</span>
-              <span class="goal-caption" id="stats-eta-text">η = 0.000 / ρ = ${this.config.roche.toFixed(2)}</span>
-            </div>
-            <div class="progress-track warm"><div id="stats-roche-fill" class="progress-fill warm" style="width:0%;"></div></div>
-            <p class="kpi-note">The enemy King collapses when η &gt; ρ<sub>roche</sub>.</p>
-          </div>
-        </div>
-
-        <div class="kpi-grid">
-          <div class="kpi-card"><span class="kpi-label">LEARNABLE LEAVES</span><span class="kpi-value">13</span><span class="kpi-change">13 / 13 trained</span></div>
-          <div class="kpi-card"><span class="kpi-label">LATTICE</span><span class="kpi-value">64×64</span><span class="kpi-change">2D spacetime</span></div>
-          <div class="kpi-card"><span class="kpi-label">MULTIVERSE</span><span class="kpi-value">K = 8</span><span class="kpi-change">posterior worlds</span></div>
-          <div class="kpi-card"><span class="kpi-label">ROCHE LIMIT</span><span class="kpi-value">ρ 0.80</span><span class="kpi-change">rupture threshold</span></div>
-        </div>
-      </section>
-
-      <!-- OBSERVATORY CONSOLE -->
+      <!-- 01 — OBSERVATORY CONSOLE -->
       <section class="observatory-console-section shell" id="observatory">
         <div class="section-head compact">
-          <span class="section-number">02 — Observatory</span>
+          <span class="section-number">01 — Observatory</span>
           <h2>Watch gravity play.</h2>
         </div>
-
         <!-- PRESET SELECTOR -->
         <div class="preset-bar">
           <span class="preset-label">OBSERVATIONS:</span>
@@ -1302,15 +1263,140 @@ export class ObservatoryApp {
         </div>
       </section>
 
-      <!-- COMPENDIUM -->
+      <!-- 02 — THE LAYERS OF ABSURDITY -->
+      <section class="absurdity-section shell" id="absurdity">
+        <div class="section-head">
+          <span class="section-number">02 — The Layers of Absurdity</span>
+          <span class="badge-tag">INNOVATION &amp; CORE MECHANICS</span>
+          <h2>How deep does the absurdity go?</h2>
+          <p class="section-lead">
+            Kepler-64 is not a cosmetic skin or heuristic chess theme. It is a differentiable N-body astrophysical simulation where every strategic chess decision emerges directly from gravitational tensor calculus.
+          </p>
+        </div>
+
+        <div class="absurdity-grid">
+          <div class="absurdity-card">
+            <div class="card-layer-tag">LAYER 1 · CAUSAL FOUNDATION</div>
+            <h3>Gravity is the Evaluator</h3>
+            <p>No piece-square tables, no heuristics, and no opaque neural network. Every piece acts as an attractive point mass in 2D spacetime. The Plummer gravitational potential field determines force vectors and tidal tensors at the King.</p>
+            <div class="absurdity-card-meta">
+              <span>Checkmate = Roche Tidal Rupture</span>
+              <span>C^∞ Analytical Differentiability</span>
+            </div>
+          </div>
+
+          <div class="absurdity-card">
+            <div class="card-layer-tag">LAYER 2 · DYNAMIC MASS</div>
+            <h3>Capture Mass Accretion</h3>
+            <p>Captured matter does not vanish into the void. The capturing piece accretes 80% of the victim's mass (η_acc = 0.80). Supermassive pieces create deeper gravity wells, but expanded radius of gyration (R_g) makes them physically fragile to tidal shear.</p>
+            <div class="absurdity-card-meta">
+              <span>Mass Conservation Law</span>
+              <span>Power Costs Fragility</span>
+            </div>
+          </div>
+
+          <div class="absurdity-card">
+            <div class="card-layer-tag">LAYER 2 · SPECIAL RELATIVITY</div>
+            <h3>Relativistic Lorentz Mass</h3>
+            <p>Rapid maneuvering creates relativistic inertia. Pieces moving at high speeds near the light cone c escalate in Lorentz dynamic mass. This provides a physics-native, causal anti-repetition mechanism rooted in Einsteinian kinematics.</p>
+            <div class="absurdity-card-meta">
+              <span>v/c Velocity Continuity</span>
+              <span>Kinetic Energy Penalty</span>
+            </div>
+          </div>
+
+          <div class="absurdity-card">
+            <div class="card-layer-tag">LAYER 2 · QUANTUM MEASUREMENT</div>
+            <h3>The Observer Effect</h3>
+            <p>The engine maintains an active Bayesian particle filter over the physical constants of the universe. When the opponent makes a move, the observer updates its belief distribution via KL-divergence, adapting to the opponent's latent physical laws.</p>
+            <div class="absurdity-card-meta">
+              <span>Online Bayesian Filter</span>
+              <span>KL-Divergence Anchor</span>
+            </div>
+          </div>
+
+          <div class="absurdity-card">
+            <div class="card-layer-tag">LAYER 2 · MULTIVERSE ENSEMBLE</div>
+            <h3>Multiverse Posterior Averaging</h3>
+            <p>Every candidate move evaluates across K = 8 parallel universes sampled from the trained posterior over (G, ε, c). The engine selects the minimax line with the highest Bayesian expectation across worlds, enforcing epistemic humility.</p>
+            <div class="absurdity-card-meta">
+              <span>K = 8 Posterior Realizations</span>
+              <span>Risk-Weighted Minimax</span>
+            </div>
+          </div>
+
+          <div class="absurdity-card">
+            <div class="card-layer-tag">LAYER 0 · UNIVERSAL SEEDING</div>
+            <h3>Image-Seeded Universes</h3>
+            <p>Generate a playable chess physics universe from any celestial photograph or image. The engine computes 2D spatial FFT power spectra of the image to deterministically seed all 14 physical constants of the gravitational manifold.</p>
+            <div class="absurdity-card-meta">
+              <span>2D FFT Spectral Decomposition</span>
+              <span>Deterministic Generation</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="absurdity-honesty-strip">
+          <div class="honesty-copy">
+            <strong>AUTHENTIC PHYSICS, NOT STOCKFISH:</strong>
+            <span>Kepler-64 never tried to be Stockfish. It is a differentiable physics simulation that happens to play legal chess — and every mathematical mechanism is backed by the compendium, the equations, and the open-source code.</span>
+          </div>
+          <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-primary star-btn star-cta-shimmer" title="Star Kepler-64 on GitHub">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            <span>★ Star on GitHub</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- 03 — STATS BAND -->
+      <section class="stats-band shell" id="numbers">
+        <div class="section-head">
+          <span class="section-number">03 — By the numbers</span>
+          <h2>What the engine learns.</h2>
+          <p class="section-lead">Every physical constant is a learnable leaf. The evaluation is a gradient, not a guess.</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="goal-card">
+            <div class="kpi-eyebrow">PRIMARY GOAL</div>
+            <h3>Differentiable Evaluation</h3>
+            <div class="goal-figure">
+              <span class="big-stat">100<sup>%</sup></span>
+              <span class="goal-caption">end-to-end JAX auto-diff</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div>
+            <p class="kpi-note">14 of 14 physics knobs are gradient-trainable leaves (G typically frozen at 1.0 for identifiability; m_ref is a fixed unit scale).</p>
+          </div>
+
+          <div class="live-gauge-card">
+            <div class="kpi-eyebrow">ROCHE DISRUPTION INDEX</div>
+            <div class="live-gauge-row">
+              <span class="big-stat" id="stats-roche-pct">0%</span>
+              <span class="goal-caption" id="stats-eta-text">η = 0.000 / ρ = ${this.config.roche.toFixed(2)}</span>
+            </div>
+            <div class="progress-track warm"><div id="stats-roche-fill" class="progress-fill warm" style="width:0%;"></div></div>
+            <p class="kpi-note">The enemy King collapses when η &gt; ρ<sub>roche</sub>.</p>
+          </div>
+        </div>
+
+        <div class="kpi-grid kpi-grid-5">
+          <div class="kpi-card"><span class="kpi-label">LEARNABLE LEAVES</span><span class="kpi-value">14</span><span class="kpi-change">gradient leaves</span></div>
+          <div class="kpi-card"><span class="kpi-label">PAIRWISE STENCIL</span><span class="kpi-value">64×64</span><span class="kpi-change">precomputed matrix</span></div>
+          <div class="kpi-card"><span class="kpi-label">MULTIVERSE</span><span class="kpi-value">K = 8</span><span class="kpi-change">posterior worlds</span></div>
+          <div class="kpi-card"><span class="kpi-label">ROCHE LIMIT</span><span class="kpi-value">ρ 1.00</span><span class="kpi-change">rupture threshold</span></div>
+          <div class="kpi-card"><span class="kpi-label">SELF-PLAY</span><span class="kpi-value">Elo-Gated</span><span class="kpi-change">persisted champions</span></div>
+        </div>
+      </section>
+
+      <!-- 04 — COMPENDIUM -->
       <section class="compendium-band" id="compendium-section">
         <div id="field-guide-mount"></div>
       </section>
 
-      <!-- MECHANISM PLATE -->
+      <!-- 05 — MECHANISM PLATE -->
       <section class="mechanism-plate" id="mechanism">
         <div class="shell">
-          <span class="section-number">03 — How it works</span>
+          <span class="section-number">05 — How it works</span>
           <div class="badge-tag">ANALYTICAL ENGINE</div>
           <h2>The physics is the evaluator.</h2>
           <p class="section-lead" style="opacity:0.9; max-width:65ch; margin-top:var(--space-sm);">
@@ -1331,10 +1417,10 @@ export class ObservatoryApp {
         </div>
       </section>
 
-      <!-- SANDBOX -->
+      <!-- 06 — SANDBOX -->
       <section class="shell sandbox-section" id="sandbox">
         <div class="section-head compact">
-          <span class="section-number">04 — Laboratory</span>
+          <span class="section-number">06 — Laboratory</span>
           <h2>Universal Physics Laboratory</h2>
           <p class="section-lead" style="max-width:65ch;">
             Adjust the fundamental physical laws of the chess universe in real time and watch the gravitational topography and tidal tension warp instantly.
@@ -1376,8 +1462,8 @@ export class ObservatoryApp {
         </div>
       </section>
 
-      <!-- CONTRIBUTORS -->
-      <section class="shell">
+      <!-- 07 — CONTRIBUTORS -->
+      <section class="shell" id="contributors">
         <div id="contributors-mount"></div>
       </section>
 
