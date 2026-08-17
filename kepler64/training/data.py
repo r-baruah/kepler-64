@@ -108,6 +108,7 @@ def puzzle_examples(csv_path, limit=5000):
                 "child_m": child_m,
                 "mask": mask,
                 "expert_idx": int(expert_idx),
+                "expert_cap": 1.0 if board.is_capture(expert) else 0.0,
             })
     return out
 
@@ -148,6 +149,7 @@ def game_examples(pgn_path, limit_games=10, limit_positions=20000):
                     "child_m": child_m,
                     "mask": mask,
                     "expert_idx": int(expert_idx),
+                    "expert_cap": 1.0 if board.is_capture(mv) else 0.0,
                 })
                 board.push(mv)
             limit_games -= 1
@@ -157,7 +159,9 @@ def game_examples(pgn_path, limit_games=10, limit_positions=20000):
 
 
 def to_arrays(examples):
-    """Stack examples into padded numpy arrays."""
+    """Stack examples into padded numpy arrays. Returns a 7-tuple ending with
+    `expert_capture` ((N,) float mask, 1 where the expert move is a capture;
+    all-zeros when examples carry no capture label)."""
     n = len(examples)
     M = np.stack([e["mass"] for e in examples]).astype(np.float32)
     Y = np.array([e["outcome"] for e in examples], dtype=np.float32)
@@ -165,4 +169,6 @@ def to_arrays(examples):
     moves_m = np.stack([e["child_m"] for e in examples]).astype(np.float32)
     mask = np.stack([e["mask"] for e in examples]).astype(np.float32)
     expert_idx = np.array([e["expert_idx"] for e in examples], dtype=np.int32)
-    return M, Y, turns, moves_m, mask, expert_idx
+    expert_cap = np.array([e.get("expert_cap", 0.0) for e in examples],
+                          dtype=np.float32)
+    return M, Y, turns, moves_m, mask, expert_idx, expert_cap

@@ -55,42 +55,28 @@ except ImportError:  # pragma: no cover
         stacklevel=1,
     )
 
-from ..core.constants import Constants
+from ..core.constants import (
+    Constants, leaves_to_array, array_to_leaves, LEAF_LO_F, LEAF_HI_F,
+)
 from .loss import loss as loss_fn
 from .data import to_arrays
 
+# Single source of truth: the leaf array layout and the physical bounds now
+# live in core/constants.py.  The trainer, the loss, and JSON persistence all
+# read the SAME tuple, so a new leaf or a bound change only ever happens once.
+
 
 def _to_arr(c: Constants) -> "jnp.ndarray":
-    # 14 trainable physical leaves: the 9 original + 4 delta-term gains + drift.
-    return jnp.array([c.G, c.eps, c.c, c.roche, c.bonus, c.kgain, c.gamma, c.Rg,
-                      c.mat_gain, c.lambda_delta, c.com_gain, c.inertia_gain,
-                      c.entropy_gain, c.lambda_drift], dtype=jnp.float32)
+    return leaves_to_array(c)
 
 
 def _from_arr(a) -> Constants:
-    return Constants(
-        G=float(a[0]),
-        eps=float(jnp.clip(a[1], 0.01, 20.0)),
-        c=float(jnp.clip(a[2], 1.0, 10.0)),
-        roche=float(jnp.clip(a[3], 0.05, 20.0)),
-        bonus=float(jnp.clip(a[4], 0.01, 500.0)),
-        kgain=float(jnp.clip(a[5], 0.01, 50.0)),
-        gamma=float(jnp.clip(a[6], 0.0, 50.0)),
-        Rg=float(jnp.clip(a[7], 0.1, 10.0)),
-        mat_gain=float(jnp.clip(a[8], 0.0, 5.0)),  # material scale stays modest
-        lambda_delta=float(jnp.clip(a[9], 0.0, 10.0)),
-        com_gain=float(jnp.clip(a[10], 0.0, 10.0)),
-        inertia_gain=float(jnp.clip(a[11], 0.0, 1.0)),
-        entropy_gain=float(jnp.clip(a[12], 0.0, 5.0)),
-        lambda_drift=float(jnp.clip(a[13], 0.0, 10.0)),
-    )
+    return array_to_leaves(a)
 
 
-# Physical bounds for projection after each Adam step.
-_LO = jnp.array([0.01, 0.01, 1.0, 0.05, 0.01, 0.01, 0.0, 0.1, 0.0,
-                 0.0, 0.0, 0.0, 0.0, 0.0], dtype=jnp.float32)
-_HI = jnp.array([50.0, 20.0, 10.0, 20.0, 500., 50.0, 50., 10.0, 5.0,
-                 10.0, 10.0, 1.0, 5.0, 10.0], dtype=jnp.float32)
+# Physical bounds for projection after each Adam step (shared with loss).
+_LO = LEAF_LO_F
+_HI = LEAF_HI_F
 
 
 def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx=None,
@@ -209,7 +195,8 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
                    val_frac: float = 0.2, verbose: bool = True,
                    tau: float = 2.0, margin: float = 0.0,
                    key=None, use_multiverse: bool = False,
-                   K: int = 8, sigma: float = 0.1, policy: bool = True):
+                   K: int = 8, sigma: float = 0.1, policy: bool = True,
+                   return_metrics: bool = False):
     """Convenience: build arrays from examples (list of dicts), split train/val,
     train, and report validation ranking metrics so we can see real progress
     (not just overfitting on the training set).
@@ -218,6 +205,9 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
     8 GB total), val_frac=0.2 (held-out check).  tau=2.0 softens the policy
     softmax; margin>0 adds pairwise margin-ranking (easier than sharp CE).
     use_multiverse: train the Layer-2 Bayesian-average score.
+    return_metrics: also return {"baseline": ..., "trained": ...} policy
+    metrics on the held-out validation split (used by the self-play loop as an
+    accept/reject gate).
     """
     if not examples:
         raise ValueError(
@@ -225,7 +215,7 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
             "Check that puzzle_examples / game_examples loaded data correctly "
             "(CSV path, column names, move format)."
         )
-    M, Y, turns, moves_m, mask, expert_idx = to_arrays(examples)
+    M, Y, turns, moves_m, mask, expert_idx, expert_cap = to_arrays(examples)
     n = int(M.shape[0])
     rng = np.random.default_rng(seed)
     perm = rng.permutation(n)
@@ -241,20 +231,28 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
         key=key, use_multiverse=use_multiverse, K=K, sigma=sigma,
     )
 
-    if verbose and policy:
+    metrics = None
+    if policy:
         from .loss import policy_metrics
-        Mv, Yv, tv, mmv, mkv, eiv = (
-            M[va], Y[va], turns[va], moves_m[va], mask[va], expert_idx[va])
-        b = policy_metrics(base, Mv, Yv, tv, mmv, mkv, eiv)
-        t = policy_metrics(trained, Mv, Yv, tv, mmv, mkv, eiv)
-        print(f"[train] N={n}  train={split} val={n - split}  "
-              f"steps={steps} lr={lr} tau={tau} margin={margin}")
-        print(f"[train] baseline  top1={b['top1']:.3f}  mrr={b['mrr']:.3f}")
-        print(f"[train] trained   top1={t['top1']:.3f}  mrr={t['mrr']:.3f}")
-        print(f"[train] delta mrr              : {t['mrr'] - b['mrr']:+.3f}")
+        Mv, Yv, tv, mmv, mkv, eiv, capv = (
+            M[va], Y[va], turns[va], moves_m[va], mask[va], expert_idx[va],
+            expert_cap[va])
+        b = policy_metrics(base, Mv, Yv, tv, mmv, mkv, eiv, capv)
+        t = policy_metrics(trained, Mv, Yv, tv, mmv, mkv, eiv, capv)
+        metrics = {"baseline": b, "trained": t}
+        if verbose:
+            print(f"[train] N={n}  train={split} val={n - split}  "
+                  f"steps={steps} lr={lr} tau={tau} margin={margin}")
+            print(f"[train] baseline  top1={b['top1']:.3f}  mrr={b['mrr']:.3f} "
+                  f"cap={b['mrr_capture']:.3f} quiet={b['mrr_quiet']:.3f}")
+            print(f"[train] trained   top1={t['top1']:.3f}  mrr={t['mrr']:.3f} "
+                  f"cap={t['mrr_capture']:.3f} quiet={t['mrr_quiet']:.3f}")
+            print(f"[train] delta mrr              : {t['mrr'] - b['mrr']:+.3f}")
     elif verbose:
         print(f"[train] N={n}  train={split} val={n - split}  "
               f"steps={steps} lr={lr} outcome-only")
+    if return_metrics:
+        return trained, metrics
     return trained
 
 

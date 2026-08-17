@@ -24,7 +24,16 @@ class RocheEngine:
     the evaluation interface used by the search tree.
     """
 
-    def __init__(self, constants: Constants | None = None, seed_image=None):
+    def __init__(self, constants: Constants | None = None, seed_image=None,
+                 load_trained: bool = True):
+        # Constants resolution order:
+        #   1. an explicitly supplied Constants (tests, ablations, matches)
+        #   2. the persisted trained artifact (trained_constants.json) if it
+        #      exists — the trained universe the pipeline last accepted
+        #   3. the pristine hand-set universe
+        if constants is None and load_trained:
+            from .core.constants import load_constants
+            constants = load_constants() or Constants()
         self.constants = constants or Constants()
         if seed_image is not None:
             from .core.image_seed import seed_from_image
@@ -40,7 +49,8 @@ class RocheEngine:
         return evaluate(board, self.constants)
 
     def play(self, board, depth: int = 3, search_time_ms: float | None = None,
-             max_depth: int = 8, use_multiverse: bool = True):
+             max_depth: int = 8, use_multiverse: bool = True,
+             multiverse_seed: int | None = None):
         """Search + return the best move (as a python-chess Move).
 
         `depth` caps iterative deepening (default 3). Pass `search_time_ms` to
@@ -50,8 +60,9 @@ class RocheEngine:
 
         `use_multiverse` (default True) runs the Layer-2 posterior mean on the
         root's near-tie candidates, so the multiverse breaks ties the search
-        cannot; it is deterministic (fixed posterior seed) and cheap (only the
-        root's tie-set is re-scored).
+        cannot; it is deterministic (fixed posterior seed). Pass
+        `multiverse_seed` to reseed the posterior draws — training uses this
+        for exploration noise on self-play games without changing the physics.
         """
         import chess
 
@@ -59,6 +70,7 @@ class RocheEngine:
         from .search.minimax import best_move, best_move_time, iterative_search
 
         fb = board if isinstance(board, FastBoard) else FastBoard.from_chess(board)
+        mv_seed = 20260808 if multiverse_seed is None else multiverse_seed
 
         # Closed-orbit history: every position already on the line (board
         # identity only — pieces/turn/castling/ep — NOT the halfmove clocks,
@@ -77,10 +89,12 @@ class RocheEngine:
         if search_time_ms is not None:
             mv, _ = iterative_search(self, fb, max_depth=max_depth,
                                      time_ms=search_time_ms, seen=seen,
-                                     use_multiverse=use_multiverse)
+                                     use_multiverse=use_multiverse,
+                                     multiverse_seed=mv_seed)
         else:
             mv, _ = iterative_search(self, fb, max_depth=depth, seen=seen,
-                                     use_multiverse=use_multiverse)
+                                     use_multiverse=use_multiverse,
+                                     multiverse_seed=mv_seed)
         if mv is None:
             return None
         f, t, promo = mv
