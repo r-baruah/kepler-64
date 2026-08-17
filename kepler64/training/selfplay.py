@@ -54,7 +54,7 @@ def play_training_games(constants: Constants,
     explorer = RocheEngine(constants)   # explorer: multiverse tie-break w/ random seed
     teacher = RocheEngine(constants)    # teacher: same kernel, bigger time budget
 
-    def _board_to_examples(board: chess.Board, mv_played_by_teacher=None):
+    def _board_to_examples(board: chess.Board):
         """Build one example dict from a python-chess board (teacher-labeled)."""
         fb = FastBoard.from_chess(board)
         parent, child_m, mask, legal = _data._children(board)
@@ -102,20 +102,37 @@ def play_training_games(constants: Constants,
                 break
             board.push(mv)
             plies += 1
+
         oc = board.outcome()
-        if oc is None or oc.winner is None:
-            outcome, draws = 0.0, draws + 1
-        elif oc.winner == chess.WHITE:
-            outcome, wins = 1.0, wins + 1
+        truncated = (plies >= max_plies and (oc is None or oc.winner is None))
+        if oc is not None and oc.winner is not None:
+            outcome = 1.0 if oc.winner == chess.WHITE else -1.0
+        elif truncated:
+            # Ply-cap truncation with no decisive result: adjudicate on the
+            # TERMINAL MASS DIFFERENCE. This is NOT a heuristic — mass is the
+            # very quantity the engine's material term scores, so "heavier
+            # army wins a truncated game" is the physics-consistent reading of
+            # who was ahead at the horizon. Without this, every capped game is
+            # a 0.0 draw and the outcome loss learns nothing (the measured
+            # all-draw harvest failure).
+            outcome = _terminal_mass_edge(board)
         else:
-            outcome, losses = -1.0, losses + 1
+            outcome = 0.0
+        if outcome > 0:
+            wins += 1
+        elif outcome < 0:
+            losses += 1
+        else:
+            draws += 1
         # real outcome label for every sampled position of this game
         for ex in game_examples:
             ex["outcome"] = outcome
         examples.extend(game_examples)
         if verbose:
-            print(f"[selfplay] game {g + 1}/{games}: {plies} plies, "
-                  f"{'1-0' if outcome > 0 else '0-1' if outcome < 0 else 'draw'}, "
+            tag = "1-0" if outcome > 0 else "0-1" if outcome < 0 else "draw"
+            if truncated:
+                tag += "#"
+            print(f"[selfplay] game {g + 1}/{games}: {plies} plies, {tag}, "
                   f"{len(game_examples)} examples")
 
     summary = {
@@ -123,3 +140,28 @@ def play_training_games(constants: Constants,
         "examples": len(examples),
     }
     return examples, summary
+
+
+def _terminal_mass_edge(board: chess.Board) -> float:
+    """Signed army-mass difference at the terminal board (white - black), in
+    the engine's own piece-mass units, thresholded into a +/-1 decision.
+
+    Kings are excluded (both weigh 1000 and cancel), mirroring evaluate.py's
+    army split. A clear mass edge = decisive; near-equal stays a draw.
+    """
+    import numpy as _np
+    fb = FastBoard.from_chess(board)
+    m = _np.asarray(fb.mass_vector(), dtype=_np.float32)
+    abs_m = _np.abs(m)
+    white = _np.where(m > 0, abs_m, 0.0)
+    black = _np.where(m < 0, abs_m, 0.0)
+    # exclude the supermassive kings
+    white[int(_np.argmax((_np.abs(m) >= 500.0) & (m > 0)))] = 0.0
+    black[int(_np.argmax((_np.abs(m) >= 500.0) & (m < 0)))] = 0.0
+    diff = float(white.sum() - black.sum())
+    # a full pawn (mass 1.0) of clear material at the horizon decides it
+    if diff >= 1.0:
+        return 1.0
+    if diff <= -1.0:
+        return -1.0
+    return 0.0
