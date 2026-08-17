@@ -69,8 +69,10 @@ export class UnifiedCanvas {
   private hoveredSquare: number | null = null;
   private onHoverCallback?: (info: SquareHoverInfo | null) => void;
 
-  // Selection & Tap-to-move state
+  // Selection, Legal Moves & Check State
   private selectedSquare: number | null = null;
+  private checkSquare: number | null = null;
+  private legalMovesProvider?: (square: number) => number[];
 
   // Drag-and-drop state
   private isDragging = false;
@@ -85,6 +87,9 @@ export class UnifiedCanvas {
   private onMoveCallback?: (fromSq: number, toSq: number) => void;
   private onEvaluateCallback?: (breakdown: ScoreBreakdown) => void;
   private orientation: 'w' | 'b' = 'w';
+  // Resize observer for responsive layout adjustments
+  private resizeObserver: ResizeObserver | null = null;
+  private boundWindowResize = () => this.updateDimensions();
 
   // Bound listener references so destroy() can remove them.
   private boundCanvasMouseDown = this.handlePointerDown.bind(this);
@@ -95,14 +100,14 @@ export class UnifiedCanvas {
   private boundTouchStart = (e: TouchEvent): void => {
     if (e.touches.length === 1) {
       const touch = e.touches[0];
-      this.startDrag(touch.clientX, touch.clientY);
+      this.startDrag(touch.clientX, touch.clientY, true);
     }
   };
   private boundTouchMove = (e: TouchEvent): void => {
     if (this.isDragging && e.touches.length === 1) {
       if (e.cancelable) e.preventDefault();
       const touch = e.touches[0];
-      this.updateDrag(touch.clientX, touch.clientY);
+      this.updateDrag(touch.clientX, touch.clientY, true);
     }
   };
   private boundTouchEnd = (e: TouchEvent): void => {
@@ -130,9 +135,43 @@ export class UnifiedCanvas {
 
     this.preloadPieces();
     this.attachEventListeners();
+    this.initResizeHandling();
     this.syncPulseTimer();
   }
 
+  public updateDimensions(): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const parent = this.canvas.parentElement;
+    const containerW = rect.width > 0 ? rect.width : (parent ? parent.clientWidth : 400);
+    const containerH = rect.height > 0 ? rect.height : (parent ? parent.clientHeight : 400);
+    const baseSize = Math.max(280, Math.min(containerW, containerH || containerW));
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const targetPx = Math.round(baseSize * dpr);
+
+    if (this.canvas.width !== targetPx || this.canvas.height !== targetPx) {
+      this.canvas.width = targetPx;
+      this.canvas.height = targetPx;
+      this.cacheKey = null;
+      this.heatmapCanvas = null;
+      this.render();
+    }
+  }
+
+  private initResizeHandling(): void {
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.updateDimensions();
+      });
+      if (this.canvas.parentElement) {
+        this.resizeObserver.observe(this.canvas.parentElement);
+      } else {
+        this.resizeObserver.observe(this.canvas);
+      }
+    }
+    window.addEventListener('resize', this.boundWindowResize);
+    // Initial dimension sync after DOM layout settles
+    requestAnimationFrame(() => this.updateDimensions());
+  }
   public setBoard(board: KeplerBoard, lastMove: { from: number; to: number } | null = null): void {
     this.board = board;
     this.lastMove = lastMove;
@@ -176,6 +215,14 @@ export class UnifiedCanvas {
     this.render();
   }
 
+  public setLegalMovesProvider(cb?: (square: number) => number[]): void {
+    this.legalMovesProvider = cb;
+  }
+
+  public setCheckSquare(sq: number | null): void {
+    this.checkSquare = sq;
+    this.render();
+  }
   public destroy(): void {
     if (this.pulseTimer !== null) {
       window.clearInterval(this.pulseTimer);
@@ -185,6 +232,11 @@ export class UnifiedCanvas {
       cancelAnimationFrame(this.animFrame);
       this.animFrame = null;
     }
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    window.removeEventListener('resize', this.boundWindowResize);
 
     this.canvas.removeEventListener('mousedown', this.boundCanvasMouseDown);
     this.canvas.removeEventListener('mousemove', this.boundCanvasMouseMove);
@@ -332,15 +384,17 @@ export class UnifiedCanvas {
     this.startDrag(e.clientX, e.clientY);
   }
 
-  private startDrag(clientX: number, clientY: number): void {
+  private startDrag(clientX: number, clientY: number, isTouch = false): void {
     this.dragStartX = clientX;
     this.dragStartY = clientY;
     this.dragLastClientX = clientX;
     this.dragLastClientY = clientY;
 
     const rect = this.canvas.getBoundingClientRect();
+    const sqSize = this.canvas.height / 8;
+    const touchOffsetY = isTouch ? sqSize * 0.6 : 0;
     this.dragCanvasX = ((clientX - rect.left) / rect.width) * this.canvas.width;
-    this.dragCanvasY = ((clientY - rect.top) / rect.height) * this.canvas.height;
+    this.dragCanvasY = ((clientY - rect.top) / rect.height) * this.canvas.height - touchOffsetY;
 
     const sq = this.getCanvasSquare(clientX, clientY);
     if (sq === null) return;
@@ -354,20 +408,21 @@ export class UnifiedCanvas {
 
   private handleWindowMouseMove(e: MouseEvent): void {
     if (!this.isDragging) return;
-    this.updateDrag(e.clientX, e.clientY);
+    this.updateDrag(e.clientX, e.clientY, false);
   }
 
-  private updateDrag(clientX: number, clientY: number): void {
+  private updateDrag(clientX: number, clientY: number, isTouch = false): void {
     this.dragLastClientX = clientX;
     this.dragLastClientY = clientY;
 
     const rect = this.canvas.getBoundingClientRect();
+    const sqSize = this.canvas.height / 8;
+    const touchOffsetY = isTouch ? sqSize * 0.6 : 0;
     this.dragCanvasX = ((clientX - rect.left) / rect.width) * this.canvas.width;
-    this.dragCanvasY = ((clientY - rect.top) / rect.height) * this.canvas.height;
+    this.dragCanvasY = ((clientY - rect.top) / rect.height) * this.canvas.height - touchOffsetY;
     this.hoveredSquare = this.getCanvasSquare(clientX, clientY);
     this.render();
   }
-
   private handlePointerUp(e: MouseEvent): void {
     if (!this.isDragging) return;
     this.endDrag(e.clientX, e.clientY);
@@ -382,7 +437,27 @@ export class UnifiedCanvas {
     const targetSq = this.getCanvasSquare(finalX, finalY);
 
     if (dragDistance < 10) {
-      // TAP / CLICK INTERACTION (Tap-to-move)
+      // TAP / CLICK INTERACTION (Tap-to-move & Tap-to-inspect)
+      if (targetSq !== null && this.onHoverCallback) {
+        const realSq = this.disp(targetSq);
+        const f = realSq % 8;
+        const r = Math.floor(realSq / 8);
+        const piece = this.board.squares[realSq];
+        const masses = this.board.massVector();
+        const forces = forceField(masses, this.config.eps, this.config.G, this.config.c);
+        const fMag = Math.sqrt(forces.fx[realSq] * forces.fx[realSq] + forces.fy[realSq] * forces.fy[realSq]);
+
+        this.onHoverCallback({
+          square: realSq,
+          fileChar: String.fromCharCode(97 + f),
+          rankNum: r + 1,
+          piece,
+          mass: piece ? piece.mass : 0,
+          potential: 0,
+          forceMag: fMag,
+        });
+      }
+
       if (this.selectedSquare === null) {
         if (targetSq !== null && this.board.squares[this.disp(targetSq)]) {
           this.selectedSquare = targetSq;
@@ -394,15 +469,23 @@ export class UnifiedCanvas {
         } else if (targetSq !== null) {
           const fromReal = this.disp(this.selectedSquare);
           const toReal = this.disp(targetSq);
-          if (this.onMoveCallback) {
-            this.onMoveCallback(fromReal, toReal);
+          const selectedPiece = this.board.squares[fromReal];
+          const targetPiece = this.board.squares[toReal];
+
+          // Switch selection directly if player tapped another piece of their own color
+          if (selectedPiece && targetPiece && selectedPiece.color === targetPiece.color) {
+            this.selectedSquare = targetSq;
           } else {
-            const piece = this.board.squares[fromReal];
-            this.board.squares[toReal] = piece;
-            this.board.squares[fromReal] = null;
-            this.lastMove = { from: fromReal, to: toReal };
+            if (this.onMoveCallback) {
+              this.onMoveCallback(fromReal, toReal);
+            } else {
+              const piece = this.board.squares[fromReal];
+              this.board.squares[toReal] = piece;
+              this.board.squares[fromReal] = null;
+              this.lastMove = { from: fromReal, to: toReal };
+            }
+            this.selectedSquare = null;
           }
-          this.selectedSquare = null;
         }
       }
     } else {
@@ -421,7 +504,6 @@ export class UnifiedCanvas {
         this.selectedSquare = null;
       }
     }
-
     this.isDragging = false;
     this.dragPiece = null;
     this.dragFromSq = null;
@@ -616,20 +698,65 @@ export class UnifiedCanvas {
       ctx.fillRect(f * sqSize, (7 - r) * sqSize, sqSize, sqSize);
     }
 
-    // 3. Draw Selected Square (Tap-to-move) Highlight
-    if (this.selectedSquare !== null) {
-      const f = this.selectedSquare % 8;
-      const r = Math.floor(this.selectedSquare / 8);
+    // 3. Draw King in Check Warning Halo
+    if (this.checkSquare !== null) {
+      const cDisp = disp(this.checkSquare);
+      const cf = cDisp % 8;
+      const cr = Math.floor(cDisp / 8);
+      const cx = (cf + 0.5) * sqSize;
+      const cy = (7 - cr + 0.5) * sqSize;
       ctx.save();
-      ctx.fillStyle = 'rgba(240, 100, 38, 0.25)';
-      ctx.fillRect(f * sqSize, (7 - r) * sqSize, sqSize, sqSize);
-      ctx.strokeStyle = '#f06426';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(f * sqSize + 1.5, (7 - r) * sqSize + 1.5, sqSize - 3, sqSize - 3);
+      const grad = ctx.createRadialGradient(cx, cy, sqSize * 0.15, cx, cy, sqSize * 0.75);
+      grad.addColorStop(0, `rgba(255, 59, 0, ${(0.65 + 0.3 * pulse).toFixed(2)})`);
+      grad.addColorStop(0.7, `rgba(255, 59, 0, ${(0.25 + 0.15 * pulse).toFixed(2)})`);
+      grad.addColorStop(1, 'rgba(255, 59, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(cf * sqSize, (7 - cr) * sqSize, sqSize, sqSize);
       ctx.restore();
     }
 
-    // 4. Draw Last Move Highlight
+    // 4. Draw Selected Square Highlight & Legal Moves
+    const activeSel = this.selectedSquare ?? (this.isDragging ? this.dragFromSq : null);
+    if (activeSel !== null) {
+      const f = activeSel % 8;
+      const r = Math.floor(activeSel / 8);
+      ctx.save();
+      ctx.fillStyle = 'rgba(240, 100, 38, 0.28)';
+      ctx.fillRect(f * sqSize, (7 - r) * sqSize, sqSize, sqSize);
+      ctx.strokeStyle = '#f06426';
+      ctx.lineWidth = Math.max(2.5, sqSize * 0.045);
+      ctx.strokeRect(f * sqSize + 1.5, (7 - r) * sqSize + 1.5, sqSize - 3, sqSize - 3);
+
+      // Render Legal Move Hints
+      const realSelSq = disp(activeSel);
+      const legalTargets = this.legalMovesProvider ? this.legalMovesProvider(realSelSq) : [];
+      for (const targetReal of legalTargets) {
+        const targetDisp = disp(targetReal);
+        const tf = targetDisp % 8;
+        const tr = Math.floor(targetDisp / 8);
+        const tcx = (tf + 0.5) * sqSize;
+        const tcy = (7 - tr + 0.5) * sqSize;
+        const isCapture = !!this.board.squares[targetReal];
+
+        if (isCapture) {
+          // Capture Target Ring
+          ctx.beginPath();
+          ctx.arc(tcx, tcy, sqSize * 0.44, 0, Math.PI * 2);
+          ctx.lineWidth = Math.max(3, sqSize * 0.055);
+          ctx.strokeStyle = 'rgba(240, 100, 38, 0.9)';
+          ctx.stroke();
+        } else {
+          // Normal Move Target Dot
+          ctx.beginPath();
+          ctx.arc(tcx, tcy, sqSize * 0.17, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0, 105, 255, 0.65)';
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    // 5. Draw Last Move Highlight
     if (this.lastMove) {
       ctx.fillStyle = 'rgba(240, 100, 38, 0.35)'; // Trajectory Orange
       for (const sq of [disp(this.lastMove.from), disp(this.lastMove.to)]) {
@@ -638,7 +765,6 @@ export class UnifiedCanvas {
         ctx.fillRect(f * sqSize, (7 - r) * sqSize, sqSize, sqSize);
       }
     }
-
     const rawMasses = this.board.massVector();
     let masses: Float32Array = flip
       ? Float32Array.from({ length: 64 }, (_, d) => rawMasses[63 - d])

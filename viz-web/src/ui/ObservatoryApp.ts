@@ -141,13 +141,15 @@ export class ObservatoryApp {
     this.applyPhysicalBoosts(plyIndex, lastMoveObj);
     if (this.canvasRenderer) {
       this.canvasRenderer.setBoard(this.board, lastMoveObj);
+      const inCheck = tempChess.inCheck();
+      const checkSq = inCheck ? this.findKingSquare(tempChess.turn()) : null;
+      this.canvasRenderer.setCheckSquare(checkSq);
     }
     if (this.sparkline) {
       this.sparkline.setCurrentPly(plyIndex);
     }
     this.updateCandidateMoves();
   }
-
   private initCanvas(): void {
     const canvas = this.container.querySelector('#board-canvas') as HTMLCanvasElement;
     if (!canvas) return;
@@ -172,11 +174,29 @@ export class ObservatoryApp {
         }
       }
     });
-
     this.canvasRenderer.onMove((fromSq, toSq) => {
       this.handleUserMove(fromSq, toSq);
     });
 
+    this.canvasRenderer.setLegalMovesProvider((fromSq) => {
+      const fromAlg = this.sqToAlg(fromSq);
+      if (this.mode === 'play') {
+        if (this.isBotThinking || this.liveChess.turn() !== this.playerColor) return [];
+        const piece = this.board.squares[fromSq];
+        if (!piece || piece.color !== this.playerColor) return [];
+        const legal = this.liveChess.moves({ verbose: true });
+        return legal.filter((m) => m.from === fromAlg).map((m) => this.algToSq(m.to));
+      } else {
+        try {
+          const fen = this.board.toFen();
+          const tempChess = new Chess(fen);
+          const legal = tempChess.moves({ verbose: true });
+          return legal.filter((m) => m.from === fromAlg).map((m) => this.algToSq(m.to));
+        } catch {
+          return [];
+        }
+      }
+    });
     this.syncBoardToPly(this.currentPlyIndex);
   }
 
@@ -619,6 +639,21 @@ export class ObservatoryApp {
     return String.fromCharCode(97 + (sq % 8)) + (Math.floor(sq / 8) + 1);
   }
 
+  private algToSq(alg: string): number {
+    const file = alg.charCodeAt(0) - 97;
+    const rank = alg.charCodeAt(1) - 49;
+    return rank * 8 + file;
+  }
+
+  private findKingSquare(color: 'w' | 'b'): number | null {
+    for (let sq = 0; sq < 64; sq++) {
+      const piece = this.board.squares[sq];
+      if (piece && piece.type === 'k' && piece.color === color) {
+        return sq;
+      }
+    }
+    return null;
+  }
   private startPlayMode(side: 'w' | 'b', personaId: string): void {
     if (this.isPlaying) this.toggleAutoplay();
     if (this.sparklineDebounce) {
@@ -753,29 +788,67 @@ export class ObservatoryApp {
   }
 
   private handleUserMove(fromSq: number, toSq: number): void {
-    if (this.mode !== 'play') return;
     if (this.isBotThinking) return;
-    if (this.liveChess.turn() !== this.playerColor) return;
 
-    const from = this.sqToAlg(fromSq);
-    const to = this.sqToAlg(toSq);
-    const legal = this.liveChess.moves({ verbose: true });
-    const matching = legal.filter((m) => m.from === from && m.to === to);
-    const move = matching.find((m) => m.promotion === 'q')
-      ?? matching.find((m) => !m.promotion)
-      ?? matching[0];
-    if (!move) return;
+    if (this.mode === 'play') {
+      if (this.liveChess.turn() !== this.playerColor) return;
 
-    let applied = false;
-    try {
-      applied = !!this.liveChess.move({ from, to, promotion: move.promotion });
-    } catch {
-      applied = false;
+      const from = this.sqToAlg(fromSq);
+      const to = this.sqToAlg(toSq);
+      const legal = this.liveChess.moves({ verbose: true });
+      const matching = legal.filter((m) => m.from === from && m.to === to);
+      const move = matching.find((m) => m.promotion === 'q')
+        ?? matching.find((m) => !m.promotion)
+        ?? matching[0];
+      if (!move) return;
+
+      let applied = false;
+      try {
+        applied = !!this.liveChess.move({ from, to, promotion: move.promotion });
+      } catch {
+        applied = false;
+      }
+      if (!applied) return;
+
+      this.refreshLiveGame();
+      this.maybeScheduleBot();
+    } else {
+      // In Replay / Analysis mode: Allow user to freely play moves from the current position!
+      const currentFen = this.board.toFen();
+      let tempChess: Chess;
+      try {
+        tempChess = new Chess(currentFen);
+      } catch {
+        tempChess = new Chess();
+      }
+
+      const from = this.sqToAlg(fromSq);
+      const to = this.sqToAlg(toSq);
+      const legal = tempChess.moves({ verbose: true });
+      const matching = legal.filter((m) => m.from === from && m.to === to);
+      const move = matching.find((m) => m.promotion === 'q')
+        ?? matching.find((m) => !m.promotion)
+        ?? matching[0];
+      if (!move) return;
+
+      let applied = false;
+      try {
+        applied = !!tempChess.move({ from, to, promotion: move.promotion });
+      } catch {
+        applied = false;
+      }
+      if (!applied) return;
+
+      // Automatically branch into interactive play from this position
+      this.mode = 'play';
+      this.liveChess = tempChess;
+      this.playerColor = tempChess.turn() === 'w' ? 'b' : 'w';
+      this.moves = this.liveChess.history({ verbose: true });
+      this.currentPlyIndex = Math.max(0, this.moves.length - 1);
+      this.updateModeDeckUI();
+      this.refreshLiveGame();
+      this.maybeScheduleBot();
     }
-    if (!applied) return;
-
-    this.refreshLiveGame();
-    this.maybeScheduleBot();
   }
 
   private refreshLiveGame(): void {
@@ -908,6 +981,12 @@ export class ObservatoryApp {
         Play
       `;
     } else {
+      if (this.mode === 'play') {
+        this.switchToReplay();
+      }
+      if (this.currentPlyIndex >= this.moves.length - 1) {
+        this.setPly(0);
+      }
       this.isPlaying = true;
       const playBtn = this.container.querySelector('#btn-play');
       if (playBtn) playBtn.innerHTML = `
