@@ -5,11 +5,11 @@ chess:  negamax/alpha-beta with Principal-Variation Search, a Zobrist-style
         moves, and a history heuristic. The evaluation is the Roche Engine.
 physics: candidate batches are statically padded to the theoretical maximum
          (218) and evaluated with one consistent vmap shape. Captures accrete
-         mass (2C) before evaluation. The transposition key includes the full
-         physics state (position + accreted mass vectors + parent threading)
+         mass (2C) before evaluation. The transposition key is a Zobrist hash
+         of the position plus a compact checksum of the accreted mass state,
          so cached scores are never reused across different field states.
 
-Search-horizon notes (why this file looks the way it does):
+Search-horizon notes (why this file looks the way it is):
   * Every depth is reachable. The old null-move probe ran with a degenerate
     (-INF, -INF+1) window at the root and returned +INF, which silently broke
     best_move for depth >= 4. Null-move is now gated on a finite beta.
@@ -20,7 +20,6 @@ Search-horizon notes (why this file looks the way it does):
     pieces and king escapes are not read at a volatile horizon.
 """
 
-import hashlib
 import time
 
 import jax
@@ -46,17 +45,49 @@ _TT_EXACT = 0
 _TT_LOWER = 1
 _TT_UPPER = 2
 
-_TT_SIZE = 1 << 18  # 262k slots (~4 MB)
+_TT_SIZE = 1 << 19  # 524k slots (~10 MB)
+
+# Zobrist randoms for the position key (fixed seed: hashes are only compared
+# inside one process, determinism is more valuable than randomness here).
+# RandomState.randint is int32-limited, so two 31-bit draws are combined to a
+# full 64-bit word.
+_ZRNG = np.random.RandomState(20260817)
+
+
+def _rand64(n):
+    lo = _ZRNG.randint(1, 2**31 - 1, size=n).astype(np.uint64)
+    hi = _ZRNG.randint(1, 2**31 - 1, size=n).astype(np.uint64)
+    return (hi << 32) | lo
+
+
+_ZOB = (_rand64(64 * 13)).reshape(64, 13)
+_ZOB[:, 6] = 0  # empty square contributes nothing
+_ZOB_TURN = np.array([0, 0x9E3779B97F4A7C15], dtype=np.uint64)
+_ZOB_CASTLE = _rand64(16)
+_ZOB_EP = _rand64(65)
+# Per-square random multipliers for the mass-state checksum.
+_MASS_RAND = _rand64(64)
+
+
+def _mass_checksum(m) -> int:
+    """Exact 64-bit checksum of a (64,) float32 mass vector.
+
+    Any change in any float32 bit (accretion boost, Lorentz factor, moved mass)
+    changes the checksum. O(64) numpy ops — the old blake2b-over-1.5KB hash
+    cost ~50x more per TT probe and kept the table effectively unreachable.
+    """
+    bits = np.asarray(m, dtype=np.float32).view(np.uint32).astype(np.uint64)
+    return int((bits * _MASS_RAND).sum()) & 0xFFFFFFFFFFFFFFFF
 
 
 class TT:
     """Open-addressing transposition table.
 
-    Keyed by a 64-bit hash of the FULL physics state: position bytes (pieces,
-    turn, castling, ep) plus the child and parent mass vectors. Two lines that
-    reach the same pieces with different accreted masses are DIFFERENT physical
-    states and must not share a cached score — the delta (move-sensitivity)
-    terms and the accretion-adjusted fields depend on that history.
+    Keyed by a Zobrist hash of the position (pieces, turn, castling, ep) XOR a
+    checksum of the child AND parent mass vectors: two lines that reach the
+    same pieces with different accreted masses (or different parent fields,
+    which the move-sensitivity terms depend on) are DIFFERENT physical states
+    and must not share a cached score.
 
     Slot replacement: keep the entry with the larger depth (ties keep the old
     entry). No verification beyond the stored 64-bit hash (1/2^64 collision
@@ -71,17 +102,22 @@ class TT:
         self.flag = np.zeros(size, dtype=np.int8)
         self.score = np.zeros(size, dtype=np.float32)
         self.move = np.full(size, -1, dtype=np.int32)
-        self.occupied = np.zeros(size, dtype=bool)
+        self.occupied = np.zeros(size, dtype=np.bool_)
 
     @staticmethod
-    def _hash(pieces, child_m, parent_m) -> int:
-        blob = pieces.tobytes()
-        blob += np.ascontiguousarray(child_m, dtype=np.float32).tobytes()
-        blob += np.ascontiguousarray(parent_m, dtype=np.float32).tobytes()
-        return int.from_bytes(hashlib.blake2b(blob, digest_size=8).digest(), "little")
+    def _hash(board, child_m, parent_m) -> int:
+        pieces = board.pieces
+        sq = np.arange(64, dtype=np.int64)
+        idx = pieces.astype(np.int64) + 6  # 0=empty, 1..12 pieces
+        h = int(np.bitwise_xor.reduce(np.where(idx != 6, _ZOB[sq, idx], 0)))
+        h ^= int(_ZOB_CASTLE[int(board.castling) & 0xF])
+        h ^= int(_ZOB_EP[int(board.ep) + 1])  # ep in [-1,63] -> [0,64]
+        h ^= int(_ZOB_TURN[int(board.turn)])
+        h = (h ^ _mass_checksum(child_m) ^ _mass_checksum(parent_m)) & 0xFFFFFFFFFFFFFFFF
+        return h
 
-    def lookup(self, pieces, child_m, parent_m):
-        h = self._hash(pieces, child_m, parent_m)
+    def lookup(self, board, child_m, parent_m):
+        h = self._hash(board, child_m, parent_m)
         slot = h & self.mask
         k = self.keys[slot]
         if self.occupied[slot] and k == h:
@@ -89,9 +125,9 @@ class TT:
                     float(self.score[slot]), int(self.move[slot]))
         return None
 
-    def store(self, pieces, child_m, parent_m, depth: int, flag: int,
+    def store(self, board, child_m, parent_m, depth: int, flag: int,
               score: float, move):
-        h = self._hash(pieces, child_m, parent_m)
+        h = self._hash(board, child_m, parent_m)
         slot = h & self.mask
         if self.occupied[slot] and self.depth[slot] > depth and self.keys[slot] != h:
             return  # keep deeper entry
@@ -142,15 +178,16 @@ def _ordered_moves(board: FastBoard, constants: Constants,
     """Legal moves ordered for alpha-beta efficiency.
 
     Order (descending priority): TT move, MVV-LVA captures, previous-iteration
-    PV move (at the root), killer moves, history heuristic, and finally the
-    gravitational potential well (a piece moving into a deep friendly well —
-    a well-supported square — is tried before neutral shuffles). Captures and
-    forced lines refute quickly, which is what alpha-beta needs.
+    PV move (at the root), killer moves, then history heuristic. The
+    gravitational potential well is only a STABLE tiebreak at zero score — the
+    previous implementation re-sorted the WHOLE ordered list by the well,
+    which destroyed the TT/MVV-LVA ordering and killed alpha-beta efficiency.
     """
     moves = board.legal_moves()
     if len(moves) <= 1:
         return moves
 
+    U = None  # potential well, computed lazily for the tiebreak only
     scored = []
     for m in moves:
         sc = 0.0
@@ -165,23 +202,23 @@ def _ordered_moves(board: FastBoard, constants: Constants,
                 sc += 20_000.0
         if history is not None:
             sc += float(history[m[0] * 64 + m[1]])
+        if sc == 0.0:
+            # Quiet, unhinted move: the physics tiebreak decides its slot among
+            # the other unhinted quiets (moving into a deep friendly well =
+            # well-supported square first), without ever outranking a capture.
+            if U is None:
+                try:
+                    masses = np.abs(_MASS_LUT[np.abs(board.pieces).astype(np.int8)]).astype(np.float32)
+                    gate = 1.0 / (1.0 + np.exp(-(float(constants.c) - _DIST_NP)))
+                    r = np.sqrt(_DIST2_NP + float(constants.eps) ** 2)
+                    U = -(gate / r) @ masses  # (64,) potential at every square
+                except Exception:
+                    U = np.zeros(64)
+            sc = float(U[int(m[1])])
         scored.append((m, sc))
 
     scored.sort(key=lambda t: -t[1])
-    ordered = [m for m, _ in scored]
-
-    # Final tiebreak (stable): the gravitational well. Only computed when the
-    # ordering is actually ambiguous, to keep the hot path cheap.
-    if constants is not None and len(ordered) > 1:
-        try:
-            m = np.abs(_MASS_LUT[np.abs(board.pieces).astype(np.int8)]).astype(np.float32)
-            gate = 1.0 / (1.0 + np.exp(-(float(constants.c) - _DIST_NP)))
-            r = np.sqrt(_DIST2_NP + float(constants.eps) ** 2)
-            U = -(gate / r) @ m  # (64,) potential at every square
-            ordered.sort(key=lambda mv: (float(U[int(mv[1])]),))
-        except Exception:
-            pass
-    return ordered
+    return [m for m, _ in scored]
 
 
 def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
@@ -203,7 +240,7 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
     # TT probe: full physics state keyed.
     tt_move = None
     if ctx is not None:
-        hit = ctx.tt.lookup(board.pieces, current_mv, parent)
+        hit = ctx.tt.lookup(board, current_mv, parent)
         if hit is not None:
             h_depth, h_flag, h_score, h_move = hit
             tt_move = None if h_move < 0 else (
@@ -319,7 +356,7 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
             flag = _TT_LOWER
         else:
             flag = _TT_EXACT
-        ctx.tt.store(board.pieces, current_mv, parent, depth,
+        ctx.tt.store(board, current_mv, parent, depth,
                      flag, best, best_move)
     return best
 
