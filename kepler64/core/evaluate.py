@@ -1,19 +1,26 @@
-"""Evaluation: physics (tidal disruption) + a soft, differentiable tactical layer.
+"""Evaluation: the universe's physics decides the score. No chess tables, no
+books — every term below is a real gravitational quantity of the mass lattice.
 
-chess:  the score tells the search which move keeps your King bound and the
-        enemy King disrupted.
-physics: Eval = +eta_enemy - eta_self + bonus(your force on enemy king)
-                - penalty(enemy force on your king) + global field-energy edge.
+chess:  the score tells the search which move keeps your King bound and tears
+        the enemy King apart, while commanding more matter than the enemy.
+physics: Eval = +eta_enemy - eta_self                          (tidal stress)
+                + bonus(your ARMY force on enemy king)         (disruption gauge)
+                - penalty(their ARMY force on your king)
+                + gamma * (their binding - your binding)       (cohesion edge)
+                + mat_gain * (your mass - their mass)          (matter edge)
+                + move-sensitivity deltas (deta, CoM flux, inertia, entropy)
+                + drift (Verlet-projected d-eta over the horizon)
 
-        Disruption is SOURCE-ATTRIBUTED: a king is disrupted by the OPPONENT's
-        masses, not by its own. This is the physically correct reading (a body's
-        own gravity binds it; the enemy's gravity tears it) and it removes the
-        old perverse incentive where capturing an enemy piece looked BAD because
-        it lowered the total force on the enemy king.
+        Disruption is SOURCE-ATTRIBUTED: a king is disrupted by the OPPONENT'S
+        masses, not by its own.
 
-        `roche` is the learned disruption threshold: the force-sigmoid flips
-        around it, so gradient descent learns the tidal limit instead of us
-        hand-picking it.
+        The KING IS THE DETECTOR, NOT A FIELD SOURCE: every gauge that judges
+        attack/danger (eta, force, drift) is sourced from the ARMY masses only.
+        The kings are 1000-mass bodies (~96% of one side's total mass); if they
+        sourced the attacking field, every king-facing-king configuration would
+        read as a huge mutual attack and the real piece threats (~1e-3 gauge
+        units) would drown. The king's own gravity is kept where it belongs:
+        the binding/cohesion term and the disruption threshold.
 
 All heavy math is pure JAX. Training imports ``_score_core`` as a stable private
 alias of the shared traced body so ``jax.grad`` can move every trainable leaf.
@@ -24,7 +31,7 @@ from typing import NamedTuple
 import jax
 import jax.numpy as jnp
 
-from .gravity import force_field, potential_field, _COORDS, _DIST2, _DIST
+from .gravity import force_field, potential_field, _COORDS
 from .tidal import tidal_tensor_at, eig2x2
 from .constants import Constants
 
@@ -32,21 +39,38 @@ _MAX_MOVES = 218  # theoretical max legal moves in chess
 
 
 def _king_idx(masses, sign: float):
-    """Integer (traced) index of the king of the given color (sign +1 white, -1 black).
+    """Traced index of the king of the given color (sign +1 white, -1 black).
 
-    Uses an atol=5.0 closeness test so accretion-shifted King masses (e.g.
-    1002.4, 1008.0) are still matched. Returns a valid integer index suitable
-    for JAX advanced indexing; if no King is found it returns 0 (a1) as a safe
-    default. Callers that need a hard guarantee should check `_king_found` first.
+    The king is the unique supermassive body (~1000); accretion and Lorentz
+    boosts only GROW |m|, so the king is the square with the LARGEST |m| among
+    supermassive squares (|m| >= 500). The old isclose(|m|, 1000, atol=5) test
+    silently lost kings that had accreted a queen (|m| = 1007.2 > 1005) and
+    zeroed every disruption term. Returns 0 (a1) only when no king exists.
     """
-    mask = jnp.isclose(jnp.abs(masses), 1000.0, atol=5.0) & (jnp.sign(masses) == sign)
+    mask = (jnp.abs(masses) >= 500.0) & (jnp.sign(masses) == sign)
     return jnp.argmax(mask.astype(jnp.int32)).astype(jnp.int32)
 
 
 def _king_found(masses, sign: float) -> bool:
     """True iff a King of the given color is actually present (no silent a1)."""
-    mask = jnp.isclose(jnp.abs(masses), 1000.0, atol=5.0) & (jnp.sign(masses) == sign)
+    mask = (jnp.abs(masses) >= 500.0) & (jnp.sign(masses) == sign)
     return jnp.any(mask)
+
+
+def _army_split(masses):
+    """(white_army, black_army, wk, bk, kings_ok).
+
+    Army = every mass EXCEPT the kings. The returned vectors still carry the
+    king squares' mass at 0, so the army mass total and the per-square layout
+    are both exact.
+    """
+    abs_m = jnp.abs(masses)
+    white_m = jnp.where(masses > 0.0, abs_m, 0.0)
+    black_m = jnp.where(masses < 0.0, abs_m, 0.0)
+    wk = _king_idx(masses, 1.0)
+    bk = _king_idx(masses, -1.0)
+    kings_ok = _king_found(masses, 1.0) & _king_found(masses, -1.0)
+    return (white_m.at[wk].set(0.0), black_m.at[bk].set(0.0), wk, bk, kings_ok)
 
 
 def _eta(U, king_sq, king_mass, Rg: float = 1.0, mref: float = 3.5) -> float:
@@ -54,19 +78,14 @@ def _eta(U, king_sq, king_mass, Rg: float = 1.0, mref: float = 3.5) -> float:
 
     eta = Rg_eff^3 * lambda1 / mref^2: the dominant tidal eigenvalue (tearing)
     scaled by the king's spatial extent (Rg) and a reference tidal-stress
-    scale (mref).  G is intentionally ABSENT: lambda1 is already proportional
+    scale (mref). G is intentionally ABSENT: lambda1 is already proportional
     to G (the tidal tensor is the Hessian of the potential), so including G in
     the denominator would cancel it and make eta independent of the field
-    strength — physically the disruption criterion is G-independent, which is
-    correct.  We divide by mref^2 (a minor-piece-scale constant), NOT by
-    Mking^2: the King's own 1000-mass self-gravity would otherwise shrink eta
-    to ~1e-6 and the Roche limit would never be reachable.
+    strength — physically the disruption criterion is G-independent.
 
     The king's radius of gyration Rg_eff scales as the cube root of its mass
     (constant-density self-gravitating body), so a King that has accreted mass
     is more spatially extended and correspondingly easier to tidally disrupt.
-    This is the physics-native "overextended piece is fragile" coupling (the
-    missing C13 hook): accretion grows the King, and growth raises eta.
 
     Larger eta = closer to disruption.
     """
@@ -79,18 +98,13 @@ def _eta(U, king_sq, king_mass, Rg: float = 1.0, mref: float = 3.5) -> float:
 def _eta_pair(masses, G, eps, c, Rg, mref):
     """Return (eta_b, eta_w): tidal stress on enemy / own King from White's view.
 
-    eta_b = stress YOUR masses exert on the BLACK king  (good for White)
-    eta_w = stress THEIR masses exert on the WHITE king (bad for White)
+    eta_b = stress YOUR ARMY exerts on the BLACK king  (good for White)
+    eta_w = stress THEIR ARMY exerts on the WHITE king (bad for White)
     Both neutralized to 0 if a King is missing (corrupted board).
     """
-    abs_m = jnp.abs(masses)
-    white_m = jnp.where(masses > 0.0, abs_m, 0.0)
-    black_m = jnp.where(masses < 0.0, abs_m, 0.0)
-    U_w = potential_field(white_m, eps, G, c)
-    U_b = potential_field(black_m, eps, G, c)
-    wk = _king_idx(masses, 1.0)
-    bk = _king_idx(masses, -1.0)
-    kings_ok = _king_found(masses, 1.0) & _king_found(masses, -1.0)
+    white_co, black_co, wk, bk, kings_ok = _army_split(masses)
+    U_w = potential_field(white_co, eps, G, c)
+    U_b = potential_field(black_co, eps, G, c)
     wk_m = jnp.abs(masses[wk])
     bk_m = jnp.abs(masses[bk])
     eta_b = jnp.where(kings_ok, _eta(U_w, bk, bk_m, Rg, mref), 0.0)
@@ -100,14 +114,9 @@ def _eta_pair(masses, G, eps, c, Rg, mref):
 
 def _tidal_tensor_at_pos(attacker_m, pos, G, eps, c):
     """Analytical Hessian (tidal tensor) of the gated Plummer potential at a
-    continuous position `pos`.
-
-    A_ik = sum_j G m_j gate_j [ delta_ik/s_j^3 - 3 d_j,i d_j,k / s_j^5 ],
-    the exact Hessian of Phi(p) = -G sum_j gate_j m_j / s_j with the reach gate
-    treated as a smooth mask (its derivatives are second-order and omitted).
-    This is the continuous analogue of tidal_tensor_at()'s finite differences,
-    so it resolves arbitrarily small King drifts instead of snapping to a
-    lattice square.
+    continuous position `pos` — the continuous analogue of
+    tidal_tensor_at()'s finite differences, so it resolves arbitrarily small
+    King drifts instead of snapping to a lattice square.
     """
     d = _COORDS - pos                         # (64, 2)
     dist = jnp.sqrt(jnp.sum(d**2, axis=-1))   # (64,)
@@ -139,7 +148,7 @@ def _eta_drift(attacker_m, king_sq, king_mass, G, eps, c, Rg, mref,
 
     A short energy-conserving Leapfrog rollout advances the King's continuous
     coordinate under the ATTACKER's field (the field that tears it), and the
-    tidal index at the projected location minus the current one is the net dη
+    tidal index at the projected location minus the current one is the net d-eta
     over the horizon. Positive = the King is drifting into higher stress.
     """
     am = jnp.abs(attacker_m)
@@ -178,7 +187,7 @@ class EvalTerms(NamedTuple):
 
 def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
                 bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
+                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 2.0,
                 lambda_delta: float = 0.0, com_gain: float = 0.0,
                 inertia_gain: float = 0.0, entropy_gain: float = 0.0,
                 lambda_drift: float = 0.0, parent_masses=None):
@@ -186,40 +195,40 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
 
     When `parent_masses` is supplied, the move-sensitivity (delta) terms are
     active: they measure what the MOVE *did* (child minus parent) rather than
-    the static look of the child board. This is the only way to get a signal
-    that discriminates between sibling moves (thesis G1b / roadmap core
-    principle). When `parent_masses is None` the delta terms are zero, so the
-    function degrades to a plain static evaluation (used at search leaves where
-    no parent is available, and in tests).
+    the static look of the child board — the signal that discriminates between
+    sibling moves (thesis G1b / roadmap core principle). With
+    `parent_masses is None` the delta terms are zero, so the function degrades
+    to a plain static evaluation (search leaves, tests, standalone scoring).
     """
     abs_m = jnp.abs(masses)
-    white_m = jnp.where(masses > 0.0, abs_m, 0.0)   # your masses
-    black_m = jnp.where(masses < 0.0, abs_m, 0.0)   # enemy masses
+    white_m = jnp.where(masses > 0.0, abs_m, 0.0)   # your masses (all)
+    black_m = jnp.where(masses < 0.0, abs_m, 0.0)   # enemy masses (all)
 
-    # Source-attributed force & potential: white's field vs black's field.
-    F_w = force_field(white_m, eps, G, c)   # force everywhere due to YOUR masses
-    F_b = force_field(black_m, eps, G, c)   # force everywhere due to ENEMY masses
-    U_w = potential_field(white_m, eps, G, c)  # your potential (tears their king)
-    U_b = potential_field(black_m, eps, G, c)  # their potential (tears your king)
+    # Army split: kings are detectors, not field sources (see module docstring).
+    white_co, black_co, wk, bk, kings_ok = _army_split(masses)
 
-    wk = _king_idx(masses, 1.0)
-    bk = _king_idx(masses, -1.0)
-    kings_ok = _king_found(masses, 1.0) & _king_found(masses, -1.0)
+    # Source-attributed ARMY field: your army tears their king.
+    U_w = potential_field(white_co, eps, G, c)   # your army potential
+    U_b = potential_field(black_co, eps, G, c)   # their army potential
+    F_w = force_field(white_co, eps, G, c)       # your army force everywhere
+    F_b = force_field(black_co, eps, G, c)       # their army force everywhere
 
-    # Disruption is caused by the OPPONENT's masses only.
-    eta_w = _eta(U_b, wk, jnp.abs(masses[wk]), Rg, mref)   # enemy masses stressing your king : bad for White
-    eta_b = _eta(U_w, bk, jnp.abs(masses[bk]), Rg, mref)   # your masses stressing enemy king : good for White
+    eta_w = _eta(U_b, wk, jnp.abs(masses[wk]), Rg, mref)   # bad for White
+    eta_b = _eta(U_w, bk, jnp.abs(masses[bk]), Rg, mref)   # good for White
 
-    # Force-based disruption, flipped around the learned Roche threshold.
+    # Disruption GAUGE: the army force magnitude at the king, flipped around the
+    # learned Roche threshold. Army-sourced, so in the opening both gauges are
+    # tiny (near-neutral) and they rise only when a real piece attack lands on
+    # a king. The old king-sourced gauge read ~1.0 everywhere (enemy king
+    # pulling across the board), sat on the sigmoid midpoint, and contributed a
+    # constant +/-150 that drowned every other signal.
     bonus_b = bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_w[bk] + 1e-9) - roche))
     pen_w = -bonus * jax.nn.sigmoid(kgain * (jnp.linalg.norm(F_b[wk] + 1e-9) - roche))
 
     # Verlet tidal-drift (impending collapse): project each King forward under
-    # the OPPONENT's field and read the change in tidal stress at the projected
-    # location. Source-attributed like eta_b/eta_w: white's field tears the
-    # black King (good for White when growing), black's tears the white King.
-    drift_b = _eta_drift(white_m, bk, jnp.abs(masses[bk]), G, eps, c, Rg, mref)
-    drift_w = _eta_drift(black_m, wk, jnp.abs(masses[wk]), G, eps, c, Rg, mref)
+    # the OPPONENT'S ARMY field and read the change in tidal stress.
+    drift_b = _eta_drift(white_co, bk, jnp.abs(masses[bk]), G, eps, c, Rg, mref)
+    drift_w = _eta_drift(black_co, wk, jnp.abs(masses[wk]), G, eps, c, Rg, mref)
 
     # If either King is missing (corrupted board), the disruption/force terms
     # are meaningless — neutralize them instead of silently scoring at a1.
@@ -231,51 +240,23 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
     drift_w = jnp.where(kings_ok, drift_w, 0.0)
 
     # Gravitational BINDING ENERGY edge (army-internal cohesion):
-    #   U_bind_white = dot(white_co, U_wc) / 2
-    # where white_co EXCLUDES the white king (and U_wc its source field).
-    # U_w is negative potential, so a well-coordinated/centralized army has a
-    # more negative binding energy. We reward OUR pieces being more bound than
-    # THEIRS: gamma * (bind_b - bind_w).
-    #
-    # The previous global_edge = gamma * (sum|F_white|² - sum|F_black|²) PENALISED
-    # centre play (a centre pawn radiates ~50% more total field energy than an edge
-    # pawn), which is what made the engine obsessively open with h4/h3 — the
-    # measured h-file bias. Binding energy is piece-position sensitive in the
-    # CORRECT direction: central, coordinated pieces bind more strongly.
-    #
-    # The KING is excluded from this term (both as source and as receiver).
-    # Physically the king is the tidal DETECTOR — its own 1000-mass gravity is
-    # handled by the disruption/force terms, not by the cohesion edge. Keeping
-    # king-piece pairs here leaks the king's 1000^2 self-energy back into every
-    # positional relationship: any piece moving away from its own king paid a
-    # ~100+ point binding penalty (measured: 1.e4 = -155 purely from binding),
-    # so the engine huddled its army around the king and treated flank pushes
-    # (which barely disturb the king's well) as least-bad moves — the "outward
-    # comet" flank-pawn bias, with the causality inverted from what it looks
-    # like. U_w/U_b are already computed above; the king's source field is
-    # subtracted analytically (U_king_src = +1000 * gate(d)/r), so this adds
-    # only vector ops, not extra field passes.
-    gwk = jax.nn.sigmoid(c - _DIST[:, wk])
-    gbk = jax.nn.sigmoid(c - _DIST[:, bk])
-    rwk = jnp.sqrt(_DIST2[:, wk] + eps * eps)
-    rbk = jnp.sqrt(_DIST2[:, bk] + eps * eps)
-    king_m = 1000.0
-    U_wc = jnp.where(kings_ok, U_w + king_m * gwk / rwk, U_w)
-    U_bc = jnp.where(kings_ok, U_b + king_m * gbk / rbk, U_b)
-    white_co = white_m.at[wk].set(0.0)
-    black_co = black_m.at[bk].set(0.0)
-    # potential_field includes each body's potential at its own square. Remove
-    # that diagonal term; otherwise the king's 1000^2 self-energy overwhelms
-    # every positional relationship and creates unstable flank preferences.
-    self_scale = G * jax.nn.sigmoid(c) / jnp.sqrt(eps * eps)
-    bind_w = (jnp.dot(white_co, U_wc) + self_scale * jnp.dot(white_co, white_co)) / 2.0
-    bind_b = (jnp.dot(black_co, U_bc) + self_scale * jnp.dot(black_co, black_co)) / 2.0
+    #   U_bind = sum_i m_i * U_army(i) / 2   over each side's ARMY,
+    # the true pairwise binding energy of the army (each pair counted once, self
+    # pairs are constant and subtract out of the difference; kings excluded as
+    # sources AND receivers — the king's 1000-mass well is not "coordination").
+    # More negative = more bound/cohesive. We reward OUR pieces being more
+    # bound than THEIRS: gamma * (bind_b - bind_w).
+    bind_w = jnp.dot(white_co, U_w) / 2.0
+    bind_b = jnp.dot(black_co, U_b) / 2.0
     global_edge = gamma * (bind_b - bind_w)
 
-    # Gravitational material edge: you command more mass -> stronger field.
-    # Rewards captures / winning material; gives the search a clean, varied
-    # gradient instead of the flat equilibrium of the disruption term alone.
-    material = mat_gain * (jnp.sum(white_m) - jnp.sum(black_m))
+    # Gravitational material edge: you command more matter -> stronger field.
+    # KING MASSES CANCELED: both kings weigh 1000, so the army-mass difference
+    # equals the full-mass difference but is immune to accretion/Lorentz noise
+    # on the kings' 1000-scale bodies. With mat_gain=2 a captured rook moves
+    # the score by ~10 — decisively above the positional noise floor (~1-3),
+    # which is the fix for the "give away free rooks" behaviour.
+    material = mat_gain * (jnp.sum(white_co) - jnp.sum(black_co))
 
     delta_eta_term = jnp.array(0.0, dtype=masses.dtype)
     com_term = jnp.array(0.0, dtype=masses.dtype)
@@ -283,10 +264,7 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
     entropy_term = jnp.array(0.0, dtype=masses.dtype)
 
     # ── Move-sensitivity (delta) terms ──────────────────────────────────────
-    # Each is (child_quantity - parent_quantity); none of these fire when there
-    # is no parent (static eval / search leaf). They are the real anti-flatness
-    # signal: they vary between sibling moves because the move *changed* the
-    # field, not because the resulting position happens to look good.
+    # Each is (child_quantity - parent_quantity); none fire without a parent.
     if parent_masses is not None:
         # G1b — Δη: the tidal-disruption rate. Reward increasing the enemy
         # King's tidal stress more than your own. dη/dt, physically.
@@ -294,39 +272,47 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
         delta_eta = (eta_b - p_eta_b) - (eta_w - p_eta_w)
         delta_eta_term = lambda_delta * delta_eta
 
-        # T2.1 — Center-of-mass advance delta. Reward shifting our ARMY's mass
-        # centroid (kings excluded — the king is the protected detector, not a
-        # weapon; including it let a 1000-mass king rank advance swamp every
-        # other signal and marched the king into the enemy camp) toward the
-        # enemy / away from home more than they do. Mass-weighting stays plain
-        # (rank average over the army): an earlier "attack-axis" variant that
-        # multiplied each piece's mass by exp(-dfile^2/2) re-weighted lateral
-        # moves by up to ~54x and made castling appear catastrophically bad
-        # (the kingside rook "became" supermassive when it left the h-file).
-        p_abs = jnp.abs(parent_masses)
-        p_w = jnp.where(parent_masses > 0.0, p_abs, 0.0)
-        p_b = jnp.where(parent_masses < 0.0, p_abs, 0.0)
+        # T2.1 — Momentum flux (mass-weighted CoM advance, DIFFERENCE form).
+        #   P_rank = Σ m_i * rank_i  (army only). White's forward flux is
+        #   F_w = P_w(child)-P_w(parent) (toward +y); Black's forward flux is
+        #   F_b = -(P_b(child)-P_b(parent)) (Black advances toward -y). The
+        #   momentum advantage is F_w - F_b = (P_w - p_P_w) + (P_b - p_P_b).
+        # SIGN NOTE: this is a WHITE-perspective score, so EVERY term must be
+        # positive iff it is good for White — including when the last move was
+        # Black's. The previous (p_P_b - P_b) form was flipped: a Black advance
+        # (P_b decreasing) read as positive for White, which corrupted Black's
+        # reply pick at the search leaves.
+        # WHY difference form: the previous mean-rank form divided by the army
+        # total with a 1e-9 floor. When one army was nearly captured the
+        # fraction blew up (a lone pawn "advanced" scored ~1400) and when the
+        # enemy army was EMPTY the parent/child means were equal and the whole
+        # term canceled — the measured bug where a free-rook capture scored
+        # com_delta = 0 while a suicidal edge-rook charge scored +240. Mass
+        # sums have no denominator at all; they are exact and bounded
+        # (<= 39 * 7 = 273), so this term can no longer dwarf a real capture.
+        p_w_full = jnp.where(parent_masses > 0.0, jnp.abs(parent_masses), 0.0)
+        p_b_full = jnp.where(parent_masses < 0.0, jnp.abs(parent_masses), 0.0)
         p_wk_sq = _king_idx(parent_masses, 1.0)
         p_bk_sq = _king_idx(parent_masses, -1.0)
-        p_w = p_w.at[p_wk_sq].set(0.0)
-        p_b = p_b.at[p_bk_sq].set(0.0)
-        w_total = jnp.sum(white_co) + 1e-9
-        b_total = jnp.sum(black_co) + 1e-9
-        com_rank_w = jnp.dot(white_co, _COORDS[:, 1]) / w_total
-        com_rank_b = jnp.dot(black_co, _COORDS[:, 1]) / b_total
-        p_wt = jnp.sum(p_w) + 1e-9
-        p_bt = jnp.sum(p_b) + 1e-9
-        p_com_w = jnp.dot(p_w, _COORDS[:, 1]) / p_wt
-        p_com_b = jnp.dot(p_b, _COORDS[:, 1]) / p_bt
-        com_delta = (com_rank_w - p_com_w) - (p_com_b - com_rank_b)
+        p_w = p_w_full.at[p_wk_sq].set(0.0)
+        p_b = p_b_full.at[p_bk_sq].set(0.0)
+        P_w = jnp.dot(white_co, _COORDS[:, 1])
+        P_b = jnp.dot(black_co, _COORDS[:, 1])
+        p_P_w = jnp.dot(p_w, _COORDS[:, 1])
+        p_P_b = jnp.dot(p_b, _COORDS[:, 1])
+        com_delta = ((P_w - p_P_w) + (P_b - p_P_b)) / 10.0
         com_term = com_gain * com_delta
 
         # T2.2 — Attack moment-of-inertia delta. The tidal tearing of the
-        # enemy king acts along the king-king axis, so lateral distance enters
-        # softened (k_ax = 0.2): a piece that advances along the enemy king's
-        # column tightens the attack (rewarded), a lateral shuffle mostly
-        # doesn't. Masses are NOT re-weighted by the axis — only the distance
-        # measure is anisotropic (the mass-weighted Σ stays a plain "moment").
+        # enemy king acts along the king axis, so lateral distance enters
+        # softened (k_ax = 0.2). Masses are NOT re-weighted by the axis — only
+        # the distance measure is anisotropic. Divided by 100 to land in the
+        # same ~unit band as the other delta terms.
+        # SIGN NOTE (WHITE perspective): closing OUR pieces toward the enemy
+        # king (I_attack_w decreasing) is good for us; closing THEIR pieces
+        # toward our king (I_attack_b decreasing) is bad. The old
+        # -(I_attack_b - p_I_attack_b) form flipped the second half, so a Black
+        # piece converging on the White king read as a White advantage.
         def _ax_dist2(king_sq):
             d = _COORDS - _COORDS[king_sq]
             return d[:, 1] ** 2 + 0.2 * d[:, 0] ** 2
@@ -338,7 +324,7 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
         p_I_attack_w = jnp.dot(p_w, dist2_to_bk)
         p_I_attack_b = jnp.dot(p_b, dist2_to_wk)
         # smaller I_attack_w is better; smaller I_attack_b is worse for us
-        inertia_delta = (p_I_attack_w - I_attack_w) - (I_attack_b - p_I_attack_b)
+        inertia_delta = (p_I_attack_w - I_attack_w) + (I_attack_b - p_I_attack_b)
         inertia_term = inertia_gain * inertia_delta / 100.0
 
         # T2.4 — Entropy (coordination) delta. Reward OUR army (kings excluded)
@@ -361,7 +347,7 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
 
 def _score_body(masses, G: float, eps: float, c: float, roche: float,
                 bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
-                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 1.0,
+                Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 2.0,
                 lambda_delta: float = 0.0, com_gain: float = 0.0,
                 inertia_gain: float = 0.0, entropy_gain: float = 0.0,
                 lambda_drift: float = 0.0, parent_masses=None):
@@ -394,11 +380,6 @@ def _shannon_entropy(m):
 def score_white(masses: "jnp.ndarray", constants, parent=None) -> float:
     """Evaluate from White's perspective. Pass `parent` (a mass vector) to
     activate the move-sensitivity (delta) terms."""
-    # Jitted inference path: `_score_core_static` reuses the shared traced body
-    # (the training alias `_score_core` stays a plain traceable function). A
-    # `None` parent is a concrete value under jit, so the static branch fires
-    # exactly as before; an array parent activates the delta terms. `batch_score`
-    # still vmaps this fine.
     return _score_core_static(
         masses, constants.G, constants.eps, constants.c, constants.roche,
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
@@ -504,10 +485,6 @@ def multiverse_score_white(masses: "jnp.ndarray", constants: "Constants",
     site (fold it in at the caller) so different rows sample different universes.
     `parent` (mass vector) is threaded into each realization so the
     move-sensitivity (delta) terms stay active under the Bayesian average.
-
-    The K realizations are mapped with `jax.vmap` over the split keys — a
-    Python loop over a traced key array would raise under jit/vmap, so this is
-    the only trace-safe way to build the ensemble.
     """
     keys = _jr.split(key, K)
 
@@ -520,9 +497,6 @@ def multiverse_score_white(masses: "jnp.ndarray", constants: "Constants",
 def score_white_layer2(masses: "jnp.ndarray", constants: "Constants",
                        key, K: int = 8, sigma: float = 0.1,
                        parent=None) -> "jnp.ndarray":
-    """Convenience: Layer-1 by default, Layer-2 when `use_multiverse` is set.
-
-    Search/inference entry point. Kept thin so callers don't care which layer.
-    """
+    """Convenience: Layer-1 by default, Layer-2 when `use_multiverse` is set."""
     return multiverse_score_white(masses, constants, key, K=K, sigma=sigma,
                                   parent=parent)

@@ -41,10 +41,17 @@ def test_delta_terms_default_to_playable():
     """Default constants must be ACTIVE (not zero): with all-zero gains the
     evaluation is flat across sibling quiet moves and the engine's choice is
     decided by ordering ties (flank shuffles, rook aimlessness). The gains
-    remain trainable leaves — a persisted trained artifact overrides them."""
+    remain trainable leaves — a persisted trained artifact overrides them.
+
+    mat_gain is the DECISIVE scale (>= 1.0): a captured rook
+    (5 mass * mat_gain) must outscore any single-move positional swing, or the
+    engine hands over free material (the measured sacrifice bug). The
+    positional deltas are bounded ~1-4 units per move, so mat_gain=2.0 makes a
+    rook capture ~+10 — clearly above the positional noise floor.
+    """
     c = Constants()
     assert c.lambda_delta > 0.0
     assert c.com_gain > 0.0
     assert c.inertia_gain > 0.0
     assert c.entropy_gain > 0.0
-    assert c.mat_gain == 1.0
+    assert c.mat_gain >= 1.0
