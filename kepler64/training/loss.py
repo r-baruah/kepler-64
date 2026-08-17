@@ -1,27 +1,33 @@
 """Loss: outcome prediction + expert-move policy, through the physics engine.
 
-chess:  two supervisory signals, both derived from REAL games / strong engines
-        (no chess heuristics invented by us):
-          * outcome  — logistic on win/draw/loss (the old signal).
+chess:  two supervisory signals, both derived from REAL games — either external
+        data (Lichess puzzles / PGNs) or the universe's OWN self-play (the
+        self-play pipeline in training/selfplay.py supplies both):
+          * outcome  — logistic on win/draw/loss.
           * policy   — the physics score should rank the expert's move above
                        all legal alternatives (behavioural cloning through the
-                       gravity kernel).
+                       gravity kernel). Self-teaching (deeper self-search is its
+                       own expert target) is the same pipeline with an internal
+                       expert instead of an external one.
 physics: backpropagate through the ENTIRE physics engine (Plummer -> tidal ->
-        eta -> sigmoid) into G, eps, c, roche, AND the disruption scales
-        (bonus, kgain, gamma) and Rg (king extent). Those are the "weights" —
-        real, physical knobs, not a faked evaluation. The `c` monotonicity
-        prior is preserved.
+         eta -> sigmoid) into the 14 trainable leaves (see
+         TRAINABLE_LEAVES in core/constants.py). Those are the "weights" —
+         real, physical knobs, not a faked evaluation. The parameter array and
+         its physical bounds come from ONE place (core/constants.py), so the
+         loss and the trainer can never disagree about the layout.
 
-`params` layout (13 leaves): [G, eps, c, roche, bonus, kgain, gamma, Rg,
-mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain].
+`params` layout (14 leaves): TRAINABLE_LEAVES order. mat_gain has a minimum of
+1.0 inside the loss (see below) so no training run can rediscover the scale at
+which a captured rook stopped registering.
 """
 
 import jax
 import jax.numpy as jnp
-import jax.random as jrandom
 
 from ..core.evaluate import _score_core, multiverse_score_white
-from ..core.constants import Constants as _Constants
+from ..core.constants import (
+    Constants as _Constants, clip_leaves_traced, LEAF_LO_F, LEAF_HI_F,
+)
 
 # NOTE: `loss` is intentionally NOT @jax.jit. It branches on `use_multiverse`
 # (a Python bool), while the training step that calls it is jitted by the
@@ -30,14 +36,38 @@ from ..core.constants import Constants as _Constants
 
 @jax.jit
 def _unpack(p):
-    # 14 trainable physical leaves (the 9 original + 4 delta-term gains + drift).
-    return (p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
-            p[9], p[10], p[11], p[12], p[13])
+    # 14 trainable physical leaves — TRAINABLE_LEAVES order (shared with
+    # core.constants.leaves_to_array). The array is projected into its
+    # physical bounds before unpacking so every downstream term sees an
+    # in-bounds value.
+    p = clip_leaves_traced(p)
+    lo = LEAF_LO_F
+    hi = LEAF_HI_F
+    G = jnp.clip(p[0], lo[0], hi[0])
+    eps = jnp.clip(p[1], lo[1], hi[1])
+    c = jnp.clip(p[2], lo[2], hi[2])
+    roche = jnp.clip(p[3], lo[3], hi[3])
+    bonus = jnp.clip(p[4], lo[4], hi[4])
+    kgain = jnp.clip(p[5], lo[5], hi[5])
+    gamma = jnp.clip(p[6], lo[6], hi[6])
+    Rg = jnp.clip(p[7], lo[7], hi[7])
+    # mat_gain floor of 1.0 (not the leaf lower bound 0.0): at mat_gain<1 a
+    # captured rook stops outranking positional swings — the exact scale that
+    # produced the measured free-rook/piece sacrifice behaviour. Training is
+    # free to raise it, never to rediscover that failure.
+    mat_gain = jnp.clip(p[8], 1.0, hi[8])
+    lambda_delta = jnp.clip(p[9], lo[9], hi[9])
+    com_gain = jnp.clip(p[10], lo[10], hi[10])
+    inertia_gain = jnp.clip(p[11], lo[11], hi[11])
+    entropy_gain = jnp.clip(p[12], lo[12], hi[12])
+    lambda_drift = jnp.clip(p[13], lo[13], hi[13])
+    return (G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain,
+            lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift)
 
 
 def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
          tau: float = 1.0, margin: float = 0.0, key=None, use_multiverse: bool = False,
-         K: int = 8, sigma: float = 0.1):
+         K: int = 8, sigma: float = 0.1, out_scale: float = 30.0):
     """All-scalar, jit-compatible.
 
     M           : (N,64) mass vectors of positions            (outcome + policy)
@@ -52,27 +82,21 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     margin      : if >0, ADD a pairwise margin-ranking loss (expert should beat
                   a random legal move by `margin`) — an easier landscape than
                   the sharp cross-entropy over all K children.
+    out_scale   : outcome sigmoid scale. The physics eval is in units of ~±10s
+                  for decisive material swings; with unit scale its sigmoid is
+                  saturated on every training position and the outcome gradient
+                  vanishes. Scaling by ~30 puts typical scores inside the
+                  sigmoid's informative band.
     """
     G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr = _unpack(params)
-    G     = jnp.clip(G,     0.01,  50.0)   # gravity must stay attractive (positive)
-    eps   = jnp.clip(eps,   0.01,  20.0)   # Plummer softening must stay positive
-    c     = jnp.clip(c,     1.0,   10.0)   # monotonicity prior (hard clamp)
-    roche = jnp.clip(roche, 0.05,  20.0)   # disruption threshold must stay positive
-    Rg    = jnp.clip(Rg,    0.1,   10.0)   # king extent must stay physical
-    mat_gain = jnp.clip(mat_gain, 0.0, 5.0)  # material scale stays modest
-    lambda_delta = jnp.clip(ld, 0.0, 10.0)
-    com_gain = jnp.clip(cg, 0.0, 10.0)
-    inertia_gain = jnp.clip(ig, 0.0, 1.0)
-    entropy_gain = jnp.clip(eg, 0.0, 5.0)
-    lambda_drift = jnp.clip(dr, 0.0, 10.0)
     # mref is a FIXED unit scale (not trained) — keeps the tidal index well
-    # conditioned. mat_gain is now a trained leaf (passed through params).
+    # conditioned.
     _mref = _Constants().mref
 
     # ---- outcome term ----------------------------------------------------
     # _score_core is White-perspective; Y is from White's view, so this is
     # consistent for both sides to move. (Outcome term is static — no parent.)
-    S = jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift))(M)
+    S = out_scale * jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr))(M)
     y = (Y + 1.0) / 2.0  # 0 (black win) .. 1 (white win)
     ce = -jnp.mean(y * jax.nn.log_sigmoid(S) + (1.0 - y) * jax.nn.log_sigmoid(-S))
 
@@ -84,9 +108,9 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # which makes the physics signal discriminative between sibling moves.
     _const = _Constants(G=G, eps=eps, c=c, roche=roche, bonus=bonus,
                         kgain=kgain, gamma=gamma, Rg=Rg, mref=_mref,
-                        mat_gain=mat_gain, lambda_delta=lambda_delta,
-                        com_gain=com_gain, inertia_gain=inertia_gain,
-                        entropy_gain=entropy_gain, lambda_drift=lambda_drift)
+                        mat_gain=mat_gain, lambda_delta=ld,
+                        com_gain=cg, inertia_gain=ig,
+                        entropy_gain=eg, lambda_drift=dr)
 
     def _policy_row(child_m, msk, turn, row_key, parent):
         if use_multiverse:
@@ -97,8 +121,10 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                 lambda mm, ck: multiverse_score_white(mm, _const, ck, K=K, sigma=sigma, parent=parent)
             )(child_m, child_keys)
         else:
-            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift, parent))(child_m)
-        side = jnp.where(turn > 0.0, white, -white)  # Black-to-move: best = most negative White score
+            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, parent))(child_m)
+        # _score_core is WHITE-perspective, so White-to-move wants the HIGHEST
+        # white score and Black-to-move wants the LOWEST -> flip for Black ONLY.
+        side = jnp.where(turn > 0.0, -white, white)
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         return jax.nn.log_softmax(side / tau)
 
@@ -126,8 +152,8 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # graph stays static (JAX cannot branch on a traced scalar).  In
     # outcome-only mode moves_m is a single dummy row, which makes mr=0 too.
     def _margin_row(child_m, msk, turn, ei, parent):
-        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift, parent))(child_m)
-        side = jnp.where(turn > 0.0, white, -white)
+        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, parent))(child_m)
+        side = jnp.where(turn > 0.0, -white, white)
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         exp = side[ei]
         neg = jnp.max(jnp.where(jnp.arange(side.shape[0]) == ei, -jnp.inf, side))
@@ -141,28 +167,33 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
 
 
 @jax.jit
-def _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift, parent):
-    white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift, parent))(child_m)
-    side = jnp.where(turn > 0.0, white, -white)
+def _row_scores(child_m, msk, turn, p, parent):
+    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr = _unpack(p)
+    _mref = _Constants().mref
+    # Thread the parent mass vector so the measured ranking matches the kernel
+    # the SEARCH uses (the move-sensitivity delta terms are active in play).
+    white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, parent))(child_m)
+    side = jnp.where(turn > 0.0, -white, white)
     side = jnp.where(msk > 0.5, side, -jnp.inf)
     return side
 
 
-def policy_metrics(constants, M, Y, turns, moves_m, mask, expert_idx):
+def policy_metrics(constants, M, Y, turns, moves_m, mask, expert_idx,
+                   is_capture_m=None):
     """Ranking-quality of the physics eval on held-out positions.
 
     Returns a dict with:
       top1      : fraction where expert move is ranked #1 (harsh, ~random here)
       mrr       : Mean Reciprocal Rank of the expert move (rewards "close")
-      mrr_cap   : MRR on positions whose expert move IS a capture
-      mrr_quiet : MRR on positions whose expert move is NOT a capture
+      mrr_capture : MRR restricted to positions whose expert move is a capture
+      mrr_quiet   : MRR restricted to positions whose expert move is quiet
     Vectorised (double-vmap), cheap enough to call on the val split.
+
+    `is_capture_m` (N,) optional float mask: 1 where the expert move is a
+    capture. When supplied, the capture/quiet MRRs are honest splits; without
+    it they fall back to the overall MRR (legacy behaviour).
     """
-    G, eps, c, roche, bonus, kgain, gamma, Rg = (
-        constants.G, constants.eps, constants.c, constants.roche,
-        constants.bonus, constants.kgain, constants.gamma, constants.Rg)
-    _mref = _Constants().mref
-    mat_gain = constants.mat_gain
+    p = _to_params_vec(constants)
     M = jnp.asarray(M, dtype=jnp.float32)
     moves_m = jnp.asarray(moves_m, dtype=jnp.float32)
     mask = jnp.asarray(mask, dtype=jnp.float32)
@@ -170,19 +201,32 @@ def policy_metrics(constants, M, Y, turns, moves_m, mask, expert_idx):
     turns = jnp.asarray(turns, dtype=jnp.float32)
 
     def _one(child_m, msk, turn, ei, parent):
-        side = _row_scores(child_m, msk, turn, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, constants.lambda_delta, constants.com_gain, constants.inertia_gain, constants.entropy_gain, constants.lambda_drift, parent)
+        side = _row_scores(child_m, msk, turn, p, parent)
         # rank of expert: 1 + number of children scored strictly higher
         better = jnp.sum(side > side[ei])
         rank = better + 1
-        is_cap = msk[ei] > 0.5  # always true for expert; kept for clarity
         return rank, (side[ei] == jnp.max(side))  # rank, is_top1
 
     rank, top1 = jax.vmap(_one)(moves_m, mask, turns, expert_idx, M)
     top1 = float(jnp.mean(top1.astype(jnp.float32)))
     mrr = float(jnp.mean(1.0 / rank.astype(jnp.float32)))
-    return {"top1": top1, "mrr": mrr, "mrr_capture": mrr, "mrr_quiet": mrr}
+    out = {"top1": top1, "mrr": mrr, "mrr_capture": mrr, "mrr_quiet": mrr}
+    if is_capture_m is not None:
+        ic = jnp.asarray(is_capture_m, dtype=jnp.float32)
+        inv = 1.0 / rank.astype(jnp.float32)
+        n_cap = jnp.maximum(1.0, jnp.sum(ic))
+        n_q = jnp.maximum(1.0, jnp.sum(1.0 - ic))
+        out["mrr_capture"] = float(jnp.sum(ic * inv) / n_cap)
+        out["mrr_quiet"] = float(jnp.sum((1.0 - ic) * inv) / n_q)
+    return out
 
 
 def policy_accuracy(constants, M, Y, turns, moves_m, mask, expert_idx) -> float:
     """Backward-compatible: fraction where the physics score ranks expert #1."""
     return policy_metrics(constants, M, Y, turns, moves_m, mask, expert_idx)["top1"]
+
+
+def _to_params_vec(constants):
+    """Pack a Constants into the traced param vector (shared leaf order)."""
+    from ..core.constants import leaves_to_array
+    return leaves_to_array(constants)

@@ -110,18 +110,50 @@ LEAF_LO = (0.01, 0.01, 1.0, 0.05, 0.01, 0.01, 0.0, 0.1, 0.0,
 LEAF_HI = (50.0, 20.0, 10.0, 20.0, 500., 50.0, 50., 10.0, 10.0,
            10.0, 10.0, 10.0, 10.0, 10.0)
 
+
+def leaves_to_array(c: "Constants"):
+    """Pack the 14 trainable leaves into a float32 array (TRAINABLE_LEAVES order)."""
+    return jnp.array([getattr(c, name) for name in TRAINABLE_LEAVES],
+                     dtype=jnp.float32)
+
+
+def array_to_leaves(a) -> "Constants":
+    """Unpack a leaf array, projecting into the physical bounds."""
+    lo, hi = (jnp.asarray(LEAF_LO, dtype=jnp.float32),
+              jnp.asarray(LEAF_HI, dtype=jnp.float32))
+    a = jnp.clip(jnp.asarray(a, dtype=jnp.float32), lo, hi)
+    return Constants(**{name: float(a[i]) for i, name in enumerate(TRAINABLE_LEAVES)})
+
+
+# JIT-traceable bound arrays and projection: the loss clips the traced param
+# vector with THESE bounds (same single source as array_to_leaves), so the
+# optimizer, the loss and persistence can never drift apart.
+LEAF_LO_F = jnp.asarray(LEAF_LO, dtype=jnp.float32)
+LEAF_HI_F = jnp.asarray(LEAF_HI, dtype=jnp.float32)
+
+
+def clip_leaves_traced(a):
+    """Project a traced leaf array into the physical bounds (jit/grad-safe)."""
+    return jnp.clip(jnp.asarray(a, dtype=jnp.float32), LEAF_LO_F, LEAF_HI_F)
+
 # The trained-constants artifact the pipeline writes and the engine loads.
 TRAINED_CONSTANTS_PATH = (
     pathlib.Path(__file__).resolve().parent.parent / "training" / "trained_constants.json"
 )
 
 
-def save_constants(c: "Constants", path=None) -> pathlib.Path:
-    """Persist the full learnable state (all TRAINABLE_LEAVES + mref + provenance)."""
+def save_constants(c: "Constants", path=None, meta: dict | None = None) -> pathlib.Path:
+    """Persist the full learnable state (all TRAINABLE_LEAVES + mref + provenance).
+
+    `meta` (optional) is stored under the "_meta" key for provenance — round
+    number, validation metrics, match record. Loaders ignore unknown keys.
+    """
     path = pathlib.Path(path) if path else TRAINED_CONSTANTS_PATH
     payload = {"mref": float(c.mref)}
     for name in TRAINABLE_LEAVES:
         payload[name] = float(getattr(c, name))
+    if meta:
+        payload["_meta"] = meta
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
