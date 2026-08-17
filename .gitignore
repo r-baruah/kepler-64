@@ -48,8 +48,10 @@ data/
 
 # Local agent tooling (not part of the project)
 .commandcode/
+.github/agents/
 .github/hooks/
 .github/skills/
+.impeccable/
 
 # Debug / scratch scripts
 /_*.py
