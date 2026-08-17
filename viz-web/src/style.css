@@ -224,6 +224,7 @@ h1, h2, h3, h4 {
   box-sizing: border-box;
 }
 
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -2097,9 +2098,7 @@ h1, h2, h3, h4 {
   z-index: 1;
   gap: var(--space-md);
   flex-wrap: wrap;
-  width: 100%;
 }
-
 .footer-meta {
   display: flex;
   flex-direction: column;
@@ -2419,65 +2418,75 @@ h1, h2, h3, h4 {
     font-size: 0.88rem;
   }
 
-  .hero-headline {
-    font-size: clamp(2.2rem, 13vw, 3.8rem);
+  /* Compact Sleek Mobile Navigation */
+  .pill-nav-wrap {
+    top: max(6px, env(safe-area-inset-top, 6px));
+    padding: 4px 0;
   }
 
-  .hero-cta-row {
-    margin-top: 20px;
-    gap: 12px;
+  .pill-nav {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "brand . actions"
+      "nav   nav nav";
+    align-items: center;
+    border-radius: 16px;
+    padding: 6px 10px;
+    gap: 6px 8px;
   }
 
-  .hero-arrow-btn {
-    width: 48px;
-    height: 48px;
-  }
-
-  .hero-cta-text {
+  .brand {
+    grid-area: brand;
     font-size: 0.82rem;
-  }
-
-  /* Preset pills scroll */
-  .preset-bar {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
+    padding-left: 0;
     gap: 5px;
   }
 
-  .preset-bar::-webkit-scrollbar { display: none; }
+  .brand-badge {
+    font-size: 0.58rem;
+    padding: 1px 5px;
+  }
 
-  .preset-pill {
-    white-space: nowrap;
+  .nav-actions {
+    grid-area: actions;
+    margin-left: auto;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .nav-export-btn {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    gap: 4px;
+    min-height: 28px;
+  }
+
+  .star-btn {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    gap: 4px;
+    min-height: 28px;
+  }
+
+  .stacked-nav {
+    grid-area: nav;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 4px;
+    scrollbar-width: none;
+    padding: 4px 0 2px;
+    border-top: var(--rule-thin) solid rgba(0, 0, 0, 0.08);
+    display: flex;
+  }
+
+  .stacked-nav::-webkit-scrollbar { display: none; }
+
+  .stack-link {
     flex-shrink: 0;
     font-size: 0.7rem;
-    padding: 6px 10px;
-  }
-
-  /* Stats / KPIs */
-  .kpi-grid,
-  .kpi-grid-5 {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 8px;
-  }
-
-  .absurdity-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-  }
-
-  .absurdity-honesty-strip {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 16px;
-    gap: 14px;
-  }
-  .goal-card,
-  .live-gauge-card,
-  .kpi-card {
-    padding: 12px;
+    padding: 4px 8px;
   }
 
   .big-stat {
