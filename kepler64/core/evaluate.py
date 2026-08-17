@@ -91,7 +91,12 @@ def _eta(U, king_sq, king_mass, Rg: float = 1.0, mref: float = 3.5) -> float:
     """
     A = tidal_tensor_at(U, king_sq)
     lam1, _ = eig2x2(A)
-    Rg_eff = Rg * (jnp.abs(king_mass) / 1000.0) ** (1.0 / 3.0)
+    # cbrt floor: dummy/padded child rows (all-zero masses) land a "king" at
+    # a1 with zero mass. Without the floor, d/dx x^(1/3) is infinite at 0 and
+    # the jnp.where(kings_ok, ...) mask only hides the VALUE — the NaN
+    # gradient still flows (0 * NaN = NaN), poisoning training. At real king
+    # masses (>=500) the floor never activates.
+    Rg_eff = Rg * jnp.maximum(jnp.abs(king_mass) / 1000.0, 1e-9) ** (1.0 / 3.0)
     return (Rg_eff**3) * lam1 / (mref**2 + 1e-9)
 
 
@@ -117,11 +122,19 @@ def _tidal_tensor_at_pos(attacker_m, pos, G, eps, c):
     continuous position `pos` — the continuous analogue of
     tidal_tensor_at()'s finite differences, so it resolves arbitrarily small
     King drifts instead of snapping to a lattice square.
+
+    Both distance measures are floored with the Plummer softening eps: the
+    King's projected coordinate can land EXACTLY on a lattice square, making
+    the raw sqrt(sum(d^2)) zero at that row. sqrt has an unbounded backward
+    gradient at 0, and on degenerate (dummy/padded, all-zero) rows that NaN
+    poisoning spreads through the whole eval gradient. The floor is
+    physically consistent — eps IS the softening length — and numerically
+    inert everywhere except that one exact-coincidence row.
     """
-    d = _COORDS - pos                         # (64, 2)
-    dist = jnp.sqrt(jnp.sum(d**2, axis=-1))   # (64,)
-    s2 = jnp.sum(d**2, axis=-1) + eps**2      # (64,)
-    s = jnp.sqrt(s2)
+    d = _COORDS - pos                                          # (64, 2)
+    s2 = jnp.sum(d**2, axis=-1) + eps**2                        # (64,) softened
+    dist = jnp.sqrt(s2)                                          # reach gate dist
+    s = dist
     s3 = s2 * s                               # s^3
     s5 = s3 * s2                              # s^5
     gate = jax.nn.sigmoid(c - dist)
@@ -138,7 +151,9 @@ def _eta_at_pos(attacker_m, pos, king_mass, G, eps, c, Rg, mref):
     """Tidal-disruption index at a continuous position."""
     A = _tidal_tensor_at_pos(attacker_m, pos, G, eps, c)
     lam1, _ = eig2x2(A)
-    Rg_eff = Rg * (jnp.abs(king_mass) / 1000.0) ** (1.0 / 3.0)
+    # Same cbrt floor as _eta: dummy rows hit zero king mass; the infinite
+    # backward gradient of x^(1/3) at 0 must never reach the optimizer.
+    Rg_eff = Rg * jnp.maximum(jnp.abs(king_mass) / 1000.0, 1e-9) ** (1.0 / 3.0)
     return (Rg_eff**3) * lam1 / (mref**2 + 1e-9)
 
 
