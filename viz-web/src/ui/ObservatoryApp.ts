@@ -1267,72 +1267,108 @@ export class ObservatoryApp {
       <!-- 02 — THE LAYERS OF ABSURDITY -->
       <section class="absurdity-section shell" id="absurdity">
         <div class="section-head">
-          <span class="section-number">02 — The Layers of Absurdity</span>
+          <span class="section-number">02 — The 7 Layers of Absurdity</span>
           <span class="badge-tag">INNOVATION &amp; CORE MECHANICS</span>
           <h2>How deep does the absurdity go?</h2>
           <p class="section-lead">
-            Kepler-64 is not a cosmetic skin or heuristic chess theme. It is a differentiable N-body astrophysical simulation where every strategic chess decision emerges directly from gravitational tensor calculus.
+            I replaced a chess engine's brain with physics. It now has 7 layers of astrophysics where a brain should be — from Newtonian gravity to special relativity.
           </p>
         </div>
 
         <div class="absurdity-grid">
           <div class="absurdity-card">
-            <div class="card-layer-tag">LAYER 1 · CAUSAL FOUNDATION</div>
+            <div class="card-layer-header">
+              <span class="layer-badge">01</span>
+              <span class="card-layer-tag">CAUSAL BASE</span>
+            </div>
             <h3>Gravity is the Evaluator</h3>
-            <p>No piece-square tables, no heuristics, and no opaque neural network. Every piece acts as an attractive point mass in 2D spacetime. The Plummer gravitational potential field determines force vectors and tidal tensors at the King.</p>
+            <p>Pieces are point masses in 2D spacetime (Pawns = 1m, Queens = 9m, King = 1000m star). Evaluation reads the gravitational field instead of counting points.</p>
             <div class="absurdity-card-meta">
-              <span>Checkmate = Roche Tidal Rupture</span>
-              <span>C^∞ Analytical Differentiability</span>
+              <span class="meta-pill">King = 1000m Star</span>
+              <span class="meta-pill">Plummer Potential Φ(r)</span>
             </div>
           </div>
 
           <div class="absurdity-card">
-            <div class="card-layer-tag">LAYER 2 · DYNAMIC MASS</div>
-            <h3>Capture Mass Accretion</h3>
-            <p>Captured matter does not vanish into the void. The capturing piece accretes 80% of the victim's mass (η_acc = 0.80). Supermassive pieces create deeper gravity wells, but expanded radius of gyration (R_g) makes them physically fragile to tidal shear.</p>
+            <div class="card-layer-header">
+              <span class="layer-badge">02</span>
+              <span class="card-layer-tag">ASTROPHYSICS</span>
+            </div>
+            <h3>Plummer Softening (1911)</h3>
+            <p>Borrowed from globular cluster astronomy to prevent adjacent pieces from creating infinite force singularities. The same math used for the Milky Way.</p>
             <div class="absurdity-card-meta">
-              <span>Mass Conservation Law</span>
-              <span>Power Costs Fragility</span>
+              <span class="meta-pill">Softening Radius ε</span>
+              <span class="meta-pill">Milky Way Astronomy</span>
             </div>
           </div>
 
           <div class="absurdity-card">
-            <div class="card-layer-tag">LAYER 2 · SPECIAL RELATIVITY</div>
-            <h3>Relativistic Lorentz Mass</h3>
-            <p>Rapid maneuvering creates relativistic inertia. Pieces moving at high speeds near the light cone c escalate in Lorentz dynamic mass. This provides a physics-native, causal anti-repetition mechanism rooted in Einsteinian kinematics.</p>
+            <div class="card-layer-header">
+              <span class="layer-badge">03</span>
+              <span class="card-layer-tag">TIDAL DISRUPTION</span>
+            </div>
+            <h3>Roche Limit Rupture</h3>
+            <p>The King doesn't get checkmated — it gets tidally shredded into a debris ring when tidal tensor shear η &gt; ρ<sub>roche</sub>, like a moon near a planet.</p>
             <div class="absurdity-card-meta">
-              <span>v/c Velocity Continuity</span>
-              <span>Kinetic Energy Penalty</span>
+              <span class="meta-pill">Hessian Tidal Tensor</span>
+              <span class="meta-pill">Roche Limit ρ = 1.00</span>
             </div>
           </div>
 
           <div class="absurdity-card">
-            <div class="card-layer-tag">LAYER 2 · QUANTUM MEASUREMENT</div>
-            <h3>The Observer Effect</h3>
-            <p>The engine maintains an active Bayesian particle filter over the physical constants of the universe. When the opponent makes a move, the observer updates its belief distribution via KL-divergence, adapting to the opponent's latent physical laws.</p>
+            <div class="card-layer-header">
+              <span class="layer-badge">04</span>
+              <span class="card-layer-tag">SPECIAL RELATIVITY</span>
+            </div>
+            <h3>Gravity's Speed Limit (c)</h3>
+            <p>Gravitational influence propagates at finite speed c. A queen sacrifice on h8 does not instantly threaten a King on a1 — the wavefront must travel.</p>
             <div class="absurdity-card-meta">
-              <span>Online Bayesian Filter</span>
-              <span>KL-Divergence Anchor</span>
+              <span class="meta-pill">Speed of Light c</span>
+              <span class="meta-pill">Wavefront Propagation</span>
             </div>
           </div>
 
           <div class="absurdity-card">
-            <div class="card-layer-tag">LAYER 2 · MULTIVERSE ENSEMBLE</div>
-            <h3>Multiverse Posterior Averaging</h3>
-            <p>Every candidate move evaluates across K = 8 parallel universes sampled from the trained posterior over (G, ε, c). The engine selects the minimax line with the highest Bayesian expectation across worlds, enforcing epistemic humility.</p>
+            <div class="card-layer-header">
+              <span class="layer-badge">05</span>
+              <span class="card-layer-tag">MASS ACCRETION</span>
+            </div>
+            <h3>Conserved Black Hole Mass</h3>
+            <p>Captured matter is never destroyed. Captors absorb 80% of victim mass (η_acc = 0.80). Above 25m, a piece becomes an inescapable black hole.</p>
             <div class="absurdity-card-meta">
-              <span>K = 8 Posterior Realizations</span>
-              <span>Risk-Weighted Minimax</span>
+              <span class="meta-pill">η_acc = 0.80 Accretion</span>
+              <span class="meta-pill">Conserved Matter Law</span>
             </div>
           </div>
 
           <div class="absurdity-card">
-            <div class="card-layer-tag">LAYER 0 · UNIVERSAL SEEDING</div>
-            <h3>Image-Seeded Universes</h3>
-            <p>Generate a playable chess physics universe from any celestial photograph or image. The engine computes 2D spatial FFT power spectra of the image to deterministically seed all 14 physical constants of the gravitational manifold.</p>
+            <div class="card-layer-header">
+              <span class="layer-badge">06</span>
+              <span class="card-layer-tag">RELATIVISTIC KINEMATICS</span>
+            </div>
+            <h3>Lorentz Dynamic Mass</h3>
+            <p>Moving the same piece repeatedly inflates its Lorentz dynamic mass γ. Long-range opening dashes blunder under Einsteinian kinematics.</p>
             <div class="absurdity-card-meta">
-              <span>2D FFT Spectral Decomposition</span>
-              <span>Deterministic Generation</span>
+              <span class="meta-pill">γ = 1/√(1 - v²/c²)</span>
+              <span class="meta-pill">Relativistic Inertia</span>
+            </div>
+          </div>
+
+          <div class="absurdity-card featured-absurdity">
+            <div class="featured-main">
+              <div class="card-layer-header">
+                <span class="layer-badge">07</span>
+                <span class="card-layer-tag">UNIVERSAL SEEDING &amp; MULTIVERSE</span>
+              </div>
+              <h3>Image-Seeded Multiverse</h3>
+              <p>2D Fourier transforms of celestial photos deterministically seed all 14 physical constants (G, ε, c). Candidate moves evaluate across K = 8 parallel realities simultaneously.</p>
+            </div>
+            <div class="featured-side">
+              <div class="absurdity-card-meta">
+                <span class="meta-pill">2D FFT Spectral Seeding</span>
+                <span class="meta-pill">K = 8 Parallel Realities</span>
+                <span class="meta-pill">Bayesian Consensus</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1340,7 +1376,7 @@ export class ObservatoryApp {
         <div class="absurdity-honesty-strip">
           <div class="honesty-copy">
             <strong>AUTHENTIC PHYSICS, NOT STOCKFISH:</strong>
-            <span>Kepler-64 never tried to be Stockfish. It is a differentiable physics simulation that happens to play legal chess — and every mathematical mechanism is backed by the compendium, the equations, and the open-source code.</span>
+            <span>Kepler-64 is a differentiable N-body simulation that happens to play legal chess. Every mathematical mechanism is backed by the compendium equations and open-source code.</span>
           </div>
           <a href="https://github.com/r-baruah/kepler-64" target="_blank" rel="noreferrer" class="action-primary star-btn star-cta-shimmer" title="Star Kepler-64 on GitHub">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -1357,35 +1393,37 @@ export class ObservatoryApp {
           <p class="section-lead">Every physical constant is a learnable leaf. The evaluation is a gradient, not a guess.</p>
         </div>
 
-        <div class="stats-grid">
-          <div class="goal-card">
-            <div class="kpi-eyebrow">PRIMARY GOAL</div>
-            <h3>Differentiable Evaluation</h3>
-            <div class="goal-figure">
-              <span class="big-stat">100<sup>%</sup></span>
-              <span class="goal-caption">end-to-end JAX auto-diff</span>
+        <div class="stats-console">
+          <div class="stats-gauges-grid">
+            <div class="goal-card">
+              <div class="kpi-eyebrow">PRIMARY GOAL</div>
+              <h3>Differentiable Evaluation</h3>
+              <div class="goal-figure">
+                <span class="big-stat">100<sup>%</sup></span>
+                <span class="goal-caption">end-to-end JAX auto-diff</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div>
+              <p class="kpi-note">14 of 14 physics knobs are gradient-trainable leaves.</p>
             </div>
-            <div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div>
-            <p class="kpi-note">14 of 14 physics knobs are gradient-trainable leaves (G typically frozen at 1.0 for identifiability; m_ref is a fixed unit scale).</p>
+
+            <div class="live-gauge-card">
+              <div class="kpi-eyebrow">ROCHE DISRUPTION INDEX</div>
+              <div class="live-gauge-row">
+                <span class="big-stat" id="stats-roche-pct">0%</span>
+                <span class="goal-caption" id="stats-eta-text">η = 0.000 / ρ = ${this.config.roche.toFixed(2)}</span>
+              </div>
+              <div class="progress-track warm"><div id="stats-roche-fill" class="progress-fill warm" style="width:0%;"></div></div>
+              <p class="kpi-note">The enemy King collapses when η &gt; ρ<sub>roche</sub>.</p>
+            </div>
           </div>
 
-          <div class="live-gauge-card">
-            <div class="kpi-eyebrow">ROCHE DISRUPTION INDEX</div>
-            <div class="live-gauge-row">
-              <span class="big-stat" id="stats-roche-pct">0%</span>
-              <span class="goal-caption" id="stats-eta-text">η = 0.000 / ρ = ${this.config.roche.toFixed(2)}</span>
-            </div>
-            <div class="progress-track warm"><div id="stats-roche-fill" class="progress-fill warm" style="width:0%;"></div></div>
-            <p class="kpi-note">The enemy King collapses when η &gt; ρ<sub>roche</sub>.</p>
+          <div class="kpi-grid kpi-grid-5">
+            <div class="kpi-card"><span class="kpi-label">LEARNABLE LEAVES</span><span class="kpi-value">14</span><span class="kpi-change">gradient leaves</span></div>
+            <div class="kpi-card"><span class="kpi-label">PAIRWISE STENCIL</span><span class="kpi-value">64×64</span><span class="kpi-change">precomputed</span></div>
+            <div class="kpi-card"><span class="kpi-label">MULTIVERSE</span><span class="kpi-value">K = 8</span><span class="kpi-change">posterior worlds</span></div>
+            <div class="kpi-card"><span class="kpi-label">ROCHE LIMIT</span><span class="kpi-value">ρ 1.00</span><span class="kpi-change">rupture cutoff</span></div>
+            <div class="kpi-card"><span class="kpi-label">SELF-PLAY</span><span class="kpi-value">Elo-Gated</span><span class="kpi-change">persisted champions</span></div>
           </div>
-        </div>
-
-        <div class="kpi-grid kpi-grid-5">
-          <div class="kpi-card"><span class="kpi-label">LEARNABLE LEAVES</span><span class="kpi-value">14</span><span class="kpi-change">gradient leaves</span></div>
-          <div class="kpi-card"><span class="kpi-label">PAIRWISE STENCIL</span><span class="kpi-value">64×64</span><span class="kpi-change">precomputed matrix</span></div>
-          <div class="kpi-card"><span class="kpi-label">MULTIVERSE</span><span class="kpi-value">K = 8</span><span class="kpi-change">posterior worlds</span></div>
-          <div class="kpi-card"><span class="kpi-label">ROCHE LIMIT</span><span class="kpi-value">ρ 1.00</span><span class="kpi-change">rupture threshold</span></div>
-          <div class="kpi-card"><span class="kpi-label">SELF-PLAY</span><span class="kpi-value">Elo-Gated</span><span class="kpi-change">persisted champions</span></div>
         </div>
       </section>
 

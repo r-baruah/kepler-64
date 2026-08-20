@@ -24,6 +24,26 @@ export interface PresetGame {
 
 export const PRESET_GAMES: PresetGame[] = [
   {
+    id: 'kepler64-selfplay-v2',
+    title: 'Kepler-64 Autonomous Clash (V2)',
+    subtitle: 'Post-fix JAX gravitational search, mass accretion & tidal rook checkmate',
+    white: 'Kepler-64 (Gravitational Vanguard)',
+    black: 'Kepler-64 (Roche Defender)',
+    date: '2026.08.20',
+    event: 'Kepler-64 Observatory Harness V2',
+    initialFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    highlightPly: 44,
+    pgn: `[Event "Kepler-64 Observatory Harness V2"]
+[Site "Kepler-64 Observatory"]
+[Date "2026.08.20"]
+[Round "2"]
+[White "Kepler-64 (Gravitational Vanguard)"]
+[Black "Kepler-64 (Roche Defender)"]
+[Result "0-1"]
+
+1. Nf3 Nf6 2. Ne5 Ne4 3. Nxd7 Nxd2 4. Qxd2 Qxd7 5. Qxd7+ Nxd7 6. Bh6 gxh6 7. Nc3 Ne5 8. Nd5 Nf3+ 9. gxf3 Bh3 10. Nxc7+ Kd8 11. Ne8 Bxf1 12. O-O-O+ Kxe8 13. Rhxf1 b5 14. Rd5 b4 15. Re5 a5 16. Rxe7+ Bxe7 17. e4 Bc5 18. Kd1 Bd4 19. Kc1 Bc3 20. Kb1 Ra6 21. bxc3 bxc3 22. Ka1 a4 23. e5 a3 24. f4 Ra4 25. f5 Kd8 26. e6 fxe6 27. fxe6 Kc8 28. e7 Kb8 29. f4 Ka8 30. Rf3 Rc8 31. Rd3 Rcc4 32. e8=Q+ Ka7 33. Qa8+ Kxa8 34. Rd8+ Ka7 35. Rc8 Rxc8 36. h4 Rxf4 37. h5 Ra4 38. Kb1 Rh4 39. Ka1 Rh1# 0-1`,
+  },
+  {
     id: 'kasparov-topalov-1999',
     title: "Kasparov's Immortal",
     subtitle: "Rook sacrifice creates runaway tidal strain on Topalov's King",
@@ -64,16 +84,16 @@ export const PRESET_GAMES: PresetGame[] = [
 1. d4 Nf6 2. c4 e6 3. Nf3 b6 4. g3 Ba6 5. Qc2 Bb7 6. Bg2 c5 7. d5 exd5 8. cxd5 Bxd5 9. Nc3 Bc6 10. e4 Be7 11. Bf4 O-O 12. O-O-O Qc8 13. h4 Re8 14. e5 Nh5 15. Ng5 g6 16. Bd5 Rf8 17. Nce4 Na6 18. Bc4 Nb4 19. Qe2 b5 20. Bxf7+ Rxf7 21. Nxf7 Kxf7 22. a3 Na6 23. Rhe1 Nc7 24. Nd6+ Bxd6 25. exd6 Ne6 26. Bh6 1-0`,
   },
   {
-    id: 'kepler64-selfplay-match',
-    title: 'Kepler-64 Physics Match',
-    subtitle: 'Autonomous N-body gravitational evaluation in action',
-    white: 'Kepler-64 (Roche Engine)',
+    id: 'kepler64-legacy-match',
+    title: 'Kepler-64 Legacy (Pre-Fix Artifact)',
+    subtitle: 'Early broken physics where White & Black evaluation bled into each other',
+    white: 'Kepler-64 (Broken Prototype)',
     black: 'Stockfish-1300',
     date: '2026.08.05',
-    event: 'Kepler-64 Live Harness',
+    event: 'Kepler-64 Early Prototype',
     initialFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
     highlightPly: 22,
-    pgn: `[Event "Kepler-64 Harness"]
+    pgn: `[Event "Kepler-64 Early Prototype"]
 [Site "Kepler-64 Observatory"]
 [Date "2026.08.05"]
 [Round "1"]
