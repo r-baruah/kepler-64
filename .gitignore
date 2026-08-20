@@ -52,6 +52,7 @@ data/
 .github/hooks/
 .github/skills/
 .impeccable/
+.kilo/
 
 # Debug / scratch scripts
 /_*.py
