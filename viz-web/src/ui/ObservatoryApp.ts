@@ -1036,7 +1036,7 @@ export class ObservatoryApp {
           </nav>
 
           <div class="nav-actions">
-            <button id="nav-export-btn" class="action-primary nav-export-btn" title="Export Social GIF">
+            <button id="nav-export-btn" class="action-primary nav-export-btn" title="Export Observatory GIF">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
               <span>Export GIF</span>
             </button>
@@ -1158,7 +1158,7 @@ export class ObservatoryApp {
               <div class="scrubber-row">
                 <input id="ply-slider" type="range" min="0" max="${Math.max(0, this.moves.length - 1)}" value="${this.currentPlyIndex}" class="scrubber-slider" />
                 <strong id="ply-indicator" class="ply-indicator">Ply ${this.currentPlyIndex + 1} / ${this.moves.length}</strong>
-                <button id="btn-export-quick" class="action-secondary export-quick-btn" title="Export Social GIF">
+                <button id="btn-export-quick" class="action-secondary export-quick-btn" title="Export Observatory GIF">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                   GIF
                 </button>

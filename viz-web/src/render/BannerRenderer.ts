@@ -11,7 +11,7 @@
 import { Chess } from 'chess.js';
 import { KeplerBoard } from '../core/board';
 import type { ConstantsConfig } from '../core/constants';
-import { potentialOnGrid } from '../core/gravity';
+import { potentialOnGrid, forceField } from '../core/gravity';
 import { evaluatePosition } from '../core/evaluate';
 import { generateContourLines } from './ContourRenderer';
 import { drawTidalStressEllipse } from './TidalRenderer';
@@ -20,6 +20,17 @@ export interface TrajectoryPoint {
   ply: number;
   score: number;
   moveSan: string;
+}
+
+export interface BannerRenderOptions {
+  showHeatmap?: boolean;
+  showContours?: boolean;
+  showVectors?: boolean;
+  showTidalStress?: boolean;
+  showAccretion?: boolean;
+  showWavefronts?: boolean;
+  showLorentz?: boolean;
+  showLagrange?: boolean;
 }
 
 export class BannerRenderer {
@@ -67,7 +78,8 @@ export class BannerRenderer {
     plyNum: number,
     totalPlies: number,
     trajectoryPoints: TrajectoryPoint[],
-    lastMove: { from: number; to: number } | null = null
+    lastMove: { from: number; to: number } | null = null,
+    options: BannerRenderOptions = {}
   ): void {
     const width = canvas.width;
     const height = canvas.height;
@@ -78,43 +90,59 @@ export class BannerRenderer {
     ctx.fillStyle = '#f5f4ef';
     ctx.fillRect(0, 0, width, height);
 
-    const pad = 14;
-    const boardSize = height - 2 * pad; // Square board uses the full height
+    const isHD = width >= 800;
+    const padX = isHD ? 14 : 12;
+    const padTop = isHD ? 12 : 10;
+    const footerHeight = isHD ? 26 : 22;
+    const gapFooter = isHD ? 8 : 6;
+
+    // Calculate available height for the board, barometer & telemetry columns
+    const boardSize = height - padTop - footerHeight - gapFooter;
 
     // 1. Vertical Gravitational Barometer
-    const barometerX = pad;
-    const barometerY = pad;
-    const barometerW = 16;
+    const barometerX = padX;
+    const barometerY = padTop;
+    const barometerW = isHD ? 16 : 14;
     const barometerH = boardSize;
     this.drawVerticalBarometer(ctx, board, config, barometerX, barometerY, barometerW, barometerH);
 
     // 2. Board
-    const boardX = barometerX + barometerW + 10;
-    const boardY = pad;
-    this.drawBoard(ctx, board, config, boardX, boardY, boardSize, lastMove);
+    const boardX = barometerX + barometerW + (isHD ? 10 : 8);
+    const boardY = padTop;
+    this.drawBoard(ctx, board, config, boardX, boardY, boardSize, lastMove, options);
 
     // 3. Right column: Trajectory (top) + Telemetry (bottom)
-    const rightX = boardX + boardSize + 14;
-    const rightW = width - rightX - pad;
+    const rightX = boardX + boardSize + (isHD ? 12 : 10);
+    const rightW = width - rightX - padX;
 
-    const trajectoryY = pad;
-    const trajectoryH = 74;
+    const trajectoryY = padTop;
+    const trajectoryH = isHD ? 72 : 62;
     this.drawTrajectoryWave(ctx, rightX, trajectoryY, rightW, trajectoryH, trajectoryPoints, plyNum);
 
-    const hudY = trajectoryY + trajectoryH + 10;
-    const hudH = boardSize - trajectoryH - 10;
+    const hudY = trajectoryY + trajectoryH + (isHD ? 8 : 6);
+    const hudH = boardSize - trajectoryH - (isHD ? 8 : 6);
     this.drawTelemetryHUD(ctx, board, config, rightX, hudY, rightW, hudH, gameTitle, moveSan, plyNum, totalPlies);
 
-    // 4. Watermark & Attribution Footer
-    const footerY = height - 8;
-    ctx.font = '600 9px Sometype Mono, monospace';
+    // 4. Dedicated Watermark & Attribution Footer Bar
+    const footerDividerY = height - footerHeight;
+    ctx.strokeStyle = '#dcdad2';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padX, footerDividerY);
+    ctx.lineTo(width - padX, footerDividerY);
+    ctx.stroke();
+
+    const footerTextY = height - Math.round(footerHeight / 2) + 3.5;
+    const fontSize = isHD ? '9.5px' : '8.5px';
+
+    ctx.font = `600 ${fontSize} Sometype Mono, monospace`;
     ctx.fillStyle = '#62615a';
-    ctx.fillText('KEPLER-64 · Differentiable Astrophysical Chess · Created by Ripuranjan Baruah', pad, footerY);
+    ctx.fillText('KEPLER-64 · Differentiable Astrophysical Chess · Created by Ripuranjan Baruah', padX, footerTextY);
 
     ctx.textAlign = 'right';
     ctx.fillStyle = '#0069ff';
-    ctx.font = '700 9px Sometype Mono, monospace';
-    ctx.fillText('github.com/r-baruah/kepler-64', width - pad, footerY);
+    ctx.font = `700 ${fontSize} Sometype Mono, monospace`;
+    ctx.fillText('github.com/r-baruah/kepler-64', width - padX, footerTextY);
     ctx.textAlign = 'left';
   }
 
@@ -164,7 +192,8 @@ export class BannerRenderer {
     bx: number,
     by: number,
     bsize: number,
-    lastMove: { from: number; to: number } | null
+    lastMove: { from: number; to: number } | null,
+    options: BannerRenderOptions = {}
   ): void {
     ctx.save();
     ctx.translate(bx, by);
@@ -203,81 +232,281 @@ export class BannerRenderer {
     }
 
     // Continuous Potential Heatmap & Contours
+    const showHeatmap = options.showHeatmap !== false;
+    const showContours = options.showContours !== false;
+    const showVectors = !!options.showVectors;
+    const showTidalStress = options.showTidalStress !== false;
+    const showAccretion = !!options.showAccretion;
+    const showWavefronts = !!options.showWavefronts;
+    const showLorentz = !!options.showLorentz;
+    const showLagrange = !!options.showLagrange;
+
     const masses = board.massVector();
-    const { grid, n, p3, p97 } = potentialOnGrid(masses, config.eps, config.G, config.c, 48);
-    const span = p97 - p3 || 1.0;
 
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = n;
-    offCanvas.height = n;
-    const offCtx = offCanvas.getContext('2d');
-    if (offCtx) {
-      const imgData = offCtx.createImageData(n, n);
-      const data = imgData.data;
+    if (showHeatmap || showContours) {
+      const { grid, n, p3, p97 } = potentialOnGrid(masses, config.eps, config.G, config.c, 48);
+      const span = p97 - p3 || 1.0;
 
-      const HEAT_PALETTE: ReadonlyArray<readonly [number, number, number]> = [
-        [18, 26, 75],
-        [58, 45, 86],
-        [98, 66, 88],
-        [140, 88, 77],
-        [185, 112, 60],
-        [230, 140, 45],
-      ];
-      for (let gy = 0; gy < n; gy++) {
-        const invGy = n - 1 - gy;
-        for (let gx = 0; gx < n; gx++) {
-          const val = grid[invGy * n + gx];
-          const t = Math.max(0, Math.min(1, (val - p3) / span));
-          const band = Math.min(5, Math.floor(t * 6));
-          const [r, g, b] = HEAT_PALETTE[band];
-          const alpha = 35 + band * 9;
+      if (showHeatmap) {
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = n;
+        offCanvas.height = n;
+        const offCtx = offCanvas.getContext('2d');
+        if (offCtx) {
+          const imgData = offCtx.createImageData(n, n);
+          const data = imgData.data;
 
-          const idx = (gy * n + gx) * 4;
-          data[idx] = r;
-          data[idx + 1] = g;
-          data[idx + 2] = b;
-          data[idx + 3] = alpha;
+          const HEAT_PALETTE: ReadonlyArray<readonly [number, number, number]> = [
+            [18, 26, 75],
+            [58, 45, 86],
+            [98, 66, 88],
+            [140, 88, 77],
+            [185, 112, 60],
+            [230, 140, 45],
+          ];
+          for (let gy = 0; gy < n; gy++) {
+            const invGy = n - 1 - gy;
+            for (let gx = 0; gx < n; gx++) {
+              const val = grid[invGy * n + gx];
+              const t = Math.max(0, Math.min(1, (val - p3) / span));
+              const band = Math.min(5, Math.floor(t * 6));
+              const [r, g, b] = HEAT_PALETTE[band];
+              const alpha = 35 + band * 9;
+
+              const idx = (gy * n + gx) * 4;
+              data[idx] = r;
+              data[idx + 1] = g;
+              data[idx + 2] = b;
+              data[idx + 3] = alpha;
+            }
+          }
+          offCtx.putImageData(imgData, 0, 0);
+          ctx.drawImage(offCanvas, 0, 0, bsize, bsize);
         }
       }
-      offCtx.putImageData(imgData, 0, 0);
-      ctx.drawImage(offCanvas, 0, 0, bsize, bsize);
+
+      if (showContours) {
+        const levels: number[] = [];
+        for (let k = 1; k < 12; k++) {
+          levels.push(p3 + (span * k) / 12);
+        }
+        const contours = generateContourLines(grid, n, levels);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 1.2;
+        contours.forEach((segments) => {
+          ctx.beginPath();
+          segments.forEach((seg) => {
+            const x1 = ((seg.x1 + 0.5) / 8.0) * bsize;
+            const y1 = bsize - ((seg.y1 + 0.5) / 8.0) * bsize;
+            const x2 = ((seg.x2 + 0.5) / 8.0) * bsize;
+            const y2 = bsize - ((seg.y2 + 0.5) / 8.0) * bsize;
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+          });
+          ctx.stroke();
+        });
+      }
     }
 
-    // Contours
-    const levels: number[] = [];
-    for (let k = 1; k < 12; k++) {
-      levels.push(p3 + (span * k) / 12);
+    // Force Vectors Streamlines
+    if (showVectors) {
+      const forces = forceField(masses, config.eps, config.G, config.c);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(240, 100, 38, 0.70)';
+      ctx.fillStyle = 'rgba(240, 100, 38, 0.70)';
+      ctx.lineWidth = 1.3;
+
+      for (let sq = 0; sq < 64; sq++) {
+        const fx = forces.fx[sq];
+        const fy = forces.fy[sq];
+        const mag = Math.sqrt(fx * fx + fy * fy);
+        if (mag < 0.05) continue;
+
+        const f = sq % 8;
+        const r = Math.floor(sq / 8);
+        const cx = (f + 0.5) * sqSize;
+        const cy = (7 - r + 0.5) * sqSize;
+
+        const normX = fx / (mag + 1e-6);
+        const normY = fy / (mag + 1e-6);
+        const len = Math.min(sqSize * 0.40, sqSize * 0.15 * Math.log10(1 + mag * 5));
+
+        const endX = cx + normX * len;
+        const endY = cy - normY * len;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        const angle = Math.atan2(-normY, normX);
+        const head = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - head * Math.cos(angle - Math.PI / 6), endY - head * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(endX - head * Math.cos(angle + Math.PI / 6), endY - head * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
     }
-    const contours = generateContourLines(grid, n, levels);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.lineWidth = 1.2;
-    contours.forEach((segments) => {
-      ctx.beginPath();
-      segments.forEach((seg) => {
-        const x1 = ((seg.x1 + 0.5) / 8.0) * bsize;
-        const y1 = bsize - ((seg.y1 + 0.5) / 8.0) * bsize;
-        const x2 = ((seg.x2 + 0.5) / 8.0) * bsize;
-        const y2 = bsize - ((seg.y2 + 0.5) / 8.0) * bsize;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+
+    // Retarded Light Cone Wavefronts
+    if (showWavefronts && lastMove) {
+      const of = lastMove.from % 8;
+      const or = Math.floor(lastMove.from / 8);
+      const cx = (of + 0.5) * sqSize;
+      const cy = (7 - or + 0.5) * sqSize;
+      const cSq = config.c;
+
+      ctx.save();
+      const ripples = [1, 0.62, 0.3];
+      ripples.forEach((f, idx) => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, cSq * f * sqSize, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0, 105, 255, ${0.55 - idx * 0.15})`;
+        ctx.lineWidth = idx === 0 ? 1.6 : 1.2;
+        ctx.setLineDash(idx === 0 ? [5, 4] : []);
+        ctx.stroke();
       });
-      ctx.stroke();
-    });
+      ctx.restore();
+    }
+
+    // Accretion Halos
+    if (showAccretion) {
+      for (let sq = 0; sq < 64; sq++) {
+        const p = board.squares[sq];
+        if (!p) continue;
+        const boost = board.massBoost[sq] || 0;
+        if (boost > 0.05) {
+          const f = sq % 8;
+          const r = Math.floor(sq / 8);
+          const cx = (f + 0.5) * sqSize;
+          const cy = (7 - r + 0.5) * sqSize;
+          ctx.save();
+          const rad = sqSize * 0.44;
+          const grad = ctx.createRadialGradient(cx, cy, sqSize * 0.25, cx, cy, rad);
+          grad.addColorStop(0, 'rgba(255, 170, 0, 0.65)');
+          grad.addColorStop(0.7, 'rgba(255, 120, 0, 0.30)');
+          grad.addColorStop(1, 'rgba(255, 120, 0, 0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255, 180, 0, 0.85)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
+    // Lorentz Relativistic Dilation
+    if (showLorentz) {
+      for (let sq = 0; sq < 64; sq++) {
+        const p = board.squares[sq];
+        if (!p) continue;
+        const boost = board.massBoost[sq] || 0;
+        if (boost > 0) {
+          const f = sq % 8;
+          const r = Math.floor(sq / 8);
+          const cx = (f + 0.5) * sqSize;
+          const cy = (7 - r + 0.5) * sqSize;
+          ctx.save();
+          ctx.strokeStyle = '#0069ff';
+          ctx.lineWidth = 1.8;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.arc(cx, cy, sqSize * 0.46, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.font = '700 8px Sometype Mono, monospace';
+          ctx.fillStyle = '#0069ff';
+          ctx.fillText(`γ`, cx + sqSize * 0.26, cy - sqSize * 0.26);
+          ctx.restore();
+        }
+      }
+    }
+
+    // Lagrange Points L1-L5
+    if (showLagrange) {
+      const ranked: { sq: number; m: number }[] = [];
+      for (let sq = 0; sq < 64; sq++) {
+        if (board.squares[sq]) ranked.push({ sq, m: Math.abs(masses[sq]) });
+      }
+      ranked.sort((a, b) => b.m - a.m);
+      if (ranked.length >= 2 && ranked[0].m > 0 && ranked[1].m > 0) {
+        const A = ranked[0];
+        const B = ranked[1];
+        const ax = (A.sq % 8) + 0.5;
+        const ay = Math.floor(A.sq / 8) + 0.5;
+        const bx = (B.sq % 8) + 0.5;
+        const by = Math.floor(B.sq / 8) + 0.5;
+        const dx = bx - ax;
+        const dy = by - ay;
+        const d = Math.hypot(dx, dy) || 1;
+        const ux = dx / d;
+        const uy = dy / d;
+        const mu = B.m / (A.m + B.m);
+        const s60 = 0.8660254;
+
+        let points: { x: number; y: number; label: string }[];
+        if (Math.abs(mu - 0.5) < 1e-6) {
+          points = [
+            { x: ax + ux * d * 0.5, y: ay + uy * d * 0.5, label: 'L1' },
+            { x: bx + ux * d * 0.55, y: by + uy * d * 0.55, label: 'L2' },
+            { x: ax - ux * d * 0.55, y: ay - uy * d * 0.55, label: 'L3' },
+            { x: ax + (ux * 0.5 - uy * s60) * d, y: ay + (uy * 0.5 + ux * s60) * d, label: 'L4' },
+            { x: ax + (ux * 0.5 + uy * s60) * d, y: ay + (uy * 0.5 - ux * s60) * d, label: 'L5' },
+          ];
+        } else {
+          const alpha = Math.cbrt(mu / 3);
+          points = [
+            { x: ax + ux * d * (1 - alpha), y: ay + uy * d * (1 - alpha), label: 'L1' },
+            { x: bx + ux * d * alpha, y: by + uy * d * alpha, label: 'L2' },
+            { x: ax - ux * d * (1 - (7 * mu) / 12), y: ay - uy * d * (1 - (7 * mu) / 12), label: 'L3' },
+            { x: ax + (ux * 0.5 - uy * s60) * d, y: ay + (uy * 0.5 + ux * s60) * d, label: 'L4' },
+            { x: ax + (ux * 0.5 + uy * s60) * d, y: ay + (uy * 0.5 - ux * s60) * d, label: 'L5' },
+          ];
+        }
+
+        ctx.save();
+        points.forEach((p) => {
+          if (p.x >= 0 && p.x <= 8 && p.y >= 0 && p.y <= 8) {
+            const px = p.x * sqSize;
+            const py = (8 - p.y) * sqSize;
+            ctx.beginPath();
+            ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#0050c0';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.font = '700 8px Sometype Mono, monospace';
+            ctx.fillStyle = '#0050c0';
+            ctx.fillText(p.label, px + 5, py - 3);
+          }
+        });
+        ctx.restore();
+      }
+    }
 
     // Tidal Tensors
-    const breakdown = evaluatePosition(board, config);
-    const wk = board.findKingSquare('w');
-    const bk = board.findKingSquare('b');
+    if (showTidalStress) {
+      const breakdown = evaluatePosition(board, config);
+      const wk = board.findKingSquare('w');
+      const bk = board.findKingSquare('b');
 
-    if (wk !== null && breakdown.whiteKingTidal) {
-      const kx = (wk % 8 + 0.5) * sqSize;
-      const ky = (7 - Math.floor(wk / 8) + 0.5) * sqSize;
-      drawTidalStressEllipse(ctx, kx, ky, sqSize, breakdown.whiteKingTidal);
-    }
-    if (bk !== null && breakdown.blackKingTidal) {
-      const kx = (bk % 8 + 0.5) * sqSize;
-      const ky = (7 - Math.floor(bk / 8) + 0.5) * sqSize;
-      drawTidalStressEllipse(ctx, kx, ky, sqSize, breakdown.blackKingTidal);
+      if (wk !== null && breakdown.whiteKingTidal) {
+        const kx = (wk % 8 + 0.5) * sqSize;
+        const ky = (7 - Math.floor(wk / 8) + 0.5) * sqSize;
+        drawTidalStressEllipse(ctx, kx, ky, sqSize, breakdown.whiteKingTidal);
+      }
+      if (bk !== null && breakdown.blackKingTidal) {
+        const kx = (bk % 8 + 0.5) * sqSize;
+        const ky = (7 - Math.floor(bk / 8) + 0.5) * sqSize;
+        drawTidalStressEllipse(ctx, kx, ky, sqSize, breakdown.blackKingTidal);
+      }
     }
 
     // Pieces
