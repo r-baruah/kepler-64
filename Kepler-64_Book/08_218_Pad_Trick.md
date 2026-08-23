@@ -1,5 +1,7 @@
 # Chapter 8 — The 218-Pad Trick and the Sub-Millisecond Sweep
 
+> **Read me first (no background needed).** This chapter is pure speed engineering, and its hero idea is easy to picture. A compiler like XLA is a factory that builds a custom machine for each *shape* of problem you feed it. Chess ruins that: one position has 30 legal moves, the next has 5, so the factory would rebuild the machine after every move. The fix: always deliver exactly 218 problems — chess's theoretical maximum number of legal moves — padding empty slots with harmless dummies. The factory builds once; every position rides the same machine. Empty seats cost almost nothing.
+
 ## 8.1 Intuition: why variable batch sizes kill compilers
 
 JAX/XLA compiles a function into very fast machine code — but only after it has seen the **exact shape** of the tensors involved. Chess positions have a *variable* number of legal moves (anywhere from 0 to 218). If you re-compile for every different move count, the "sub-millisecond" promise evaporates into constant recompilation (the "silent recompilation trap," `Kepler-64.md` §2).

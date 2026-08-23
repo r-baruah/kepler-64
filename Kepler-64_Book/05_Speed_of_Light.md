@@ -1,5 +1,7 @@
 # Chapter 5 — The Speed of Light $c$: Retarded Potential as a Reach Gate
 
+> **Read me first (no background needed).** In this universe, influence takes time to travel. Every piece broadcasts its gravity like a radio station, and the signal moves at a finite speed — $c$ squares per ply (a ply being one single move by one side). Set $c$ small and only nearby pieces "hear" each other; set it large and the whole board hears everything instantly. Crucially, $c$ is not fixed by decree: it is one of the learnable knobs, and training settles on whatever delay makes the universe's judgment match real game outcomes. Since August 2026 there is exactly **one** speed of light in the codebase — the same $c$ also governs how a moving piece's mass inflates with speed (Chapter 13.5), so relativity and gravity share one law, not two.
+
 ## 5.1 Intuition: gravity is not instantaneous
 
 In classical chess, if you move a queen to attack the enemy King, the threat is *immediate*. In real physics, changes in the gravitational field propagate at the **speed of light** $c$. If $c$ is finite, a queen moved to the far side of the board does not *instantly* stress the enemy King — the "gravity wave" takes time to arrive.
@@ -46,7 +48,9 @@ The audit's "converged" framing (`Kepler-64 Audit` §A) notes that the retarded 
 
 ## 5.5 Project link: $c$ is a learned, prior-bounded leaf
 
-In code, $c$ is initialized at 4.0 (`core/constants.py:17`) and is a **leaf** that gradient descent moves. The training clips it to $[1.0, 10.0]$ (`training/loss.py:51`) — matching the prior's intended bounds. The `trained_constants.json` shows $c = 4.82$, comfortably in the sweet spot.
+In code, $c$ is initialized at 4.0 (`core/constants.py:17`) and is a **leaf** that gradient descent moves. The training clips it to $[1.0, 10.0]$ (`training/loss.py:51`) — matching the prior's intended bounds. The credibility-gate artifact (`training/trained_constants_gate.json`, 2026-08-23) learned $c = 3.51$, comfortably inside the sweet spot — training moved it, kept it physical, and did not let it run away.
+
+> **One law, enforced.** The same $c$ now drives the Lorentz motion boost ($u = v/(v+c)$) at every search call site — `FastBoard.mass_vector(c_lorentz=...)` receives `Constants.c`; the fallback constant `LORENTZ_C_DEFAULT` exists only for ad-hoc boards constructed outside a game. A regression test pins the invariant `child_mass_vector(...) == child.mass_vector(c)` for arbitrary $c$, so no second hardcoded light speed can silently return.
 
 > **⚠ [ISSUE: c-NOT-TRACED] (P1, Code Review v1 BUG 8):** A prior version declared `c: float` in a `@dataclass` and expected it to be differentiable. A plain Python `float` is **not** a JAX-traced type, so `jax.grad` could not move it. The current architecture avoids this by routing *all* constants through `_score_core(masses, G, eps, c, ...)` as **positional scalar arguments** (`core/evaluate.py:104-110`), which *are* traced. The lesson: never store a learnable constant only as a dataclass float attribute; pass it as a function argument during training. Confirm `train.py` and `loss.py` pass `c` positionally (they do: `training/loss.py:48`).
 

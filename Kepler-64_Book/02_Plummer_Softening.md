@@ -1,5 +1,7 @@
 # Chapter 2 — Plummer Softening and the Static Distance Matrix
 
+> **Read me first (no background needed).** This chapter solves one practical problem: physics formulas blow up to infinity when two things get too close, and infinities break machine learning. The fix is charmingly simple — pretend every piece is slightly fluffy instead of infinitely sharp. The "fluff size" ($\varepsilon$, *epsilon*) is itself learnable: training decides how fuzzy the universe's pieces are. The chapter's second half is pure engineering cleverness: because a chessboard never changes shape, all 64×64 pairwise distances can be measured **once** at startup and reused forever, making every gravity evaluation a single fast matrix operation.
+
 ## 2.1 Intuition: the "divide by zero" problem
 
 Newton's law has a trap: when two masses occupy the **same square** (or get arbitrarily close), $r \to 0$ and the force $F = G m_1 m_2 / r^2$ shoots to infinity. On a chessboard, pieces can be adjacent or even (during intermediate computations) coincident. An infinite force is not just physically ugly — it produces `NaN`s that kill gradient descent.

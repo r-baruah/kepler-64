@@ -149,6 +149,14 @@ Data flow per leaf node: `FastBoard → mass_vector() [+Lorentz] → child_mass_
 3. Every behavioral change ships with a test + one self-match line vs the previous build.
 4. Book updated in the same PR as the code it describes (S-ledger stays empty).
 
+### Post-audit addendum (2026-08-23, same day)
+- [x] CI workflow `.github/workflows/tests.yml`: full pytest suite + engine smoke on every push/PR; README badge updated to the real count (62) and tied to CI (S9 closed).
+- [x] S10 partially closed: every concept chapter (0–13) carries a layperson door-opener; deleted-module references in Ch.6 rewritten to the live implementation. A full line-number sweep repeats cheaply whenever chapters are touched.
+- Remaining for future sessions (no local compute needed for the first two):
+  1. Scaled credibility gate (`--games 40 --steps 2000 --match-games 200` on a stronger machine or overnight).
+  2. Causal gravity implementation per `docs/causal_gravity_design.md`.
+  3. Per-piece Rg extent, bundled with causal gravity + re-gate.
+
 ---
 
 ## Bottom Line
