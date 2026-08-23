@@ -89,11 +89,17 @@ $$\text{drift} = \lambda_{\text{drift}}\big(\Delta\eta_{\text{on black K}} - \De
 
 Source-attributed like η (§7.4 Step 4): white's field tearing the black King is good for White when *growing*; black's tearing the white King is bad when growing. This is the "threat a few plies out" signal (§6.5), read at the continuous projected position with an exact analytical Hessian.
 
+**Step 9 — Gravitational-wave energy-loss edge (Peters–Mathews).** Accelerating binary masses radiate gravitational waves at $dE/dt \propto G^4 m_1^2 m_2^2 / r^5$ — tight pairs of heavy bodies bleed energy fastest. Kepler-64 prices this in per army (`_gw_radiation`, `core/evaluate.py`): kings excluded (detector discipline, §7.4), diagonal masked (a mass does not radiate against itself),
+
+$$\text{gw} = \lambda_{\text{gw}}\Big(\textstyle\sum_{i \neq j}^{\text{black}} \tfrac{m_i^2 m_j^2}{(d_{ij}+\varepsilon)^5} - \sum_{i \neq j}^{\text{white}} \tfrac{m_i^2 m_j^2}{(d_{ij}+\varepsilon)^5}\Big)$$
+
+$\lambda_{\text{gw}}$ is the **15th learnable leaf**, initialized at exactly $0.0$ with bounds $[0, 10]$: the universe ships *without* wave losses and is bit-identical to the pre-GW physics until training decides otherwise (a regression test pins this neutrality; a second pins that a huddled army radiates strictly more than a spread one).
+
 **Final score (White perspective):**
 
-$$\text{score} = \eta_b - \eta_w + \text{bonus}_b + \text{pen}_w + \text{global\_edge} + \text{material} + \text{drift}$$
+$$\text{score} = \eta_b - \eta_w + \text{bonus}_b + \text{pen}_w + \text{global\_edge} + \text{material} + \text{drift} + \text{gw}$$
 
-(`core/evaluate.py:101`). Positive = good for White; `evaluate()` flips it for Black to move (`core/evaluate.py:134`).
+(`EvalTerms` in `core/evaluate.py` carries all twelve weighted terms plus `total`, so the Glass Box and replay can show every contribution separately.) Positive = good for White; `evaluate()` flips it for Black to move.
 
 ## 7.5 Why no boolean checkmate in the differentiable path
 
