@@ -10,9 +10,9 @@
 
 | Pri | ID | Issue | Source | Where | Status |
 |---|---|---|---|---|---|
-| **P0** | C1 | Ablation table ($G$ learned vs $G{=}1$) not in README | Audit | §12.4 | open |
+| **P0** | C1 | Ablation table ($G$ learned vs $G{=}1$) not in README | Audit | §12.4 | ✅ gate built + pilot table in README (`docs/credibility_gate_results.md`); scaled run pending before thesis claims |
 | **P0** | C2 | King not found → silent eval at a1 (`_king_idx` fallback) | v1 BUG4/5, v2 BUG4 | §7.4 | ✅ resolved |
-| **P0** | C3 | Import paths (`.core` vs `..core`) across packages | v1 BUG9/24 | §10.2 | open |
+| **P0** | C3 | Import paths (`.core` vs `..core`) across packages | v1 BUG9/24 | §10.2 | ✅ resolved — verified: no single-dot sibling imports remain |
 | **P0** | C4 | Tactical penalty sign inverted (older revision) | v2 BUG1 | §7.5 | ✅ resolved |
 | **P1** | C5 | $c$-prior used Python `max` (broke gradient) | v1 BUG3, v2 BUG5/6 | §5.3 | ✅ resolved |
 | **P1** | C6 | `c` not traced (plain float dataclass) | v1 BUG8 | §5.5 | ✅ resolved |
@@ -21,7 +21,7 @@
 | **P1** | C9 | Small-data collapse: `roche`/`gamma`→harmful | verification | §12.5 | open |
 | **P1** | C10 | $G$ non-identifiable; "learned $G$" overclaim | Audit/train | §9.4 | open (framing) |
 | **P1** | C11 | Verlet rollout not in live eval / not differentiating $d\eta/dt$ | — | §6.5/§4.6 | ✅ resolved |
-| **P2** | C12 | Visualizer η uses old $G\,M^2$ denominator (mismatch) | **(new)** | §11.4 | open |
+| **P2** | C12 | Visualizer η uses old $G\,M^2$ denominator (mismatch) | **(new)** | §11.4 | ✅ resolved — `viz/glassbox.py` uses $R_g^3\lambda_1/m_{\text{ref}}^2$, matching the evaluator |
 | **P2** | C13 | Accretion doesn't update $R_g$ (fragility missing) | v1 ISS17/v2 ISS16 | §13.4 | ✅ resolved |
 | **P2** | C14 | Lorentz mass function unwired into play | **(new)** | §13.5 | ✅ resolved |
 | **P2** | C15 | Image FFT of compressed bytes (dishonest claim) | v2 ISS18 | §13.6 | ✅ resolved |
@@ -146,8 +146,8 @@ Only $G,c$ shift; the Layer-2 feedback loop omits $\eta_{\text{acc}}$. **Fix:** 
 
 If a reviewer walks in tomorrow, the things most likely to hurt:
 
-1. **No ablation table (C1).** Without it, the headline claim is unsubstantiated. *Do this first.*
-2. **Small-data / $G$-overclaim (C9, C10).** Present the learning honestly: which constants actually moved, and by how much did play improve?
-3. **Remaining open items (C3, C12, C18, C20, C21).** Import-path audit, the visualizer's η denominator mismatch, the opening-book stub, and the observer's accretion-feedback gap.
+1. **The ablation gate now EXISTS and runs** (C1 closed at pilot scale): `scripts/credibility_gate.py` + a README table with caveats. The residual risk is *scale* — an 8-game match and 84 examples invite the (fair) rebuttal "not statistically meaningful." Quote the pilot as method demonstration only.
+2. **Small-data overclaim (C9, C10)** remains the honest frontier until a ≥5k-example run lands — the pilot's ranking regression is itself evidence of it.
+3. **Former open items C3, C12, C18, C20, C21 are all closed** (verified in code 2026-08-23): imports verified clean, visualizer η matches the evaluator, opening book deleted by vision decision, Observer wired opt-in with its limitation documented, batch_score single-vmap.
 
-The silent King-detection bugs (C2, C8) and the physics wiring gaps (C11, C13, C14, C15, C16, C17) are now **resolved**. The physics is genuinely rigorous; the remaining gaps are about *honesty of claims* and *a few secondary correctness items* — all fixable without changing the architecture.
+What remains open is engineering scale, not correctness or honesty of claims.

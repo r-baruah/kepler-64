@@ -1,5 +1,7 @@
 # Chapter 11 — The Glass Box Visualizer
 
+> **Read me first (no background needed).** Most chess engines are black boxes: they say "the best move is Nf3" and that's it — trust us. Kepler-64 is built to be the opposite: a **glass box** where you can literally watch the reasoning. The Glass Box visualizer draws every game as two panels side by side: on the left, the ordinary chessboard; on the right, the same position rendered as what it *physically is* — a gravitational landscape with deep wells under heavy pieces, contour lines like a weather map, and at each King a colored ellipse that stretches along the exact axis where the tidal pull threatens to tear it. When the engine says "this move attacks your King," you can see the ellipse turn red.
+
 ## 11.1 Intuition: show, don't tell
 
 The single most persuasive artifact of Kepler-64 is not a number — it's a **GIF**: a real game where, on the right panel, you watch the gravitational potential heat-map deepen as pieces cluster, and a red ellipse at each King stretch along the exact axis of failure. A skeptical reviewer who won't read the JAX can *see* the physics working.

@@ -6,7 +6,7 @@
 A differentiable chess engine built with JAX where pieces exert mass, spacetime curves across the 64 squares, and the enemy King is defeated not by conventional checkmate heuristics, but by **tidal disruption past the Roche limit**.
 
 [![Live Observatory](https://img.shields.io/badge/🔭_Live_Observatory-Deploy-2448b8?style=for-the-badge)](https://r-baruah.github.io/kepler-64/)
-[![Tests](https://img.shields.io/badge/tests-38%20passing-16a34a?style=for-the-badge)](#testing--verification)
+[![Tests](https://img.shields.io/badge/tests-62%20passing-16a34a?style=for-the-badge)](#testing--verification)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![JAX](https://img.shields.io/badge/JAX-differentiable-f06426?style=for-the-badge&logo=google)](https://github.com/google/jax)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
@@ -185,6 +185,8 @@ Kepler-64 includes a test suite covering force symmetry, eigenvalue calculations
 ```bash
 pytest kepler64/tests/ -v
 ```
+
+The same suite runs automatically on every push and pull request via [`​.github/workflows/tests.yml`](.github/workflows/tests.yml), followed by a one-move engine smoke test — so "tests passing" is a live claim, not a memory.
 
 ### Learned vs Frozen Physics — the Credibility Gate (pilot)
 

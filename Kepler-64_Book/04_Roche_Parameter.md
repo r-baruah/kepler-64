@@ -1,5 +1,7 @@
 # Chapter 4 — The Roche / Hill Disruption Parameter η
 
+> **Read me first (no background needed).** Astronomers know exactly how close a moon can orbit a planet before the planet's pull tears it into a ring: inside the **Roche limit**. Kepler-64 steals this idea as its victory condition. Every position gets a single dimensionless score, η ("eta") — *tearing power divided by holding-together power* for each King. When η crosses the learned threshold `roche`, the King is judged structurally collapsing. Because η is a smooth, continuous number (not a yes/no), it both tells the search which moves increase the danger and lets gradient descent learn where the true threshold lies.
+
 ## 4.1 Intuition: when does a moon break apart?
 
 Around a massive planet (say Jupiter) there is a distance within which a moon cannot hold itself together: Jupiter's tidal stretching overcomes the moon's own gravity. Cross that distance and the moon is pulled into a ring. That distance is the **Roche limit.** A related idea is the **Hill sphere** — the region around a body where its own gravity dominates over the tidal pull of a neighbor.

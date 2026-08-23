@@ -1,5 +1,7 @@
 # Chapter 3 — The Tidal Tensor and the Largest Eigenvalue λ₁
 
+> **Read me first (no background needed).** Here is the chapter where "attack" gets a physical definition. If ten enemies push your King from one side, the King simply slides away — annoying, not fatal. But if they pull from *opposite sides at once*, the King cannot move anywhere that relieves the stretch: it is being pulled apart. That difference-between-pulls is called a **tide** (the Moon raises Earth's oceans exactly this way), and its mathematical fingerprint is a small 2×2 table of numbers called the **tidal tensor**. From that table one number — the biggest **eigenvalue**, λ₁ ("lambda-one") — summarizes the worst-case stretching in any direction. λ₁ *is* Kepler's measure of attack.
+
 ## 3.1 Intuition: why "total force" is the wrong thing to measure
 
 If we only measured the net gravitational force on the enemy King, we'd reward simply *having a lot of mass nearby* — but a King sitting between two equal friendly pieces feels nearly **zero net force** (they pull in opposite directions) while still being violently *stretched* apart. The right physical quantity is not the force, but how the force **changes across space** — its spatial derivative. That derivative is the **tidal tensor.**

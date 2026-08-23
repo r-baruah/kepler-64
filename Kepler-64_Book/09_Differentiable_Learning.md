@@ -1,5 +1,7 @@
 # Chapter 9 — Implicit Differentiation and Learning $G$ Through Physics
 
+> **Read me first (no background needed).** This chapter explains the closest thing to magic in the project: **the universe tunes its own laws.** The engine's constants — gravity's strength, the fluff size, the speed of light, the collapse threshold — start as guesses. Then the engine plays/studies thousands of real games, and after each prediction it asks: "how wrong was I, and whose fault is that?" Calculus's chain rule, applied automatically by software (autodiff), apportions the blame backwards through the entire physics — from a wrong game outcome all the way down to "gravity was 0.3% too strong here." Every constant then takes one tiny step in the helpful direction. Repeat a few thousand times and the laws settle into whatever shape makes the physics agree with reality.
+
 ## 9.1 Intuition: the engine teaches itself the laws of its universe
 
 Normally, an engine's evaluation has hand-set weights (e.g. "a knight on the rim is worth −0.3"). Kepler-64 instead has *physical constants* ($G, \varepsilon, c, \rho_{\text{roche}}, \dots$) and lets **gradient descent** set them by looking at real game outcomes. The engine doesn't read a chess book; it reads thousands of games and asks: *"which values of $G$ make my physics score agree with who actually won?"*
