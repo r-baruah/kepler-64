@@ -47,6 +47,17 @@ _WK, _WQ, _BK, _BQ = 1, 2, 4, 8
 _MASS_LUT = np.array([0.0, 1.0, 3.0, 3.0, 5.0, 9.0, 1000.0], dtype=np.float32)
 
 
+# Fallback speed of light for the motion (Lorentz) boost, used only when a
+# caller does not supply the universe's actual learned `c`. Search and eval
+# always pass Constants.c; this keeps standalone/ad-hoc boards consistent
+# with the historical behavior instead of inventing a second default.
+LORENTZ_C_DEFAULT = 6.0
+
+# Per-ply relaxation of the velocity accumulator: a piece that stops moving
+# sheds its relativistic mass with a ~46-ply half-life (0.985^46 ≈ 0.5).
+VELOCITY_DECAY = 0.985
+
+
 class FastBoard:
     __slots__ = ("pieces", "turn", "castling", "ep", "velocity")
 
@@ -296,12 +307,17 @@ class FastBoard:
         # keeps its velocity HIGH, so its Lorentz-inflated mass becomes the
         # dominant field actor — the physics-native anti-repetition signal.
         v = self.velocity.copy()
-        v *= 0.985
+        v *= VELOCITY_DECAY
         captured_sq = t
         if pt == 1 and t == self.ep and int(board[t]) == 0:
             captured_sq = t - (8 if white else -8)
         v[captured_sq] = 0.0
-        v[t] = v[f] + 1.0
+        # Distance-weighted momentum gain: sliding a queen 7 squares injects
+        # more kinetic energy than stepping a pawn 1 square, so velocity is
+        # measured in true lattice distance, not hops.
+        df = (t % 8) - (f % 8)
+        dr = (t // 8) - (f // 8)
+        v[t] = v[f] + float((df * df + dr * dr) ** 0.5)
         v[f] = 0.0
         nb.velocity = v
 
@@ -316,21 +332,21 @@ class FastBoard:
 
         # Castling rook.
         if pt == 6 and abs(t - f) == 2:
-            if t == 6:       # white kingside
+            if t == 6:       # white kingside (rook h1->f1: 2 squares)
                 board[5] = board[7]; board[7] = 0
-                nb.velocity[5] = nb.velocity[7] + 1.0
+                nb.velocity[5] = nb.velocity[7] + 2.0
                 nb.velocity[7] = 0.0
-            elif t == 2:     # white queenside
+            elif t == 2:     # white queenside (rook a1->d1: 3 squares)
                 board[3] = board[0]; board[0] = 0
-                nb.velocity[3] = nb.velocity[0] + 1.0
+                nb.velocity[3] = nb.velocity[0] + 3.0
                 nb.velocity[0] = 0.0
             elif t == 62:    # black kingside
                 board[61] = board[63]; board[63] = 0
-                nb.velocity[61] = nb.velocity[63] + 1.0
+                nb.velocity[61] = nb.velocity[63] + 2.0
                 nb.velocity[63] = 0.0
             elif t == 58:    # black queenside
                 board[59] = board[56]; board[56] = 0
-                nb.velocity[59] = nb.velocity[56] + 1.0
+                nb.velocity[59] = nb.velocity[56] + 3.0
                 nb.velocity[56] = 0.0
 
         # En-passant target update.
@@ -359,7 +375,7 @@ class FastBoard:
         return nb
 
     # ---- physics interface ----------------------------------------------
-    def mass_vector(self) -> "jnp.ndarray":
+    def mass_vector(self, c_lorentz: float | None = None) -> "jnp.ndarray":
         """(64,) signed gravitational masses: white +, black -.
 
         Pieces with recent motion carry a Lorentz-inflated "relativistic" mass
@@ -368,14 +384,20 @@ class FastBoard:
         supermassive — the physics-native pressure against pointless
         repetition. The king stays exactly 1000 (the detector is not subject
         to its own motion boost; the eval's king-detection relies on that).
+
+        `c_lorentz` is THE speed of light of this universe (Constants.c).
+        Passing it keeps the motion boost governed by the same learned c that
+        gates the field reach — one universe, one light speed. Callers that
+        omit it fall back to LORENTZ_C_DEFAULT.
         """
+        c_eff = float(c_lorentz) if c_lorentz is not None else LORENTZ_C_DEFAULT
         lut = _MASS_LUT  # (7,) -> mass by abs piece type
         m = np.sign(self.pieces) * lut[np.abs(self.pieces.astype(np.int8))]
         v = self.velocity
         if np.any(v > 0.0):
-            u = v / (v + 6.0)
+            u = v / (v + c_eff)
             gamma = 1.0 / np.sqrt(1.0 - u * u)
-            gamma[np.abs(self.pieces) == 6] = 1.0  # kinks excluded
+            gamma[np.abs(self.pieces) == 6] = 1.0  # kings excluded
             m = m * gamma
         return jnp.asarray(m)
 
