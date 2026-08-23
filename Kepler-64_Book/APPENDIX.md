@@ -27,11 +27,16 @@
 | **Alpha-beta / negamax** | Standard tree search; score from side-to-move perspective; prune when $\alpha\ge\beta$. |
 | **Autodiff** | Automatic differentiation — JAX computes $\nabla_\theta\mathcal L$ through the pipeline. |
 | **Bayesian model average** | $\text{Eval}=\frac1K\sum_i\text{Eval}(\theta_i)$ over sampled constants. |
-| **Observer (2B)** | In-game update of $G,c$ from the post-move score, KL-anchored. |
+| **Observer (2B)** | Opt-in per-move KL-anchored shift of *all* trainable leaves (`observe=True`); persisted across a game. |
 | **Accretion (2C)** | Captured mass absorbed: $m_{\text{new}}=m_{\text{cap}}+0.8\,m_{\text{captured}}$. |
-| **Lorentz mass** | Relativistic mass inflation from repeated movement (singularity-free remap). |
+| **Lorentz mass** | Relativistic mass inflation from movement: $\gamma$ from $u=v/(v+c)$; governed by the same learned light speed as the field. |
+| **Velocity accumulator** | Per-piece momentum in `FastBoard`; gains true lattice distance per move, decays ×0.985/ply. |
+| **Gravitational-wave edge** | Peters–Mathews-style pairwise radiation $\propto G^4m_1^2m_2^2/r^5$, gated by learnable `lambda_gw` (init 0). |
+| **Trainable leaves** | The 15 learnable constants packed in `TRAINABLE_LEAVES` order — the universe's entire tunable surface. |
+| **EvalTerms** | Named tuple of all twelve weighted score terms plus `total`; what the Glass Box decomposes. |
+| **Credibility gate** | Automated learned-vs-frozen ablation (self-play → train → validate → match); `scripts/credibility_gate.py`. |
 | **Glass Box** | The two-panel visualizer (board + potential heat-map + tidal ellipses). |
-| **Ablation** | Training with vs without a feature (here: learned $G$ vs $G{=}1$) to prove it works. |
+| **Ablation** | Training with vs without a feature (here: learned leaves vs frozen physics) to prove it works. |
 
 ## A.2 Formula sheet
 
@@ -56,28 +61,29 @@ with $R_g$ the **effective** radius of gyration $R_g(|m_{\text{king}}|/1000)^{1/
 **Monotonicity prior on $c$:**
 $$\text{prior}(c) = -\lambda_f\max(0,2-c) - \lambda_s\max(0,c-10)$$
 
-**Score (White perspective):**
-$$\text{score} = \eta_b - \eta_w + \text{bonus}_b + \text{pen}_w + \gamma(E_w-E_b) + m_{\text{gain}}(\Sigma m_w - \Sigma m_b) + \lambda_{\text{drift}}\big(\Delta\eta_{\text{on black K}} - \Delta\eta_{\text{on white K}}\big)$$
+**Score (White perspective) — all twelve weighted terms (`EvalTerms`):**
+$$\text{score} = \underbrace{\eta_b - \eta_w}_{\text{tidal}} + \underbrace{\text{bonus}_b + \text{pen}_w}_{\text{disruption force}} + \underbrace{\gamma(E_w{-}E_b)}_{\text{binding}} + \underbrace{m_{\text{gain}}(\Sigma m_w - \Sigma m_b)}_{\text{material}} + \underbrace{\lambda_\Delta\,\Delta\eta + c_g\,\Delta\text{CoM} + i_g\,\Delta I + e_g\,\Delta H}_{\text{move-sensitivity deltas}} + \underbrace{\lambda_{\text{drift}}\,\big(\Delta\eta_{b} - \Delta\eta_{w}\big)}_{\text{impending collapse}} + \underbrace{\lambda_{\text{gw}}\,(\text{gw}_b - \text{gw}_w)}_{\text{wave losses}}$$
 
 **Loss:**
 $$\mathcal L = \mathcal L_{\text{outcome}} + 0.5\,\mathcal L_{\text{policy}} + \mathcal L_{\text{prior}}$$
 
 **Accretion:** $m_{\text{new}} = m_{\text{cap}} + 0.8\,m_{\text{captured}}$.
 
-**Lorentz (singularity-free, wired):** $u=\frac{v}{v+c},\ \gamma_L=\frac{1}{\sqrt{1-u^2}},\ m_L=m\,\gamma_L$ — applied exactly once per ply via the `FastBoard` velocity accumulator.
+**Lorentz (single light speed):** $u=\frac{v}{v+c},\ \gamma_L=\frac{1}{\sqrt{1-u^2}},\ m_L=m\,\gamma_L$ — applied exactly once per ply via the `FastBoard` velocity accumulator; $c$ is the same learned constant that gates the field.
 
-**Leapfrog (wired as the drift term):** $\vec v\leftarrow\vec v+\vec F(\vec p)\,dt;\ \vec p\leftarrow\vec p+\vec v\,dt$ — used by `_eta_drift` to read the "impending collapse" change in η.
+**Leapfrog (gated dynamics):** $\vec v\leftarrow\vec v+\vec F(\vec p)\,dt;\ \vec p\leftarrow\vec p+\vec v\,dt$ — used by `_eta_drift` with the same $\sigma(c-d)$ reach gate as the static field.
 
-**Multiverse BMA:** $\text{Eval}(m)=\frac1K\sum_{i=1}^K\text{Eval}(m;\theta_i),\ \theta_i\sim p(\text{all 14 leaves})$, built trace-safely with `jax.vmap`.
+**Multiverse BMA:** $\text{Eval}(m)=\frac1K\sum_{i=1}^K\text{Eval}(m;\theta_i),\ \theta_i\sim p(\text{all 15 leaves})$, built trace-safely with `jax.vmap`.
 
-**Observer update:** $G_{t+1}=G_t+\beta_{KL}(G_{\text{base}}-G_t)+\alpha\tanh(s)\,G_t$ (and analogously $c$, clipped $[1,10]$).
+**Observer update (all leaves, KL-anchored):** $\theta_{t+1} = \theta_t\big[1+(1-\beta_{KL})\alpha\tanh(s)\big]$ per leaf, with $c$ clipped to $[1,10]$; opt-in via `observe=True`.
 
 ## A.3 Notation consistency check
 
 - Masses: white positive, black negative; gravity uses $|m|$. King = 1000.
 - All chapter formulas use $\sigma$ for the sigmoid gate and $\lambda_1$ for the principal stretch.
-- The evaluator's η denominator is $m_{\text{ref}}^2$ (Ch 4, 7); the *visualizer* still uses $G\,M_{\text{king}}^2$ (flagged C12).
-- $c$ is always in **squares/ply**, bounds $[1,10]$ (Ch 5).
+- The evaluator's η denominator is $m_{\text{ref}}^2$ (Ch 4, 7); the visualizer uses the same (C12 verified fixed).
+- $c$ is always in **squares/ply**, bounds $[1,10]$, and is the *only* light speed: it gates both the field reach and the Lorentz motion boost.
+- The trainable surface is exactly 15 leaves (`TRAINABLE_LEAVES` in `core/constants.py`); everything else that looks tunable is either `mref` (fixed unit scale) or a documented fixed hyperparameter.
 
 ## A.4 References (primary sources in this repo)
 
@@ -92,8 +98,10 @@ $$\mathcal L = \mathcal L_{\text{outcome}} + 0.5\,\mathcal L_{\text{policy}} + \
 9. `Planning/rg-dynamic-future.md` — dynamic $R_g$ plan.
 10. `Planning/verification_and_training_suggestions.md` — verification report + training fixes.
 11. `Planning/Kapler-64 Blog Writeup.md` — narrative writeup.
-12. Code: `kepler64/core/{gravity,tidal,verlet,evaluate,constants,board,fastboard,lorentz,image_seed}.py`
+12. Code: `kepler64/core/{gravity,tidal,evaluate,constants,board,fastboard,lorentz,image_seed,transitions}.py`
 13. Code: `kepler64/{search, training, multiverse, viz, bench, tests}/`
-14. `kepler64/training/trained_constants.json` — post-training constants snapshot.
+14. `kepler64/training/trained_constants_gate.json` — learned constants from the credibility-gate pilot.
+15. `scripts/credibility_gate.py` + `docs/credibility_gate_results.md` — the learned-vs-frozen ablation harness and its pilot report.
+16. `docs/causal_gravity_design.md` — design note for the next major innovation (field-age propagation).
 
 **External (cited in planning docs):** Feynman (1981) chess/gods analogy; Roche & Hill sphere scaling; Plummer (1911) model; Verlet/Leapfrog integrators; JAX `vmap`/`jit`/`lax.scan`; BayesElo / Bradley-Terry; Peters–Mathews gravitational-wave quadrupole; Schwarzschild radius $r_s=2GM/c^2$.
