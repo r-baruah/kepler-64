@@ -130,15 +130,26 @@ Only $G,c$ shift; the Layer-2 feedback loop omits $\eta_{\text{acc}}$. **Fix:** 
 
 ## 14.6 Missed innovations & misassumptions (new analysis)
 
-1. **Schwarzschild-radius mechanic (audit §"Additional Absurdity") is unimplemented.** Defining $r_s = 2GM/c^2$ per piece and softly penalizing clustering would add a real "don't pile heavy pieces" principle. Low cost, high thematic value. *Tradeoff:* another constant to learn; risk of over-constraining.
+> **Innovation ledger (authoritative status, 2026-08-23).** The full 8-item roadmap lives in `docs/backend_audit_and_roadmap_2026-08-23.md` (Part 4). Summary:
 
-2. **Gravitational-wave energy loss (Peters–Mathews) is unimplemented.** A pairwise $dE/dt \propto G^4 m_1^2 m_2^2/r^5$ term naturally penalizes piece shuffling (anti-repetition) and falls out of real physics. *Tradeoff:* must be verified not to dominate at sane $G$ (audit addition 3).
+| # | Innovation | Status | Where |
+|---|---|---|---|
+| 1 | True causal gravity (field-age propagation) | 📐 **Designed** — full design note with acceptance criteria; implementation deferred to its own gated run (touches every field call site + TT keys) | `docs/causal_gravity_design.md` |
+| 2 | Peters–Mathews gravitational-wave energy loss | ✅ **Implemented** as leaf #15 `lambda_gw` (init 0.0 → behavior-neutral until learned) | Ch.7 §7.4 Step 9; tests in `test_audit_fixes.py` |
+| 3 | Schwarzschild-radius clustering penalty ($r_s = 2Gm/c^2$) | ⏳ Not implemented — next-cheapest candidate after #2 (same pairwise shape, same zero-init pattern would apply) | this section, item 1 |
+| 4 | Per-piece extent vector ($R_g$ per square → captor fragility) | ⏳ Deferred with rationale — changes source-softening semantics globally; bundle with #1 and re-gate | Ch.13.4 scope note |
+| 5 | Time-dilation search scheduling (spend more where $\lvert\Phi\rvert$ is high) | ⏳ Not implemented | roadmap Part 4.5 |
+| 6 | Learned Verlet horizon ($dt$, steps as leaves instead of hardcoded 0.1×4) | ⏳ Not implemented — renumbers leaves again; do together with #3 to amortize plumbing | roadmap Part 4.6 |
+| 7 | Posterior distillation (which constants did games actually constrain?) | ⏳ Not implemented — analysis layer over existing multiverse samples | roadmap Part 4.7 |
+| 8 | UCI packaging of the engine | ◐ Partial — `match/uci_harness.py` exists; not yet smoke-tested/documented as a deliverable | roadmap Part 4.8 |
 
-3. **"Real astrophysics" misassumption.** The board is 2D discrete; a King is a point with no volume; masses are chess values, not solar masses. The honest framing (metaphor, not literal universe) must be maintained in every public claim (P II §1, Audit Honest/Dishonest). The strongest version of the thesis is *"a differentiable N-body potential acting as an evaluation heuristic"* — say that, not "real astrophysics."
+Item details from the original analysis:
 
-4. **Material dominance undermines the thesis (addressed).** With `mat_gain=0.3` and material ranging ±20 while η≈0.1–0.5, the engine was effectively "material + tiny physics." After the 2026-08-17 sacrifice-bug diagnosis, the defaults were re-bounded so **material is decisively first-class** and the physics levers act as refinement: `mat_gain` 0.3→2.0 (a captured rook moves the score ~10, a queen ~18), `bonus` 220→300, `lambda_delta` 1→2, `entropy_gain` 2.5→4, `com_gain`/`inertia_gain` reduced to 1, and `gamma` 0.25→0 (the absolute cohesion gap punished development). The tidal/disruption terms are competitive *without* letting a positional knob override a hanging piece. The ablation table (C1) is still the empirical proof required to convert "irony" into "credibility."
-
-5. **The retardation story needs the prior to survive.** If the $c$-prior is ever dropped or `max` creeps back, $c\to\infty$ and Layer 2's "delayed ripple" collapses. Guard it with a test asserting $c$ stays in $[1,10]$ after training.
+1. **Schwarzschild-radius mechanic** — see ledger row 3.
+2. **~~Gravitational-wave energy loss is unimplemented~~ → IMPLEMENTED (2026-08-23).** The pairwise $dE/dt \propto G^4 m_1^2 m_2^2/r^5$ term now exists as the learnable leaf $\lambda_{\text{gw}}$ (init 0.0), so the original tradeoff warning ("must be verified not to dominate at sane $G$") is resolved structurally: it cannot dominate anything until gradient descent raises the gain, and its bounds cap at 10. Documented as Step 9 of the score composition (Ch.7 §7.4).
+3. **"Real astrophysics" misassumption.** The board is 2D discrete; a King is a point with no volume; masses are chess values, not solar masses. The honest framing (metaphor, not literal universe) must be maintained in every public claim (P II §1, Audit Honest/Dishonest). The strongest version of the thesis is *"a differentiable N-body potential acting as an evaluation heuristic"* — say that, not "real astrophysics." Now codified in the Prelude (§0.5) and the Ch.7 material-framing note.
+4. **Material dominance undermines the thesis (addressed).** With `mat_gain=0.3` and material ranging ±20 while η≈0.1–0.5, the engine was effectively "material + tiny physics." After the 2026-08-17 sacrifice-bug diagnosis, the defaults were re-bounded so **material is decisively first-class** and the physics levers act as refinement: `mat_gain` 0.3→2.0 (a captured rook moves the score ~10, a queen ~18), `bonus` 220→300, `lambda_delta` 1→2, `entropy_gain` 2.5→4, `com_gain`/`inertia_gain` reduced to 1, and `gamma` 0.25→0 (the absolute cohesion gap punished development). The credibility-gate pilot (Ch.12.5 update) is the first empirical entry toward converting "irony" into "credibility"; scaled runs complete it.
+5. **The retardation story needs the prior to survive.** If the $c$-prior is ever dropped or `max` creeps back, $c\to\infty$ and Layer 2's "delayed ripple" collapses. Guarded two ways since 2026-08-23: the differentiable prior in the loss, *and* the single-light-speed invariant test (`child_mass_vector == mass_vector(c)` for arbitrary $c$).
 
 ---
 
