@@ -10,13 +10,13 @@ chess:  two supervisory signals, both derived from REAL games — either externa
                        own expert target) is the same pipeline with an internal
                        expert instead of an external one.
 physics: backpropagate through the ENTIRE physics engine (Plummer -> tidal ->
-         eta -> sigmoid) into the 14 trainable leaves (see
-         TRAINABLE_LEAVES in core/constants.py). Those are the "weights" —
-         real, physical knobs, not a faked evaluation. The parameter array and
-         its physical bounds come from ONE place (core/constants.py), so the
-         loss and the trainer can never disagree about the layout.
+         eta -> sigmoid) into the 15 trainable leaves (see TRAINABLE_LEAVES in
+         core/constants.py). Those are the "weights" — real, physical knobs,
+         not a faked evaluation. The parameter array and its physical bounds
+         come from ONE place (core/constants.py), so the loss and the trainer
+         can never disagree about the layout.
 
-`params` layout (14 leaves): TRAINABLE_LEAVES order. mat_gain has a minimum of
+`params` layout (15 leaves): TRAINABLE_LEAVES order. mat_gain has a minimum of
 1.0 inside the loss (see below) so no training run can rediscover the scale at
 which a captured rook stopped registering.
 """
@@ -36,7 +36,7 @@ from ..core.constants import (
 
 @jax.jit
 def _unpack(p):
-    # 14 trainable physical leaves — TRAINABLE_LEAVES order (shared with
+    # 15 trainable physical leaves — TRAINABLE_LEAVES order (shared with
     # core.constants.leaves_to_array). The array is projected into its
     # physical bounds before unpacking so every downstream term sees an
     # in-bounds value.
@@ -61,8 +61,10 @@ def _unpack(p):
     inertia_gain = jnp.clip(p[11], lo[11], hi[11])
     entropy_gain = jnp.clip(p[12], lo[12], hi[12])
     lambda_drift = jnp.clip(p[13], lo[13], hi[13])
+    lambda_gw = jnp.clip(p[14], lo[14], hi[14])
     return (G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain,
-            lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift)
+            lambda_delta, com_gain, inertia_gain, entropy_gain, lambda_drift,
+            lambda_gw)
 
 
 def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
@@ -88,7 +90,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                   vanishes. Scaling by ~30 puts typical scores inside the
                   sigmoid's informative band.
     """
-    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr = _unpack(params)
+    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr, lgw = _unpack(params)
     # mref is a FIXED unit scale (not trained) — keeps the tidal index well
     # conditioned.
     _mref = _Constants().mref
@@ -96,7 +98,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # ---- outcome term ----------------------------------------------------
     # _score_core is White-perspective; Y is from White's view, so this is
     # consistent for both sides to move. (Outcome term is static — no parent.)
-    S = out_scale * jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr))(M)
+    S = out_scale * jax.vmap(lambda m: _score_core(m, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, lgw))(M)
     y = (Y + 1.0) / 2.0  # 0 (black win) .. 1 (white win)
     ce = -jnp.mean(y * jax.nn.log_sigmoid(S) + (1.0 - y) * jax.nn.log_sigmoid(-S))
 
@@ -110,7 +112,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                         kgain=kgain, gamma=gamma, Rg=Rg, mref=_mref,
                         mat_gain=mat_gain, lambda_delta=ld,
                         com_gain=cg, inertia_gain=ig,
-                        entropy_gain=eg, lambda_drift=dr)
+                        entropy_gain=eg, lambda_drift=dr, lambda_gw=lgw)
 
     def _policy_row(child_m, msk, turn, row_key, parent):
         if use_multiverse:
@@ -121,7 +123,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                 lambda mm, ck: multiverse_score_white(mm, _const, ck, K=K, sigma=sigma, parent=parent)
             )(child_m, child_keys)
         else:
-            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, parent))(child_m)
+            white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, lgw, parent))(child_m)
         # _score_core is WHITE-perspective, so White-to-move wants the HIGHEST
         # white score and Black-to-move wants the LOWEST -> flip for Black ONLY.
         side = jnp.where(turn > 0.0, -white, white)
@@ -152,7 +154,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # graph stays static (JAX cannot branch on a traced scalar).  In
     # outcome-only mode moves_m is a single dummy row, which makes mr=0 too.
     def _margin_row(child_m, msk, turn, ei, parent):
-        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, parent))(child_m)
+        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, lgw, parent))(child_m)
         side = jnp.where(turn > 0.0, -white, white)
         side = jnp.where(msk > 0.5, side, -jnp.inf)
         exp = side[ei]
@@ -168,11 +170,11 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
 
 @jax.jit
 def _row_scores(child_m, msk, turn, p, parent):
-    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr = _unpack(p)
+    G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr, lgw = _unpack(p)
     _mref = _Constants().mref
     # Thread the parent mass vector so the measured ranking matches the kernel
     # the SEARCH uses (the move-sensitivity delta terms are active in play).
-    white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, parent))(child_m)
+    white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, lgw, parent))(child_m)
     side = jnp.where(turn > 0.0, -white, white)
     side = jnp.where(msk > 0.5, side, -jnp.inf)
     return side

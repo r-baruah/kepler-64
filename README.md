@@ -186,6 +186,17 @@ Kepler-64 includes a test suite covering force symmetry, eigenvalue calculations
 pytest kepler64/tests/ -v
 ```
 
+### Learned vs Frozen Physics — the Credibility Gate (pilot)
+
+The central claim — *"the constants learned by gradient descent do real work"* — is checked by an automated ablation (`scripts/credibility_gate.py`): self-play harvest → train the 14+ leaves → held-out ranking metrics → color-balanced head-to-head match. **Pilot run (84 self-play examples, 300 Adam steps, 8-game match):**
+
+| Metric | Frozen | Learned |
+|---|---|---|
+| Head-to-head (W/D/L) | — | **8 / 0 / 0** |
+| Held-out MRR | 0.683 | 0.619 |
+
+**Honest read:** the harness works end-to-end and the learned universe won its pilot match, but 84 examples cannot constrain 14 constants (held-out ranking regressed — small-data overfitting) and n=8 games is far too few to claim an Elo edge. Scaled runs are pending; until then this table is a demonstration of method, not a result. Full numbers: [`docs/credibility_gate_results.md`](docs/credibility_gate_results.md).
+
 ---
 
 ## 🔬 Research Inquiries

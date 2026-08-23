@@ -13,9 +13,11 @@ import pytest
 
 from ..core.fastboard import FastBoard
 from ..core.transitions import child_mass_vector
-from ..core.evaluate import _eta_drift
+from ..core.evaluate import _eta_drift, score_white, score_white_terms as _terms
 from ..core.constants import Constants
 from ..search.minimax import TT, _TT_EXACT
+
+import jax.numpy as jnp
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -199,6 +201,47 @@ def test_engine_observe_flag_evolves_constants():
     # The shift is tiny but nonzero; crucially the engine now CARRIES it.
     assert g_after == pytest.approx(g_before, rel=0.05)
     assert eng.constants is not None
+
+
+# ── Phase 4: Peters-Mathews gravitational-wave term ─────────────────────────
+
+def test_leaf_packing_has_15_leaves():
+    from ..core.constants import leaves_to_array, TRAINABLE_LEAVES
+    assert len(TRAINABLE_LEAVES) == 15
+    assert leaves_to_array(Constants()).shape == (15,)
+
+
+def test_gw_term_neutral_at_default_gain():
+    """lambda_gw ships at 0.0 — the universe must be bit-identical to the
+    pre-GW physics until training decides otherwise."""
+    import chess
+    b = FastBoard.from_chess(chess.Board())
+    m = b.mass_vector()
+    t = _terms(m, Constants())
+    assert float(t.gw) == 0.0
+
+
+def test_gw_radiation_penalizes_own_huddling():
+    """With the gain switched on, a clustered army radiates more energy than a
+    spread one (identical composition, identical kings — only spacing differs).
+    We compare the isolated `gw` term so eta/geometry effects stay out."""
+    c_gw = Constants(lambda_gw=1e-3)
+    # Same five masses in both; only the white army's spacing differs.
+    huddled = np.zeros(64)
+    huddled[27] = 5.0; huddled[28] = 9.0; huddled[35] = 3.0; huddled[36] = 1.0
+    huddled[7] = 6.0 if False else 0.0
+    huddled[4] = 1000.0   # white king e1 (detector only)
+    huddled[63] = -1000.0
+    spread = np.zeros(64)
+    spread[0] = 5.0; spread[14] = 9.0; spread[49] = 3.0; spread[60] = 1.0
+    spread[4] = 1000.0
+    spread[63] = -1000.0
+
+    t_huddle = _terms(jnp.asarray(huddled), c_gw)
+    t_spread = _terms(jnp.asarray(spread), c_gw)
+    # Both gw terms are <= 0 for White (own radiation is a cost); the huddled
+    # army must radiate strictly more.
+    assert float(t_huddle.gw) < float(t_spread.gw) <= 0.0
 
 
 # ── A5: TT depth-preferred replacement ──────────────────────────────────────

@@ -77,6 +77,8 @@ Observations:
 
 > **⚠ [ISSUE: SMALL-DATA-COLLAPSE] (P1, verification doc Part 2):** A 200-puzzle + 178-game run (378 examples) overfit and drove `roche` and `gamma` to harmful extremes, *dropping* puzzle accuracy from 0.075 to 0.055. Fixes: scale to 5k+ puzzles / 10k+ positions, use Adam + cosine LR, add validation split, two-phase training (outcome then policy). See `verification_and_training_suggestions.md` for the full priority list.
 
+> **Update (2026-08-23): the ablation gate now exists and runs.** `scripts/credibility_gate.py` automates the whole learned-vs-frozen comparison on self-generated data (no external sets needed). A pilot run (84 self-play examples) is published in `docs/credibility_gate_results.md` with an honest interpretation: the learned universe won its 8-game pilot match 8–0 while held-out ranking regressed — the textbook small-data-overfitting signature of §12.5's warning above. Treat the pilot as proof-of-harness; scaled runs (≥5k examples, ≥200 games) are required before any thesis claim. The leaf count is now **15**: training gained a `lambda_gw` leaf (Peters–Mathews gravitational-wave energy loss, init 0.0 — see Ch.14.6), and `trained_constants_gate.json` is written by the gate.
+
 ## 12.6 Forward link
 
 Layer 2 ("the Multiverse") extends training into a *distribution* over constants and a self-observing loop. Chapter 13.

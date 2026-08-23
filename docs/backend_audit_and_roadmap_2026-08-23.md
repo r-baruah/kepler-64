@@ -130,15 +130,18 @@ Data flow per leaf node: `FastBoard → mass_vector() [+Lorentz] → child_mass_
 - [x] S1/S5 closed earlier with Phase 0–1.
 - Remaining open ledger: S4 (refresh trained-constants reality check) and S9/S10 — both land with Phase 3's training run + CI.
 
-### Phase 3 — The credibility gate (1–2 days)
-- [ ] Run `training/ablation.py`: learned leaves vs frozen physics, N≥5k puzzles, val split, Elo via `bench/elo_ladder`.
-- [ ] Publish the table in README (book C1 — single most important missing artifact).
-- [ ] CI job: pytest + 20-game smoke match at 200ms/move; fix README badge count.
+### Phase 3 — The credibility gate (1–2 days) — ✅ PILOT DONE 2026-08-23
+- [x] `scripts/credibility_gate.py`: fully automated self-contained ablation (self-play → train → validate → match → report). No external data needed.
+- [x] Pilot executed end-to-end (531s wall): harvest 84 examples → 300 Adam steps → learned beats frozen **8/0/0** (+798 Elo proxy, n=8) while held-out MRR *regressed* (small-data overfitting, as Ch.14 C9 predicts).
+- [x] Results published with an honest interpretation section (`docs/credibility_gate_results.md`); pilot table added to README with explicit caveats; book §12.5 refreshed (S4 partially closed — full refresh needs the scaled run).
+- [ ] SCALING (next session): ≥5k examples + ≥200-game matches before any public Elo claim. The gate script already supports it via flags.
 
-### Phase 4 — Innovation spike (pick 2, ~2 days each)
-- [ ] Innovation 1: causal gravity field-age propagation (design note first; TT key must absorb a field-age checksum).
-- [ ] Innovation 4: per-piece Rg extent threading.
-- [ ] Innovation 2: Peters–Mathews term with a guard test that it cannot dominate at sane G.
+### Phase 4 — Innovation spike — ◐ PARTIAL 2026-08-23
+- [x] Innovation #2 Peters–Mathews gravitational-wave energy loss IMPLEMENTED as leaf #15 (`lambda_gw`, init 0.0 → behavior-neutral until training switches it on; bounds [0,10]). Full plumbing: eval body, multiverse posterior, loss unpack, persistence. Tests: neutrality at 0, huddle-vs-spread radiation sign, 15-leaf packing. (Found & fixed a multiply-instead-of-divide kernel bug via these tests.)
+- [x] Innovation #1 causal gravity: full design note at `docs/causal_gravity_design.md` (state, gate math, TT-key integration costs, acceptance criteria). Implementation deferred — it touches every field call site plus TT keys and deserves its own gated run.
+- [ ] Innovation #4 per-piece Rg extent: deferred with rationale — it changes source softening semantics globally; implement together with the causal-gravity pass and re-gate.
+- [ ] Innovations #5–#8 unchanged (time-dilation scheduling, learned rollout horizon, posterior distillation, UCI packaging).
+- Note: the GW leaf renumbers TRAINABLE_LEAVES (14→15); old `trained_constants.json` artifacts load cleanly (missing key falls back to default 0.0).
 
 ### Standing rules for every change
 1. No new chess knowledge in the evaluator — physics terms only; search craft stays in `minimax.py`, labeled instrumentation.
