@@ -20,7 +20,7 @@ The gravitational pipeline only *scores* a position. Something else must *genera
 
 `FastBoard` is the key engineering win: it generates fully legal moves in pure NumPy (pseudo-legal generation + a king-safety filter, `core/fastboard.py:164-280`), castling, en passant, promotion — and is **verified against python-chess** via `tests/test_board.py` (`Kepler-64 Scaffold.md` "why brilliant"). This is what makes the sub-ms-sweep claim fully true end-to-end (`Kepler-64 Audit` counter-audit §D).
 
-> **⚠ [ISSUE: IMPORT-PATHS] (P0, Code Review v1 BUG 9 & BUG 24):** Earlier `multiverse/`, `training/`, and `search/` files used single-dot relative imports (`from .core.constants`) where `core` is a *sibling* package, not a parent. Correct is `from ..core.constants`. This broke every import outside the package. The current files use `..core` (e.g. `core/search/minimax.py:14-15`, `core/multiverse/posterior.py:19-20`). Confirm all imports are double-dot.
+> **⚠ [ISSUE: IMPORT-PATHS] (P0, Code Review v1 BUG 9 & BUG 24):** Earlier `multiverse/`, `training/`, and `search/` files used single-dot relative imports (`from .core.constants`) where `core` is a *sibling* package, not a parent. Correct is `from ..core.constants`. This broke every import outside the package. The current files use `..core` throughout — verified clean by a repo-wide sweep on 2026-08-23 (`multiverse/posterior.py:18`, `search/minimax.py:29`, `training/loss.py:27`).
 
 > **⚠ [ISSUE: FRAGILE-IMPORT] (P2, Code Review v1 BUG 10 / v2 ISSUE 23):** `board.py:84` uses `__import__("chess").WHITE` inside `_color_at` instead of the already-imported `chess` module. It works but is slow/fragile. `mass_vector()` (the hot path) avoids it by precomputing colors. Low priority but clean it up.
 
