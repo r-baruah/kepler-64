@@ -174,7 +174,13 @@ def _eta_drift(attacker_m, king_sq, king_mass, G, eps, c, Rg, mref,
         p, v = carry
         d = _COORDS - p
         r2 = jnp.sum(d**2, axis=-1) + eps**2
-        a = G * jnp.einsum("i,ij->j", am / (r2 * jnp.sqrt(r2)), d)
+        r = jnp.sqrt(r2)
+        # Same reach gate as every STATIC field term (sigmoid(c - dist)): the
+        # rollout must simulate the same universe it scores. Ungated dynamics
+        # here let an attacker "pull" on the king across the board even when
+        # its influence has not arrived within c squares/ply.
+        gate = jax.nn.sigmoid(c - r)
+        a = G * jnp.einsum("i,ij->j", am * gate / (r2 * r), d)
         v = v + a * dt
         p = p + v * dt
         return (p, v), p

@@ -2,13 +2,13 @@
 
 import numpy as np
 
-from .fastboard import _MASS_LUT
+from .fastboard import _MASS_LUT, LORENTZ_C_DEFAULT
 
 _ACCRETION = 0.8
 
 
 def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
-                      child_board=None):
+                      child_board=None, c_lorentz: float | None = None):
     """Apply a legal move to a possibly accretion-adjusted mass vector.
 
     Pure-numpy: no JAX device round-trips, so it is safe to call per child
@@ -22,8 +22,14 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
     `child_board` (when available) is the already-applied FastBoard; its
     velocity accumulator then Lorentz-boosts the child's masses, so the
     search sees the same "relativistic" masses as `child_board.mass_vector()`.
+
+    `c_lorentz` is the universe's speed of light (Constants.c). The unboost /
+    reboost pair below MUST use the same value that produced the boosts on
+    both sides of the transition; passing Constants.c everywhere keeps the
+    motion boost governed by one learned light speed.
     """
     from_sq, to_sq, promotion = (int(move[0]), int(move[1]), int(move[2]))
+    c_lor = float(c_lorentz) if c_lorentz is not None else LORENTZ_C_DEFAULT
     masses = np.asarray(parent_masses, dtype=np.float32)
     # Unboost the parent's relativistic factor. `parent_masses` is the output of
     # FastBoard.mass_vector(), which already applied the Lorentz boost for the
@@ -33,7 +39,7 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
     # the boost in both directions, so its factor is 1 here as well.
     if np.any(board.velocity > 0.0):
         vp = np.asarray(board.velocity, dtype=np.float32)
-        up = vp / (vp + 6.0)
+        up = vp / (vp + c_lor)
         gp = 1.0 / np.sqrt(1.0 - up * up)
         gp[np.abs(np.asarray(board.pieces)) == 6] = 1.0
         masses = masses / gp
@@ -48,7 +54,13 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
     captured = masses[captured_sq]
     moved_mass = moving + sign * accretion * abs(captured)
     if promotion:
-        moved_mass = sign * float(_MASS_LUT[promotion]) + sign * accretion * abs(captured)
+        # Promotion must not destroy matter: any mass the pawn accreted above
+        # its base (stolen from earlier captures) rides along into the new
+        # piece, on top of the promoted base mass and this capture's share.
+        pawn_base = float(_MASS_LUT[abs(piece)])
+        surplus = max(abs(float(moving)) - pawn_base, 0.0)
+        moved_mass = sign * (float(_MASS_LUT[promotion]) + surplus
+                             + accretion * abs(captured))
 
     child = masses.copy()
     child[from_sq] = 0.0
@@ -67,7 +79,7 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
 
     if child_board is not None and np.any(child_board.velocity > 0.0):
         v = np.asarray(child_board.velocity, dtype=np.float32)
-        u = v / (v + 6.0)
+        u = v / (v + c_lor)
         gamma = 1.0 / np.sqrt(1.0 - u * u)
         gamma[np.abs(np.asarray(child_board.pieces)) == 6] = 1.0
         child = child * gamma

@@ -129,8 +129,13 @@ class TT:
               score: float, move):
         h = self._hash(board, child_m, parent_m)
         slot = h & self.mask
-        if self.occupied[slot] and self.depth[slot] > depth and self.keys[slot] != h:
-            return  # keep deeper entry
+        # Depth-preferred replacement: a DEEPER stored entry always survives,
+        # whether the incoming key differs (different position, same slot) or
+        # matches (revisiting the same state at reduced depth). The previous
+        # `and self.keys[slot] != h` clause exempted same-key hits, so a
+        # shallow revisit silently destroyed the deeper cached entry.
+        if self.occupied[slot] and self.depth[slot] >= depth:
+            return  # keep the deeper (or equal-depth, older) entry
         self.occupied[slot] = True
         self.keys[slot] = h
         self.depth[slot] = np.int8(min(depth, 127))
@@ -234,8 +239,8 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
         stats["nodes"] = stats.get("nodes", 0) + 1
     consts = engine.constants
 
-    current_mv = board.mass_vector() if masses_override is None else masses_override
-    parent = board.mass_vector() if parent_masses is None else parent_masses
+    current_mv = board.mass_vector(float(consts.c)) if masses_override is None else masses_override
+    parent = board.mass_vector(float(consts.c)) if parent_masses is None else parent_masses
 
     # TT probe: full physics state keyed.
     tt_move = None
@@ -271,8 +276,11 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
     # cutoffs to -INF, which poisoned every search at depth >= 3 (the old
     # engine returned +INF at the root and best_move collapsed to None).
     if allow_null and depth >= 3 and beta < INF and not board.in_check(board.turn == 0):
+        # Velocity passes through so the probe's Lorentz-boosted masses match
+        # the real line's physical state (a null probe without momentum reads
+        # a different universe than the position it stands in for).
         null_board = FastBoard(board.pieces.copy(), 1 - board.turn,
-                               board.castling, -1)
+                               board.castling, -1, velocity=board.velocity)
         null_val = -negamax(engine, null_board, depth - 3, -beta, -beta + 1,
                             current_mv, allow_null=False,
                             parent_masses=current_mv, stats=stats, ctx=ctx,
@@ -381,8 +389,8 @@ def _quiesce(engine, board: FastBoard, alpha: float, beta: float,
         return -MATE if in_chk else 0.0
     if stats is not None:
         stats["qnodes"] = stats.get("qnodes", 0) + 1
-    current_mv = masses_override if masses_override is not None else board.mass_vector()
-    parent = board.mass_vector() if parent_masses is None else parent_masses
+    current_mv = masses_override if masses_override is not None else board.mass_vector(float(engine.constants.c))
+    parent = board.mass_vector(float(engine.constants.c)) if parent_masses is None else parent_masses
     stand = _score_position(current_mv, engine.constants, board.turn,
                             parent=parent)
     if stand >= beta:
@@ -427,7 +435,8 @@ def _quiesce(engine, board: FastBoard, alpha: float, beta: float,
     parents = []
     for m in moves:
         child = board.apply(m)
-        mv = child_mass_vector(board, m, current_mv, child_board=child)
+        mv = child_mass_vector(board, m, current_mv, child_board=child,
+                               c_lorentz=float(engine.constants.c))
         child_m.append(mv)
         parents.append(parent)
     pad = 16 if len(moves) <= 16 else 32
@@ -466,7 +475,8 @@ def _root_static_order(board: FastBoard, engine, parent_mv):
     moves = board.legal_moves()
     if len(moves) <= 1:
         return moves
-    masses = [child_mass_vector(board, m, parent_mv) for m in moves]
+    c_lor = float(engine.constants.c)
+    masses = [child_mass_vector(board, m, parent_mv, c_lorentz=c_lor) for m in moves]
     turns = [board.turn] * len(moves)
     scores = batch_score(masses, turns, engine.constants,
                          parents=jnp.stack([parent_mv] * len(masses)))
@@ -489,7 +499,8 @@ def _search_root_iteration(engine, board, parent_mv, ordered, d, alpha, beta,
         if time_ms is not None and (time.perf_counter() - t0) * 1000.0 > time_ms:
             return iter_best, iter_score, scored, True
         child = board.apply(m)
-        mv = child_mass_vector(board, m, parent_mv, child_board=child)
+        mv = child_mass_vector(board, m, parent_mv, child_board=child,
+                               c_lorentz=float(engine.constants.c))
         if seen is not None and child_in_seen(child, seen):
             # Closed orbit: the same physical state already occurred on the
             # line. A cycle exchanges no net mass flux — a draw by physics. Do
@@ -548,7 +559,7 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
     if not moves:
         return None, None
     ctx = _SearchCtx()
-    parent_mv = board.mass_vector()
+    parent_mv = board.mass_vector(float(engine.constants.c))
     root_pv = None
     ordered = None
     best, best_score = None, None
@@ -620,7 +631,8 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
             winner, wscore = near[0][0], None
             for m, _ in near:
                 child = board.apply(m)
-                mv = child_mass_vector(board, m, parent_mv, child_board=child)
+                mv = child_mass_vector(board, m, parent_mv, child_board=child,
+                                       c_lorentz=float(engine.constants.c))
                 s = _score_position(mv, engine.constants, board.turn,
                                     use_multiverse=True, key=k1, K=8,
                                     sigma=0.1, parent=parent_mv)
@@ -661,8 +673,10 @@ def root_sweep(engine, board: FastBoard):
     moves = board.legal_moves()
     if not moves:
         return None
-    parent_mv = board.mass_vector()
-    masses = [child_mass_vector(board, m, parent_mv) for m in moves]
+    parent_mv = board.mass_vector(float(engine.constants.c))
+    masses = [child_mass_vector(board, m, parent_mv,
+                                c_lorentz=float(engine.constants.c))
+              for m in moves]
     parents = jnp.stack([parent_mv] * len(masses))
     turns = [board.turn] * len(masses)
     scores = batch_score(masses, turns, engine.constants, parents=parents)
