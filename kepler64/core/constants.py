@@ -84,6 +84,13 @@ class Constants:
     # the measured "give away free rooks/pieces on the a/h files" behaviour.
     # Trainable: gradient descent finds the balance instead of us fixing it.
     mat_gain: float = 2.0
+    # Peters-Mathews gravitational-wave energy-loss gain (the 15th leaf).
+    # Accelerating binary masses radiate gravitational waves: dE/dt ∝
+    # G^4 m1^2 m2^2 / r^5. Tight clusters of heavy pieces "radiate" hardest,
+    # so this term prices in the energy an army bleeds by huddling. Init 0.0:
+    # the universe ships WITHOUT wave losses and training may switch them on
+    # (bounds [0, 10]) — behavior-neutral by default, physics-native if learned.
+    lambda_gw: float = 0.0
 
     def c_prior(self, lam_fast: float = 0.1, lam_slow: float = 0.1):
         """Monotonicity prior: keep c in [1.0, 10.0] with a sweet spot ~3-6.
@@ -101,18 +108,18 @@ class Constants:
 TRAINABLE_LEAVES = (
     "G", "eps", "c", "roche", "bonus", "kgain", "gamma", "Rg",
     "mat_gain", "lambda_delta", "com_gain", "inertia_gain",
-    "entropy_gain", "lambda_drift",
+    "entropy_gain", "lambda_drift", "lambda_gw",
 )
 
 # Physical projection bounds per leaf (same order as TRAINABLE_LEAVES).
 LEAF_LO = (0.01, 0.01, 1.0, 0.05, 0.01, 0.01, 0.0, 0.1, 0.0,
-           0.0, 0.0, 0.0, 0.0, 0.0)
+           0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 LEAF_HI = (50.0, 20.0, 10.0, 20.0, 500., 50.0, 50., 10.0, 10.0,
-           10.0, 10.0, 10.0, 10.0, 10.0)
+           10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
 
 
 def leaves_to_array(c: "Constants"):
-    """Pack the 14 trainable leaves into a float32 array (TRAINABLE_LEAVES order)."""
+    """Pack the 15 trainable leaves into a float32 array (TRAINABLE_LEAVES order)."""
     return jnp.array([getattr(c, name) for name in TRAINABLE_LEAVES],
                      dtype=jnp.float32)
 

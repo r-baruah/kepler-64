@@ -31,7 +31,7 @@ from typing import NamedTuple
 import jax
 import jax.numpy as jnp
 
-from .gravity import force_field, potential_field, _COORDS
+from .gravity import force_field, potential_field, _COORDS, _DIST
 from .tidal import tidal_tensor_at, eig2x2
 from .constants import Constants
 
@@ -203,7 +203,20 @@ class EvalTerms(NamedTuple):
     delta_inertia: float
     delta_entropy: float
     drift: float
+    gw: float
     total: float
+
+
+def _gw_radiation(masses_army: "jnp.ndarray", G: float, eps: float) -> float:
+    """Peters-Mathews-style pairwise radiation proxy over one army.
+
+    dE/dt ∝ Σ_{i<j} G^4 m_i^2 m_j^2 / r^5 — tight heavy pairs radiate hardest.
+    Kings/empty squares arrive as zeros in `masses_army`, so they contribute
+    nothing. The diagonal is masked (a mass does not radiate against itself).
+    """
+    w = masses_army ** 2
+    pair_kernel = (1.0 - jnp.eye(64)) / ((_DIST + eps) ** 5)
+    return (G ** 4) * jnp.dot(w, jnp.dot(pair_kernel, w))
 
 
 def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
@@ -211,7 +224,8 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
                 Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 2.0,
                 lambda_delta: float = 0.0, com_gain: float = 0.0,
                 inertia_gain: float = 0.0, entropy_gain: float = 0.0,
-                lambda_drift: float = 0.0, parent_masses=None):
+                lambda_drift: float = 0.0, lambda_gw: float = 0.0,
+                parent_masses=None):
     """Evaluation from White's perspective (positive = good for White).
 
     When `parent_masses` is supplied, the move-sensitivity (delta) terms are
@@ -358,12 +372,18 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
 
     drift_term = lambda_drift * (drift_b - drift_w)
 
+    # Peters-Mathews gravitational-wave energy-loss edge (init gain 0):
+    # an army that huddles heavy pieces radiates away binding energy. White
+    # wants ITS OWN radiation small and the ENEMY'S large.
+    gw_term = lambda_gw * (_gw_radiation(black_co, G, eps)
+                           - _gw_radiation(white_co, G, eps))
+
     total = (eta_b - eta_w + bonus_b + pen_w + global_edge + material
              + delta_eta_term + com_term + inertia_term + entropy_term
-             + drift_term)
+             + drift_term + gw_term)
     return EvalTerms(eta_b, -eta_w, bonus_b, pen_w, global_edge, material,
                      delta_eta_term, com_term, inertia_term, entropy_term,
-                     drift_term, total)
+                     drift_term, gw_term, total)
 
 
 def _score_body(masses, G: float, eps: float, c: float, roche: float,
@@ -371,22 +391,23 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
                 Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 2.0,
                 lambda_delta: float = 0.0, com_gain: float = 0.0,
                 inertia_gain: float = 0.0, entropy_gain: float = 0.0,
-                lambda_drift: float = 0.0, parent_masses=None):
+                lambda_drift: float = 0.0, lambda_gw: float = 0.0,
+                parent_masses=None):
     return _score_terms_body(masses, G, eps, c, roche, bonus, kgain, gamma,
                              Rg, mref, mat_gain, lambda_delta, com_gain,
                              inertia_gain, entropy_gain, lambda_drift,
-                             parent_masses).total
+                             lambda_gw, parent_masses).total
 
 
 @jax.jit
 def _score_core_static(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
                        mref, mat_gain, lambda_delta=0.0, com_gain=0.0,
                        inertia_gain=0.0, entropy_gain=0.0, lambda_drift=0.0,
-                       parent_masses=None):
+                       lambda_gw=0.0, parent_masses=None):
     return _score_terms_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
                              mref, mat_gain, lambda_delta, com_gain,
                              inertia_gain, entropy_gain, lambda_drift,
-                             parent_masses).total
+                             lambda_gw, parent_masses).total
 
 
 def _shannon_entropy(m):
@@ -406,7 +427,7 @@ def score_white(masses: "jnp.ndarray", constants, parent=None) -> float:
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
         constants.mref, constants.mat_gain, constants.lambda_delta,
         constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        constants.lambda_drift, parent,
+        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0), parent,
     )
 
 
@@ -421,7 +442,7 @@ def score_white_terms(masses: "jnp.ndarray", constants, parent=None) -> EvalTerm
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
         constants.mref, constants.mat_gain, constants.lambda_delta,
         constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        constants.lambda_drift, parent,
+        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0), parent,
     )
 
 
@@ -476,8 +497,8 @@ def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants
     reach gate `c` is clipped back to its physical prior [1, 10]. `mref` is a
     fixed unit scale (not a trainable weight), so it is held constant.
     """
-    keys = _jr.split(key, 14)
-    kG, ke, kc, kr, kb, kkg, kg, kR, kmg, kld, kcg, kig, keg, kdr = keys
+    keys = _jr.split(key, 15)
+    kG, ke, kc, kr, kb, kkg, kg, kR, kmg, kld, kcg, kig, keg, kdr, kgw = keys
     return Constants(
         G=base.G * (1.0 + sigma * _jr.normal(kG)),
         eps=base.eps * (1.0 + sigma * _jr.normal(ke)),
@@ -494,6 +515,7 @@ def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants
         inertia_gain=base.inertia_gain * (1.0 + sigma * _jr.normal(kig)),
         entropy_gain=base.entropy_gain * (1.0 + sigma * _jr.normal(keg)),
         lambda_drift=base.lambda_drift * (1.0 + sigma * _jr.normal(kdr)),
+        lambda_gw=base.lambda_gw * (1.0 + sigma * _jr.normal(kgw)),
     )
 
 
