@@ -3,7 +3,7 @@
 > **Author & Creator:** Ripuranjan Baruah  
 > **Repository:** [github.com/r-baruah/kepler-64](https://github.com/r-baruah/kepler-64)  
 > **Live Web Simulator & Observatory:** [r-baruah.github.io/kepler-64](https://r-baruah.github.io/kepler-64/)  
-> **Scientific Compendium:** [The Kepler-64 Book (`/Kepler-64_Book`)](./Kepler-64_Book/00_INDEX.md)  
+> **Scientific Compendium:** [The Kepler-64 Book (`/Kepler-64_Book`)](./Kepler-64_Book/INDEX.md)  
 > **Keywords:** Differentiable Physics, JAX, Computational Astrophysics, N-Body Simulation, Combinatorial Games, Custom Canvas Engine, Creative Engineering  
 
 ---

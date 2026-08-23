@@ -69,7 +69,7 @@ The engine never "knows" the real $G$. It discovers its own via training (see Ch
 
 ## 1.4 Limits of "real" gravity on a discrete board
 
-Real gravity lives in continuous 3D space. A chessboard is a discrete 2D $8\times 8$ lattice. Three honest caveats (developed further in the critique, Chapter 18):
+Real gravity lives in continuous 3D space. A chessboard is a discrete 2D $8\times 8$ lattice. Three honest caveats (developed further in the critique, Chapter 14):
 
 1. **Dimensionality.** We are in 2D, not 3D. The $1/r^2$ law is the 3D inverse-square law; on a 2D lattice the "natural" law is $1/r$. The engine uses the 3D-style formula anyway because it is the recognizable, trainable one (see `core/gravity.py:29`).
 2. **Point masses on a grid.** A chess piece is a single point. There is no extended body to physically "tear." The tidal tensor is therefore a *mathematical proxy* for "directional stress," not literal spaghettification (see `Kepler-64 P II.md` §1).

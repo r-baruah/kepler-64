@@ -44,7 +44,7 @@ This penalizes $c < 2$ (too slow → engine goes evaluation-blind within a shall
 
 ## 5.4 The math link to the retarded Green's function (Layer 2)
 
-The audit's "converged" framing (`Kepler-64 Audit` §A) notes that the retarded potential $\Phi(\vec x, t) = \text{source}(\vec x, t - r/c)$ is precisely the **retarded Green's function** of a massless scalar field — the same object a quantum-field propagator uses. So "evaluate the N-body potential through the retarded Green's function, sampling the constants from a posterior" fuses the multiverse (Chapter 16) and the delay into one rigorous equation. The implemented gate $\sigma(c-d)$ is a smooth, differentiable proxy for "has the signal arrived yet."
+The audit's "converged" framing (`Kepler-64 Audit` §A) notes that the retarded potential $\Phi(\vec x, t) = \text{source}(\vec x, t - r/c)$ is precisely the **retarded Green's function** of a massless scalar field — the same object a quantum-field propagator uses. So "evaluate the N-body potential through the retarded Green's function, sampling the constants from a posterior" fuses the multiverse (Chapter 13.2) and the delay into one rigorous equation. The implemented gate $\sigma(c-d)$ is a smooth, differentiable proxy for "has the signal arrived yet."
 
 ## 5.5 Project link: $c$ is a learned, prior-bounded leaf
 
@@ -58,4 +58,4 @@ In code, $c$ is initialized at 4.0 (`core/constants.py:17`) and is a **leaf** th
 
 We now have all the physics operators: force, potential, tidal tensor, η, and the $c$-gate. The last foundation chapter explains **automatic differentiation** — the mechanism that makes every constant *learnable* — which is what turns this physics into a trainable evaluation.
 
-**Cross-references:** Force/potential with gate → `core/gravity.py` (§2, §7). Multiverse sampling of $c$ → §16.1. Training through physics → §13.
+**Cross-references:** Force/potential with gate → `core/gravity.py` (§2, §7). Multiverse sampling of $c$ → §13.2. Training through physics → §12.

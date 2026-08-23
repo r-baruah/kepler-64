@@ -48,7 +48,7 @@ A fixed-depth search can stop at a volatile moment (just before a capture), misr
 
 ## 10.5 Accretion wired into search (Layer 2 preview)
 
-When a capture occurs, the search calls `_accreted_mass` (`core/search/minimax.py:33-41`) to absorb the captured piece's *original* mass onto the captor **before** scoring. This matters because the captured mass is already 0 in the child board, so it must be read from the **parent** (`core/search/minimax.py:36-41`). This is the correct fix for Code Review v2 BUG 2 (earlier code used the post-move — already-zero — mass). See Chapter 16 for the accretion physics.
+When a capture occurs, the search absorbs the captured piece's *original* mass onto the captor via `child_mass_vector` (`core/transitions.py`) **before** scoring. This matters because the captured mass is already 0 in the child board, so it must be read from the **parent**. This is the correct fix for Code Review v2 BUG 2 (earlier code used the post-move — already-zero — mass). The accretion physics itself lives in Chapter 13.4.
 
 ## 10.6 Move ordering and bottlenecks
 
@@ -60,4 +60,4 @@ When a capture occurs, the search calls `_accreted_mass` (`core/search/minimax.p
 
 Next: the Glass Box visualizer (Chapter 11), which turns the physics into the GIF that proves the math works — the project's highest-ROI artifact.
 
-**Cross-references:** 218-pad sweep used here → §8. Accretion physics → §16.3. Mass vector → §7.
+**Cross-references:** 218-pad sweep used here → §8. Accretion physics → §13.4. Mass vector → §7.
