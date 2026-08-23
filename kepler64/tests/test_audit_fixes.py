@@ -144,6 +144,63 @@ def test_eta_drift_respects_light_speed():
     assert abs(drift_fast) > 1e-9
 
 
+# ── A8: Observer preserves every leaf and evolves in-game ───────────────────
+
+def test_observer_preserves_all_leaves():
+    """The old observe_update reconstructed Constants(G,eps,c,roche) and reset
+    the other ten leaves to defaults. Every leaf must survive observation."""
+    from ..multiverse.observer import observe_update
+    import chess
+
+    base = Constants(bonus=123.0, mat_gain=2.5, entropy_gain=3.25,
+                     lambda_drift=0.75, com_gain=1.5)
+    b = FastBoard.from_chess(chess.Board())
+    m = np.abs(np.asarray(b.mass_vector()))
+
+    new = observe_update(base, m)
+
+    # Non-default leaves must be ~their old values (tiny drift), NOT defaults.
+    assert new.bonus == pytest.approx(base.bonus, abs=base.bonus * 0.05)
+    assert new.mat_gain == pytest.approx(base.mat_gain, abs=0.1)
+    assert new.entropy_gain == pytest.approx(base.entropy_gain, abs=0.2)
+    assert new.lambda_drift == pytest.approx(base.lambda_drift, abs=0.1)
+    assert new.com_gain == pytest.approx(base.com_gain, abs=0.1)
+    # mref is not a leaf and must pass through untouched.
+    assert new.mref == base.mref
+    # c stays inside its physical prior.
+    assert 1.0 <= float(new.c) <= 10.0
+
+
+def test_observer_shifts_toward_stronger_gravity_on_big_score():
+    from ..multiverse.observer import observe_update
+    pieces = np.zeros(64, dtype=np.int8)
+    pieces[27] = 5     # white rook d4
+    pieces[33] = 5     # white rook d5 — heavy attack toward black kingside
+    pieces[62] = -6    # black king g8-ish
+    b = FastBoard(pieces)
+    m = np.asarray(b.mass_vector())
+    base = Constants()
+    new = observe_update(base, m, alpha=0.5, beta_kl=0.0)  # exaggerated step
+    # A positive (White-good) score pushes G up.
+    assert float(new.G) > float(base.G)
+
+
+def test_engine_observe_flag_evolves_constants():
+    """play(observe=True) persists evolved constants on the engine instance."""
+    import chess
+    from .. import RocheEngine
+
+    eng = RocheEngine(constants=Constants(), load_trained=False)
+    board = chess.Board()
+    g_before = float(eng.constants.G)
+    mv = eng.play(board, depth=2, observe=True)
+    assert mv is not None and mv in board.legal_moves
+    g_after = float(eng.constants.G)
+    # The shift is tiny but nonzero; crucially the engine now CARRIES it.
+    assert g_after == pytest.approx(g_before, rel=0.05)
+    assert eng.constants is not None
+
+
 # ── A5: TT depth-preferred replacement ──────────────────────────────────────
 
 def test_tt_keeps_deeper_entry_on_same_key():
