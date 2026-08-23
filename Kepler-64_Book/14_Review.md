@@ -124,7 +124,7 @@ Only $G,c$ shift; the Layer-2 feedback loop omits $\eta_{\text{acc}}$. **Fix:** 
 - **C21** `batch_score` builds JAX arrays in a Python loop; `_score_body` recomputes potential. Minor speed wins (§8.4).
 - **C22** `tests/` should add `__init__.py`; strengthen `test_gravity.py` (Newton's 3rd law, direction, softening finiteness) and fix the "negative discriminant" test which actually has a *positive* discriminant (`[[1,2],[2,1]]` → eigenvalues 3, −1). See §3.3 note.
 - **C23** Project is "Kapler-64" but package is `kepler64` — pick one naming convention in docs.
-- **C24** `verlet.py` `int(king_sq)` breaks under `vmap`; use JAX indexing (already fixed at `core/verlet.py:36`).
+- **C24** `verlet` `int(king_sq)` under vmap — JAX-native indexing used; the standalone module has since been removed and the integrator lives in `core/evaluate._eta_drift`.
 
 ---
 
