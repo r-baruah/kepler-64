@@ -26,11 +26,11 @@ viz-web/dist/
 .DS_Store
 Thumbs.db
 
-# Internal design, books & planning scratch
+# Internal design & planning scratch
 DESIGN.md
 PRODUCT.md
-docs/
-Kepler-64_Book/
+# docs/ is tracked: audit + credibility-gate artifacts
+# Kepler-64_Book/ is tracked: the public textbook, synced with code
 
 # Project generated artifacts & scratch
 Planning/
