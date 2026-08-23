@@ -50,7 +50,7 @@ class RocheEngine:
 
     def play(self, board, depth: int = 3, search_time_ms: float | None = None,
              max_depth: int = 8, use_multiverse: bool = True,
-             multiverse_seed: int | None = None):
+             multiverse_seed: int | None = None, observe: bool = False):
         """Search + return the best move (as a python-chess Move).
 
         `depth` caps iterative deepening (default 3). Pass `search_time_ms` to
@@ -63,6 +63,12 @@ class RocheEngine:
         cannot; it is deterministic (fixed posterior seed). Pass
         `multiverse_seed` to reseed the posterior draws — training uses this
         for exploration noise on self-play games without changing the physics.
+
+        `observe` (default False) enables the Layer-2 Observer: after the move
+        is chosen, `self.constants` shifts one tiny KL-anchored step toward
+        the physics that explains the resulting position, and STAYS shifted on
+        this engine instance — later calls in the same game play under the
+        evolved laws. Keep it False for reproducible matches and benchmarks.
         """
         import chess
 
@@ -98,4 +104,18 @@ class RocheEngine:
         if mv is None:
             return None
         f, t, promo = mv
+
+        # Layer-2 Observer: one KL-anchored belief shift after the move, so the
+        # laws this engine plays under co-evolve with the game (opt-in).
+        if observe:
+            from .core.transitions import child_mass_vector
+            from .multiverse.observer import observe_update
+
+            fb_child = fb.apply(mv)
+            parent_mv = fb.mass_vector(float(self.constants.c))
+            child_masses = child_mass_vector(
+                fb, mv, parent_mv, child_board=fb_child,
+                c_lorentz=float(self.constants.c))
+            self.constants = observe_update(self.constants, child_masses)
+
         return chess.Move(f, t, chess.PieceType(promo) if promo else None)
