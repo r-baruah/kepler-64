@@ -29,11 +29,11 @@ The heat-map potential on a fine grid (`_potential_on_grid`, `viz/glassbox.py:79
 
 The disruption color maps the **ratio** $\eta/\rho_{\text{roche}}$ to RGB (`_disruption_color`, `viz/glassbox.py:122-138`) — a three-stop gradient matching the "safe → danger" semantics of the score.
 
-## 11.4 Inconsistency: visualizer η vs evaluator η
+## 11.4 Visualizer η vs evaluator η — resolved
 
-The evaluator's η uses $\eta = R_g^3\lambda_1/m_{\text{ref}}^2$ (§4.3). The visualizer's `_eta_from_U64` (`viz/glassbox.py:115-119`) still uses the **old** formula $\eta = R_g^3\lambda_1/(G\,M_{\text{king}}^2)$ — note the denominator $G\cdot 1000^2$. These two **disagree** numerically: the ellipse color (driven by the old formula) will not match the score's disruption term (driven by the new $m_{\text{ref}}$ formula).
+Both now use the same formula: $\eta = R_g^3\lambda_1/m_{\text{ref}}^2$. The evaluator computes it in `_eta` (`core/evaluate.py`); the visualizer's `_eta_from_U64` (`viz/glassbox.py`) applies the identical expression with `constants.mref`, so the ellipse danger-coloring agrees with the score's disruption term.
 
-> **⚠ [ISSUE: VIZ-ETA-MISMATCH] (P2, new finding):** The visualizer and evaluator compute η with different denominators, so the red "danger" coloring can contradict the engine's own score. Fix: have `_eta_from_U64` call the same `_eta` used by `evaluate.py` (with `mref`), or at minimum document that the visualizer uses a display-scale approximation. This is the kind of detail a physics reviewer will spot immediately.
+> **(Resolved, verified 2026-08-23)** The former [ISSUE: VIZ-ETA-MISMATCH] — the visualizer dividing by the old $G\,M_{\text{king}}^2$ — is closed (C12 in Ch.14). A reviewer checking `viz/glassbox.py` against `core/evaluate.py` will find matching denominators and the explicit comment "MUST match `core.evaluate._eta`".
 
 ## 11.5 GIF assembly and robustness
 

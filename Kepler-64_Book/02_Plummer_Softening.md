@@ -59,7 +59,7 @@ Besides the force (a vector), we also need the **gravitational potential** $U$ â
 
 $$U_i = -G \sum_j |m_j|\,\frac{\sigma(c - d_{ij})}{\sqrt{d_{ij}^2 + \varepsilon^2}}$$
 
-where $\sigma$ is the sigmoid gate (Chapter 5). This is what the visualizer heat-maps (`viz/glassbox.py`, Chapter 15) and what the tidal tensor differentiates (Chapter 3). Code: `core/gravity.py:40-45`.
+where $\sigma$ is the sigmoid gate (Chapter 5). This is what the visualizer heat-maps (`viz/glassbox.py`, Chapter 11) and what the tidal tensor differentiates (Chapter 3). Code: `core/gravity.py:40-45`.
 
 ## 2.5 Project link and the softening constant $\varepsilon$
 

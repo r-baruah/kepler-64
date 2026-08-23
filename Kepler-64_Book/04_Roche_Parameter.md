@@ -54,7 +54,7 @@ $$\eta = \frac{15}{12.25} = 1.22 > \rho_{\text{roche}}$$
 
 The crossover $\eta = \rho_{\text{roche}}$ is **learned**, initialized at 1.0 so learning is physically interpretable (`core/constants.py:18`, `Kepler-64 Audit` §3). In training it is clamped to $[0.05, 20.0]$ (`training/loss.py:52`). The audit recommends initializing it at 1.0 and tracking η *over time* (see §4.6).
 
-> **⚠ [ISSUE: TRAIN/INFERENCE-ROCHE] (P2, verification doc):** A past run drove `roche` to a *negative* value ($-0.247$, since clipped to $0.05$), which made the disruption sigmoid saturate to 1 for *every* position and silently killed two terms of the eval. The clip in `loss.py` now prevents this, but it shows how a single mis-learned constant can erase the physics. **Always sanity-check learned constants after a training run** (the `trained_constants.json` currently shows `roche=0.05`, `Rg=0.19`, `gamma=0.0` — see §13.5).
+> **⚠ [ISSUE: TRAIN/INFERENCE-ROCHE] (P2, verification doc):** A past run drove `roche` to a *negative* value ($-0.247$, since clipped to $0.05$), which made the disruption sigmoid saturate to 1 for *every* position and silently killed two terms of the eval. The clip in `loss.py` now prevents this, but it shows how a single mis-learned constant can erase the physics. **Always sanity-check learned constants after a training run** — the credibility-gate report (`docs/credibility_gate_results.md`) prints every leaf's before/after value precisely for this reason (see §12.5).
 
 ## 4.5 The radius of gyration $R_g$ (dynamic: mass-scaled)
 
@@ -64,7 +64,7 @@ $$R_{g,\text{eff}} = R_g \left(\frac{|m_{\text{king}}|}{1000}\right)^{1/3},$$
 
 the constant-density self-gravitating relation (radius grows as the cube root of mass). A King that accretes captured mass grows heavier *and* more extended, so $R_{g,\text{eff}}$ rises and it tears more easily — the physics-native "overextended piece is fragile" coupling (review C13, now resolved). For an ordinary King at mass 1000 the factor is exactly 1, so the worked example in §4.3 is unchanged. See `_eta` in `core/evaluate.py`.
 
-> **⚠ [ISSUE: Rg-DROPPED] (P2, Code Review v2 ISSUE 14):** An earlier `_eta` dropped $R_g$ entirely (used `Rg=1.0` implicitly). The current code keeps the $R_g^3$ factor. Confirm the factor is present wherever η is computed, including `tidal_disruption()` (`core/tidal.py:59`) and the visualizer's `_eta_from_U64` (`viz/glassbox.py:115`) — note the *visualizer* still divides by $G\,M_{\text{king}}^2$, which is the **old** formula and disagrees with the evaluator's $m_{\text{ref}}^2$ version. That mismatch is a visible inconsistency (see §15.4).
+> **(Resolved, 2026-08-23)** The former [ISSUE: Rg-DROPPED] is closed: `_eta` keeps the $R_g^3$ factor everywhere, including `tidal_disruption()` (`core/tidal.py`) and the visualizer (`viz/glassbox.py`), which now uses the same $m_{\text{ref}}^2$ denominator as the evaluator (the old $G\,M_{\text{king}}^2$ mismatch, flagged as C12, is verified fixed — see §15.1 row 11).
 
 ## 4.6 Time derivative $d\eta/dt$ (implemented via the Verlet drift term)
 

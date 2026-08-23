@@ -35,18 +35,23 @@ The codebase is written to avoid all four traps. That is what makes the project'
 
 ## 9.4 What is learned vs. what is fixed
 
-Learned leaves (`training/train.py:61-64`, 9 scalars): $G, \varepsilon, c, \rho_{\text{roche}}, \text{bonus}, k_{\text{gain}}, \gamma, R_g, m_{\text{gain}}$.
+Learned leaves — **15 of them**, packed in `TRAINABLE_LEAVES` order (`core/constants.py`, single source of truth shared by the loss, trainer, and JSON persistence):
+
+$G$, $\varepsilon$, $c$, $\rho_{\text{roche}}$, bonus, $k_{\text{gain}}$, $\gamma$, $R_g$, $m_{\text{gain}}$, $\lambda_{\text{delta}}$, $c_{\text{om\_gain}}$, $i_{\text{nertia\_gain}}$, $e_{\text{ntropy\_gain}}$, $\lambda_{\text{drift}}$, $\lambda_{\text{gw}}$.
+
+That is: the nine original physics/scale knobs, the four move-sensitivity (delta) gains, the Verlet-drift gain, and the gravitational-wave gain (init 0.0 — see Ch.7 Step 9).
 
 Fixed by design:
 
-- **$m_{\text{ref}} = 3.5$** — a unit scale, deliberately *not* trained (`core/evaluate.py:24-29`, `training/loss.py:57`). Keeps η well-conditioned.
-- **$G$ is frequently frozen during training** (`fix_G=True`, `training/train.py:120, 231`). Why? Because in the η formula $G$ cancels (§4.3), so training otherwise collapses $G \to 0$ and kills the force terms. When $G$ is frozen it is set to 1.0. The *other* constants still absorb the scaling.
-- **Piece masses** (1,3,3,5,9,1000) are fixed — they are the "vocabulary" of the universe, not learned parameters.
+- **$m_{\text{ref}} = 3.5$** — a unit scale, deliberately *not* trained. Keeps η well-conditioned.
+- **$G$ is frequently frozen during training** (`fix_G=True`). Why? Because in the η formula $G$ cancels (§4.3), so training otherwise collapses $G \to 0$ and kills the force terms. When $G$ is frozen it is set to 1.0. The *other* constants still absorb the scaling.
+- **Piece masses** (1,3,3,5,9,1000) are fixed — they are the "vocabulary" of the universe, not learned parameters (Ch.7 honest-framing note).
+- **The velocity decay rate** (`VELOCITY_DECAY = 0.985` per ply) is currently a documented fixed hyperparameter rather than a leaf — promoting it would renumber the leaf vector, so it is deferred until the next training-phase change.
 
-> **⚠ [ISSUE: G-NONIDENTIFIABLE] (P1, training doc & Audit):** $G$ is largely non-identifiable in the tidal index (it cancels in η). The project handles this by freezing $G$ (and noting it in `train.py:9-10`). But the README's flagship line — *"the gravitational constant was learned via gradient descent"* — is only literally true when `fix_G=False`. Be precise: "several constants including $\varepsilon, c, \rho_{\text{roche}}$ are learned; $G$ is typically frozen for identifiability." The current `trained_constants.json` shows $G=1.32$ (learned in that run), so it *can* move; just don't overclaim.
+> **⚠ [ISSUE: G-NONIDENTIFIABLE] (P1, training doc & Audit):** $G$ is largely non-identifiable in the tidal index (it cancels in η). The project handles this by freezing $G$. But the README's flagship line — *"the gravitational constant was learned via gradient descent"* — is only literally true when `fix_G=False`. Be precise: "several constants including $\varepsilon, c, \rho_{\text{roche}}$ are learned; $G$ is typically frozen for identifiability." The credibility-gate artifact shows which leaves actually moved and by how much.
 
 ## 9.5 Forward link
 
-Chapter 13 details the loss function and training loop. First, Part C covers the board/search/visualizer (Chapters 10–12) and then Layer 2 (Chapters 14–16), before training in Chapter 13. We'll reorganize: the next chapters cover the board representation and search (10–11), then training (13), visualizer (12), and Layer 2 (14–16). Let me proceed with the board and search now.
+With differentiable physics established, Part C turns to engineering: the board representation and search tree (Chapter 10), the Glass Box visualizer (Chapter 11), then training end-to-end (Chapter 12) and Layer 2 (Chapter 13).
 
-**Cross-references:** Constants as leaves → §5. The pipeline being differentiated → §7. Loss & training → §13.
+**Cross-references:** Constants as leaves → §5. The pipeline being differentiated → §7. Loss & training → §12.

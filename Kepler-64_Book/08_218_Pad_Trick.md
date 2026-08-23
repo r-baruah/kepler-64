@@ -35,12 +35,12 @@ The claim is: **one `vmap` sweep over all 218 candidate moves runs in sub-millis
 
 ## 8.4 Efficiency notes on the batch path
 
-- **`batch_score` loop (P1, Code Review v2 BUG 9):** `jnp.stack([jnp.asarray(m) for m in masses_list])` builds $K$ intermediate JAX arrays in a Python loop. Fine for 218, but could be one stack + one pad. Low priority.
-- **double potential (P1, Code Review v2 BUG 10):** `_score_body` calls both `force_field` and `potential_field`, each recomputing `r2 = _DIST2 + eps²`. They could share one `r2`/`sqrt_r2`. Minor redundancy, easy win.
-- **root sweep (the headline):** `search/minimax.py:137-144` (`root_sweep`) builds all child mass vectors and calls `batch_score` once — this is the showcased 218-pad sweep.
+- ~~**`batch_score` loop (BUG 9)**~~ **(Resolved):** children are stacked once into a single buffer, then padded — no per-move intermediate arrays.
+- ~~**double potential (BUG 10)**~~ **(Partially open):** `_score_terms_body` still computes force and potential fields separately; they could share one `r2`/`sqrt_r2`. Minor redundancy.
+- **root sweep (the headline):** `root_sweep` (`search/minimax.py`) builds all child mass vectors via `child_mass_vector` and calls `batch_score` once — this is the showcased 218-pad sweep.
 
 ## 8.5 Forward link
 
 The sweep feeds an alpha-beta search. The next chapter covers the board/search layer (how moves are generated and how the score is used in negamax + quiescence), including the pure-JAX board that makes the claim fully true.
 
-**Cross-references:** Mass vector → §7. Search & alpha-beta → §9. Pure-JAX `FastBoard` → §12. Benchmark → `bench/sweep_time.py`.
+**Cross-references:** Mass vector → §7. Search & alpha-beta → §10. Pure-JAX `FastBoard` → §10.2. Benchmark → `bench/sweep_time.py`.
