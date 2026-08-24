@@ -91,6 +91,18 @@ class Constants:
     # the universe ships WITHOUT wave losses and training may switch them on
     # (bounds [0, 10]) — behavior-neutral by default, physics-native if learned.
     lambda_gw: float = 0.0
+    # Schwarzschild horizon-overlap gain (the 16th leaf). Each mass's event
+    # horizon has radius r_s = 2Gm/c²; pairs whose horizons overlap are
+    # "inside each other's point of no return" and pay a mass-weighted
+    # penalty — the physics-native "don't pile heavy pieces" principle.
+    # Init 0.0: behavior-neutral until learned (bounds [0, 10]).
+    lambda_sch: float = 0.0
+    # Leapfrog time step of the Verlet tidal-drift rollout (the 17th leaf).
+    # The drift term projects each King `steps` hops of size dt into the
+    # future; making dt learnable lets training choose HOW FAR AHEAD
+    # "impending collapse" looks. Init 0.1 reproduces the historical
+    # behavior exactly (bounds [0.01, 1.0]).
+    dt_drift: float = 0.1
 
     def c_prior(self, lam_fast: float = 0.1, lam_slow: float = 0.1):
         """Monotonicity prior: keep c in [1.0, 10.0] with a sweet spot ~3-6.
@@ -108,18 +120,18 @@ class Constants:
 TRAINABLE_LEAVES = (
     "G", "eps", "c", "roche", "bonus", "kgain", "gamma", "Rg",
     "mat_gain", "lambda_delta", "com_gain", "inertia_gain",
-    "entropy_gain", "lambda_drift", "lambda_gw",
+    "entropy_gain", "lambda_drift", "lambda_gw", "lambda_sch", "dt_drift",
 )
 
 # Physical projection bounds per leaf (same order as TRAINABLE_LEAVES).
 LEAF_LO = (0.01, 0.01, 1.0, 0.05, 0.01, 0.01, 0.0, 0.1, 0.0,
-           0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)
 LEAF_HI = (50.0, 20.0, 10.0, 20.0, 500., 50.0, 50., 10.0, 10.0,
-           10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
+           10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 1.0)
 
 
 def leaves_to_array(c: "Constants"):
-    """Pack the 15 trainable leaves into a float32 array (TRAINABLE_LEAVES order)."""
+    """Pack the 17 trainable leaves into a float32 array (TRAINABLE_LEAVES order)."""
     return jnp.array([getattr(c, name) for name in TRAINABLE_LEAVES],
                      dtype=jnp.float32)
 

@@ -136,12 +136,12 @@ Only $G,c$ shift; the Layer-2 feedback loop omits $\eta_{\text{acc}}$. **Fix:** 
 |---|---|---|---|
 | 1 | True causal gravity (field-age propagation) | 📐 **Designed** — full design note with acceptance criteria; implementation deferred to its own gated run (touches every field call site + TT keys) | `docs/causal_gravity_design.md` |
 | 2 | Peters–Mathews gravitational-wave energy loss | ✅ **Implemented** as leaf #15 `lambda_gw` (init 0.0 → behavior-neutral until learned) | Ch.7 §7.4 Step 9; tests in `test_audit_fixes.py` |
-| 3 | Schwarzschild-radius clustering penalty ($r_s = 2Gm/c^2$) | ⏳ Not implemented — next-cheapest candidate after #2 (same pairwise shape, same zero-init pattern would apply) | this section, item 1 |
+| 3 | Schwarzschild-radius clustering penalty ($r_s = 2Gm/c^2$) | ✅ **Implemented** as leaf #16 `lambda_sch` (horizon-overlap sigmoid, init 0 → behavior-neutral); Ch.7 §7.4 Step 10; tests in `test_audit_fixes.py` |
 | 4 | Per-piece extent vector ($R_g$ per square → captor fragility) | ⏳ Deferred with rationale — changes source-softening semantics globally; bundle with #1 and re-gate | Ch.13.4 scope note |
 | 5 | Time-dilation search scheduling (spend more where $\lvert\Phi\rvert$ is high) | ⏳ Not implemented | roadmap Part 4.5 |
-| 6 | Learned Verlet horizon ($dt$, steps as leaves instead of hardcoded 0.1×4) | ⏳ Not implemented — renumbers leaves again; do together with #3 to amortize plumbing | roadmap Part 4.6 |
-| 7 | Posterior distillation (which constants did games actually constrain?) | ⏳ Not implemented — analysis layer over existing multiverse samples | roadmap Part 4.7 |
-| 8 | UCI packaging of the engine | ◐ Partial — `match/uci_harness.py` exists; not yet smoke-tested/documented as a deliverable | roadmap Part 4.8 |
+| 6 | Learned Verlet horizon ($dt_{\text{drift}}$ as a leaf) | ✅ **Implemented** as leaf #17 (init 0.1 = historical behavior); Ch.7 §7.4 Step 8 | tests in `test_audit_fixes.py` |
+| 7 | Posterior distillation (which constants does the physics constrain?) | ✅ **Tool shipped**: one-at-a-time sensitivity map, `scripts/distill_posterior.py` (+ pilot report `docs/posterior_distillation.md`: $c$, $\rho_{\text{roche}}$, $G$ dominate at defaults) | Ch.9 §9.4 pointer |
+| 8 | UCI packaging of the engine | ◐ Mostly done — harness logic verified by tests (Elo math + mock-opponent game loop, `test_uci_harness.py`); a live match still needs an external opponent binary | `match/uci_harness.py` |
 
 Item details from the original analysis:
 
