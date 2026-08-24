@@ -204,6 +204,7 @@ class EvalTerms(NamedTuple):
     delta_entropy: float
     drift: float
     gw: float
+    schwarzschild: float
     total: float
 
 
@@ -219,12 +220,31 @@ def _gw_radiation(masses_army: "jnp.ndarray", G: float, eps: float) -> float:
     return (G ** 4) * jnp.dot(w, jnp.dot(pair_kernel, w))
 
 
+def _schwarzschild_overlap(masses_army: "jnp.ndarray", G: float,
+                           c: float, eps: float) -> float:
+    """Schwarzschild horizon-overlap penalty over one army.
+
+    Each mass's event-horizon radius is r_s = 2Gm/c². A pair whose horizons
+    overlap (d_ij < r_si + r_sj) is "inside each other's point of no return"
+    and pays a mass-weighted penalty with a smooth sigmoid transition —
+    the physics-native "don't pile supermassive pieces" principle. Zero-mass
+    squares have r_s = 0 and contribute nothing; kings arrive as zeros.
+    """
+    m = jnp.abs(masses_army)
+    r_s = 2.0 * G * m / (c * c)
+    d = _DIST + eps
+    overlap = jax.nn.sigmoid(2.0 * ((r_s[:, None] + r_s[None, :]) - d))
+    pair = (m[:, None] * m[None, :]) * overlap * (1.0 - jnp.eye(64))
+    return jnp.sum(pair)
+
+
 def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
                 bonus: float = 50.0, kgain: float = 4.0, gamma: float = 0.25,
                 Rg: float = 1.0, mref: float = 3.5, mat_gain: float = 2.0,
                 lambda_delta: float = 0.0, com_gain: float = 0.0,
                 inertia_gain: float = 0.0, entropy_gain: float = 0.0,
                 lambda_drift: float = 0.0, lambda_gw: float = 0.0,
+                lambda_sch: float = 0.0, dt_drift: float = 0.1,
                 parent_masses=None):
     """Evaluation from White's perspective (positive = good for White).
 
@@ -262,8 +282,10 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
 
     # Verlet tidal-drift (impending collapse): project each King forward under
     # the OPPONENT'S ARMY field and read the change in tidal stress.
-    drift_b = _eta_drift(white_co, bk, jnp.abs(masses[bk]), G, eps, c, Rg, mref)
-    drift_w = _eta_drift(black_co, wk, jnp.abs(masses[wk]), G, eps, c, Rg, mref)
+    drift_b = _eta_drift(white_co, bk, jnp.abs(masses[bk]), G, eps, c, Rg, mref,
+                         dt=dt_drift)
+    drift_w = _eta_drift(black_co, wk, jnp.abs(masses[wk]), G, eps, c, Rg, mref,
+                         dt=dt_drift)
 
     # If either King is missing (corrupted board), the disruption/force terms
     # are meaningless — neutralize them instead of silently scoring at a1.
@@ -378,12 +400,18 @@ def _score_terms_body(masses, G: float, eps: float, c: float, roche: float,
     gw_term = lambda_gw * (_gw_radiation(black_co, G, eps)
                            - _gw_radiation(white_co, G, eps))
 
+    # Schwarzschild horizon-overlap edge (init gain 0): pieces piled inside
+    # each other's event horizon pay a mass-weighted penalty. White wants ITS
+    # OWN overlaps small and the ENEMY'S large.
+    sch_term = lambda_sch * (_schwarzschild_overlap(black_co, G, c, eps)
+                             - _schwarzschild_overlap(white_co, G, c, eps))
+
     total = (eta_b - eta_w + bonus_b + pen_w + global_edge + material
              + delta_eta_term + com_term + inertia_term + entropy_term
-             + drift_term + gw_term)
+             + drift_term + gw_term + sch_term)
     return EvalTerms(eta_b, -eta_w, bonus_b, pen_w, global_edge, material,
                      delta_eta_term, com_term, inertia_term, entropy_term,
-                     drift_term, gw_term, total)
+                     drift_term, gw_term, sch_term, total)
 
 
 def _score_body(masses, G: float, eps: float, c: float, roche: float,
@@ -392,22 +420,26 @@ def _score_body(masses, G: float, eps: float, c: float, roche: float,
                 lambda_delta: float = 0.0, com_gain: float = 0.0,
                 inertia_gain: float = 0.0, entropy_gain: float = 0.0,
                 lambda_drift: float = 0.0, lambda_gw: float = 0.0,
+                lambda_sch: float = 0.0, dt_drift: float = 0.1,
                 parent_masses=None):
     return _score_terms_body(masses, G, eps, c, roche, bonus, kgain, gamma,
                              Rg, mref, mat_gain, lambda_delta, com_gain,
                              inertia_gain, entropy_gain, lambda_drift,
-                             lambda_gw, parent_masses).total
+                             lambda_gw, lambda_sch, dt_drift,
+                             parent_masses).total
 
 
 @jax.jit
 def _score_core_static(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
                        mref, mat_gain, lambda_delta=0.0, com_gain=0.0,
                        inertia_gain=0.0, entropy_gain=0.0, lambda_drift=0.0,
-                       lambda_gw=0.0, parent_masses=None):
+                       lambda_gw=0.0, lambda_sch=0.0, dt_drift=0.1,
+                       parent_masses=None):
     return _score_terms_body(masses, G, eps, c, roche, bonus, kgain, gamma, Rg,
                              mref, mat_gain, lambda_delta, com_gain,
                              inertia_gain, entropy_gain, lambda_drift,
-                             lambda_gw, parent_masses).total
+                             lambda_gw, lambda_sch, dt_drift,
+                             parent_masses).total
 
 
 def _shannon_entropy(m):
@@ -427,7 +459,9 @@ def score_white(masses: "jnp.ndarray", constants, parent=None) -> float:
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
         constants.mref, constants.mat_gain, constants.lambda_delta,
         constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0), parent,
+        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0),
+        getattr(constants, "lambda_sch", 0.0),
+        getattr(constants, "dt_drift", 0.1), parent,
     )
 
 
@@ -442,7 +476,9 @@ def score_white_terms(masses: "jnp.ndarray", constants, parent=None) -> EvalTerm
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
         constants.mref, constants.mat_gain, constants.lambda_delta,
         constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0), parent,
+        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0),
+        getattr(constants, "lambda_sch", 0.0),
+        getattr(constants, "dt_drift", 0.1), parent,
     )
 
 
@@ -497,8 +533,9 @@ def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants
     reach gate `c` is clipped back to its physical prior [1, 10]. `mref` is a
     fixed unit scale (not a trainable weight), so it is held constant.
     """
-    keys = _jr.split(key, 15)
-    kG, ke, kc, kr, kb, kkg, kg, kR, kmg, kld, kcg, kig, keg, kdr, kgw = keys
+    keys = _jr.split(key, 17)
+    (kG, ke, kc, kr, kb, kkg, kg, kR, kmg, kld, kcg, kig, keg,
+     kdr, kgw, ksch, kdt) = keys
     return Constants(
         G=base.G * (1.0 + sigma * _jr.normal(kG)),
         eps=base.eps * (1.0 + sigma * _jr.normal(ke)),
@@ -516,6 +553,8 @@ def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants
         entropy_gain=base.entropy_gain * (1.0 + sigma * _jr.normal(keg)),
         lambda_drift=base.lambda_drift * (1.0 + sigma * _jr.normal(kdr)),
         lambda_gw=base.lambda_gw * (1.0 + sigma * _jr.normal(kgw)),
+        lambda_sch=base.lambda_sch * (1.0 + sigma * _jr.normal(ksch)),
+        dt_drift=base.dt_drift * (1.0 + sigma * _jr.normal(kdt)),
     )
 
 

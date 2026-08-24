@@ -83,9 +83,11 @@ $$\text{edge} = \gamma\,(E_{\text{white}} - E_{\text{black}}),\quad E = \sum_i \
 
 **Step 7 — material edge.** A clean `mat_gain * (Σ white_m − Σ black_m)` term (`core/evaluate.py:99`) rewards winning material and gives the search a varied gradient so it doesn't drift to a flat equilibrium. `mat_gain` is a learned leaf (init 2.0, `core/constants.py`): a captured rook moves the score ~10, a queen ~18 — decisively above the ~1–4 positional noise floor, which is the fix for the measured "give away free rooks/pieces on the a/h files" behaviour.
 
-**Step 8 — Verlet tidal drift (impending collapse).** A short Leapfrog projection advances each King's continuous coordinate under the OPPONENT's field, and the change in tidal stress over the horizon is the drift signal, gated by the `lambda_drift` leaf (the 14th trainable constant, init 1.0):
+**Step 8 — Verlet tidal drift (impending collapse).** A short Leapfrog projection advances each King's continuous coordinate under the OPPONENT's field, and the change in tidal stress over the horizon is the drift signal, gated by the `lambda_drift` leaf (14th trainable constant, init 1.0):
 
 $$\text{drift} = \lambda_{\text{drift}}\big(\Delta\eta_{\text{on black K}} - \Delta\eta_{\text{on white K}}\big)$$
+
+The projection's **time step `dt_drift` is itself a learnable leaf** (the 17th, init 0.1 — exactly the historical behavior): training chooses HOW FAR AHEAD "impending collapse" looks. The rollout uses the same light-speed reach gate as every static term (Ch.6 §6.3).
 
 Source-attributed like η (§7.4 Step 4): white's field tearing the black King is good for White when *growing*; black's tearing the white King is bad when growing. This is the "threat a few plies out" signal (§6.5), read at the continuous projected position with an exact analytical Hessian.
 
@@ -95,11 +97,17 @@ $$\text{gw} = \lambda_{\text{gw}}\Big(\textstyle\sum_{i \neq j}^{\text{black}} \
 
 $\lambda_{\text{gw}}$ is the **15th learnable leaf**, initialized at exactly $0.0$ with bounds $[0, 10]$: the universe ships *without* wave losses and is bit-identical to the pre-GW physics until training decides otherwise (a regression test pins this neutrality; a second pins that a huddled army radiates strictly more than a spread one).
 
+**Step 10 — Schwarzschild horizon-overlap edge.** Each mass's event-horizon radius is $r_s = 2Gm/c^2$. Two pieces whose horizons overlap ($d_{ij} < r_{s,i} + r_{s,j}$) are "inside each other's point of no return" and pay a mass-weighted penalty with a smooth sigmoid transition (`_schwarzschild_overlap`, `core/evaluate.py`):
+
+$$\text{sch} = \lambda_{\text{sch}}\Big(\textstyle\sum^{\text{black}}_{i \neq j} m_i m_j\,\sigma\!\big(2(r_{s,i}+r_{s,j}-d_{ij})\big) - \sum^{\text{white}}_{i \neq j}\cdots\Big)$$
+
+This is the physics-native "don't pile supermassive pieces" principle: the penalty is *local* (only genuinely overlapping horizons) and *mass-adaptive* (heavier pieces repel each other from a greater distance). $\lambda_{\text{sch}}$ is the **16th learnable leaf**, init $0.0$, bounds $[0,10]$ — behavior-neutral until learned.
+
 **Final score (White perspective):**
 
-$$\text{score} = \eta_b - \eta_w + \text{bonus}_b + \text{pen}_w + \text{global\_edge} + \text{material} + \text{drift} + \text{gw}$$
+$$\text{score} = \eta_b - \eta_w + \text{bonus}_b + \text{pen}_w + \text{global\_edge} + \text{material} + \text{drift} + \text{gw} + \text{sch}$$
 
-(`EvalTerms` in `core/evaluate.py` carries all twelve weighted terms plus `total`, so the Glass Box and replay can show every contribution separately.) Positive = good for White; `evaluate()` flips it for Black to move.
+(`EvalTerms` in `core/evaluate.py` carries all thirteen weighted terms plus `total`, so the Glass Box and replay can show every contribution separately.) Positive = good for White; `evaluate()` flips it for Black to move.
 
 ## 7.5 Why no boolean checkmate in the differentiable path
 

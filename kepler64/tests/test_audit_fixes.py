@@ -205,10 +205,51 @@ def test_engine_observe_flag_evolves_constants():
 
 # ── Phase 4: Peters-Mathews gravitational-wave term ─────────────────────────
 
-def test_leaf_packing_has_15_leaves():
+def test_leaf_packing_has_17_leaves():
     from ..core.constants import leaves_to_array, TRAINABLE_LEAVES
-    assert len(TRAINABLE_LEAVES) == 15
-    assert leaves_to_array(Constants()).shape == (15,)
+    assert len(TRAINABLE_LEAVES) == 17
+    assert leaves_to_array(Constants()).shape == (17,)
+
+
+def test_schwarzschild_term_neutral_at_default_gain():
+    """lambda_sch ships at 0.0 — identical physics until training moves it."""
+    import chess
+    b = FastBoard.from_chess(chess.Board())
+    m = b.mass_vector()
+    t = _terms(m, Constants())
+    assert float(t.schwarzschild) == 0.0
+
+
+def test_schwarzschild_penalizes_huddled_heavy_pieces():
+    """With the gain on, two adjacent queens overlap horizons (penalty);
+    the same queens far apart do not. Isolated `schwarzschild` term."""
+    c_sch = Constants(lambda_sch=1e-2)
+    close = np.zeros(64); close[27] = 9.0; close[28] = 9.0
+    close[4] = 1000.0; close[60] = -1000.0
+    far = np.zeros(64); far[0] = 9.0; far[63 - 7] = 9.0
+    far[4] = 1000.0; far[63] = -1000.0
+
+    t_close = _terms(jnp.asarray(close), c_sch)
+    t_far = _terms(jnp.asarray(far), c_sch)
+    # Both terms are <= 0 for White (own overlaps are a cost); adjacent
+    # heavy queens pay strictly more.
+    assert float(t_close.schwarzschild) < float(t_far.schwarzschild) <= 0.0
+    # The far pair's horizons (r_s = 2*9/16 ≈ 1.1 each) must NOT overlap.
+    assert abs(float(t_far.schwarzschild)) < 1e-3
+
+
+def test_drift_horizon_dt_is_threaded():
+    """dt_drift must reach the rollout: a larger step projects further into
+    an attacking field, so |drift| grows monotonically here."""
+    pieces = np.zeros(64, dtype=np.int8)
+    pieces[0] = 5     # white rook a1 — attacker
+    pieces[63] = -6   # black king h8
+    m = np.abs(np.asarray(FastBoard(pieces).mass_vector()))
+    d_small = float(_eta_drift(m, 63, 1000.0, Constants().G, Constants().eps,
+                               40.0, Constants().Rg, Constants().mref, dt=0.05))
+    d_large = float(_eta_drift(m, 63, 1000.0, Constants().G, Constants().eps,
+                               40.0, Constants().Rg, Constants().mref, dt=0.5))
+    assert abs(d_large) > abs(d_small) >= 0.0
 
 
 def test_gw_term_neutral_at_default_gain():

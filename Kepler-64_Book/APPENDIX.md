@@ -32,7 +32,10 @@
 | **Lorentz mass** | Relativistic mass inflation from movement: $\gamma$ from $u=v/(v+c)$; governed by the same learned light speed as the field. |
 | **Velocity accumulator** | Per-piece momentum in `FastBoard`; gains true lattice distance per move, decays ×0.985/ply. |
 | **Gravitational-wave edge** | Peters–Mathews-style pairwise radiation $\propto G^4m_1^2m_2^2/r^5$, gated by learnable `lambda_gw` (init 0). |
-| **Trainable leaves** | The 15 learnable constants packed in `TRAINABLE_LEAVES` order — the universe's entire tunable surface. |
+| **Schwarzschild edge** | Horizon-overlap penalty: $r_s = 2Gm/c^2$ per piece; pairs whose horizons overlap pay a mass-weighted cost, gated by learnable `lambda_sch` (init 0). |
+| **Drift horizon $dt_{\text{drift}}$** | Learnable Leapfrog time step (17th leaf, init 0.1) — how far ahead "impending collapse" projects. |
+| **Posterior distillation** | One-at-a-time leaf sensitivity map (`scripts/distill_posterior.py`) — which constants the physics constrains. |
+| **Trainable leaves** | The 17 learnable constants packed in `TRAINABLE_LEAVES` order — the universe's entire tunable surface. |
 | **EvalTerms** | Named tuple of all twelve weighted score terms plus `total`; what the Glass Box decomposes. |
 | **Credibility gate** | Automated learned-vs-frozen ablation (self-play → train → validate → match); `scripts/credibility_gate.py`. |
 | **Glass Box** | The two-panel visualizer (board + potential heat-map + tidal ellipses). |
@@ -61,8 +64,8 @@ with $R_g$ the **effective** radius of gyration $R_g(|m_{\text{king}}|/1000)^{1/
 **Monotonicity prior on $c$:**
 $$\text{prior}(c) = -\lambda_f\max(0,2-c) - \lambda_s\max(0,c-10)$$
 
-**Score (White perspective) — all twelve weighted terms (`EvalTerms`):**
-$$\text{score} = \underbrace{\eta_b - \eta_w}_{\text{tidal}} + \underbrace{\text{bonus}_b + \text{pen}_w}_{\text{disruption force}} + \underbrace{\gamma(E_w{-}E_b)}_{\text{binding}} + \underbrace{m_{\text{gain}}(\Sigma m_w - \Sigma m_b)}_{\text{material}} + \underbrace{\lambda_\Delta\,\Delta\eta + c_g\,\Delta\text{CoM} + i_g\,\Delta I + e_g\,\Delta H}_{\text{move-sensitivity deltas}} + \underbrace{\lambda_{\text{drift}}\,\big(\Delta\eta_{b} - \Delta\eta_{w}\big)}_{\text{impending collapse}} + \underbrace{\lambda_{\text{gw}}\,(\text{gw}_b - \text{gw}_w)}_{\text{wave losses}}$$
+**Score (White perspective) — all thirteen weighted terms (`EvalTerms`):**
+$$\text{score} = \underbrace{\eta_b - \eta_w}_{\text{tidal}} + \underbrace{\text{bonus}_b + \text{pen}_w}_{\text{disruption force}} + \underbrace{\gamma(E_w{-}E_b)}_{\text{binding}} + \underbrace{m_{\text{gain}}(\Sigma m_w - \Sigma m_b)}_{\text{material}} + \underbrace{\lambda_\Delta\,\Delta\eta + c_g\,\Delta\text{CoM} + i_g\,\Delta I + e_g\,\Delta H}_{\text{move-sensitivity deltas}} + \underbrace{\lambda_{\text{drift}}\,\big(\Delta\eta_{b} - \Delta\eta_{w}\big)}_{\text{impending collapse}} + \underbrace{\lambda_{\text{gw}}\,(\text{gw}_b - \text{gw}_w)}_{\text{wave losses}} + \underbrace{\lambda_{\text{sch}}\,(\text{sch}_b - \text{sch}_w)}_{\text{horizon overlaps}}$$
 
 **Loss:**
 $$\mathcal L = \mathcal L_{\text{outcome}} + 0.5\,\mathcal L_{\text{policy}} + \mathcal L_{\text{prior}}$$
@@ -83,7 +86,7 @@ $$\mathcal L = \mathcal L_{\text{outcome}} + 0.5\,\mathcal L_{\text{policy}} + \
 - All chapter formulas use $\sigma$ for the sigmoid gate and $\lambda_1$ for the principal stretch.
 - The evaluator's η denominator is $m_{\text{ref}}^2$ (Ch 4, 7); the visualizer uses the same (C12 verified fixed).
 - $c$ is always in **squares/ply**, bounds $[1,10]$, and is the *only* light speed: it gates both the field reach and the Lorentz motion boost.
-- The trainable surface is exactly 15 leaves (`TRAINABLE_LEAVES` in `core/constants.py`); everything else that looks tunable is either `mref` (fixed unit scale) or a documented fixed hyperparameter.
+- The trainable surface is exactly 17 leaves (`TRAINABLE_LEAVES` in `core/constants.py`); everything else that looks tunable is either `mref` (fixed unit scale) or a documented fixed hyperparameter.
 
 ## A.4 References (primary sources in this repo)
 

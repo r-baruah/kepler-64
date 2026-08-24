@@ -136,11 +136,15 @@ Data flow per leaf node: `FastBoard → mass_vector() [+Lorentz] → child_mass_
 - [x] Results published with an honest interpretation section (`docs/credibility_gate_results.md`); pilot table added to README with explicit caveats; book §12.5 refreshed (S4 partially closed — full refresh needs the scaled run).
 - [ ] SCALING (next session): ≥5k examples + ≥200-game matches before any public Elo claim. The gate script already supports it via flags.
 
-### Phase 4 — Innovation spike — ◐ PARTIAL 2026-08-23
+### Phase 4 — Innovation spike — ◐ MOSTLY DONE 2026-08-23 (second pass)
 - [x] Innovation #2 Peters–Mathews gravitational-wave energy loss IMPLEMENTED as leaf #15 (`lambda_gw`, init 0.0 → behavior-neutral until training switches it on; bounds [0,10]). Full plumbing: eval body, multiverse posterior, loss unpack, persistence. Tests: neutrality at 0, huddle-vs-spread radiation sign, 15-leaf packing. (Found & fixed a multiply-instead-of-divide kernel bug via these tests.)
 - [x] Innovation #1 causal gravity: full design note at `docs/causal_gravity_design.md` (state, gate math, TT-key integration costs, acceptance criteria). Implementation deferred — it touches every field call site plus TT keys and deserves its own gated run.
 - [ ] Innovation #4 per-piece Rg extent: deferred with rationale — it changes source softening semantics globally; implement together with the causal-gravity pass and re-gate.
-- [ ] Innovations #5–#8 unchanged (time-dilation scheduling, learned rollout horizon, posterior distillation, UCI packaging).
+- [x] Innovation #3 Schwarzschild clustering penalty — leaf #16 lambda_sch (horizon-overlap sigmoid, r_s = 2Gm/c² per piece; init 0 → behavior-neutral). Tests: neutrality + huddle-vs-spread sign.
+- [x] Innovation #6 Learned Verlet horizon — leaf #17 dt_drift (init 0.1 = historical behavior; bounds [0.01, 1]). Test: drift grows with dt.
+- [x] Innovation #7 Posterior distillation — scripts/distill_posterior.py ships a one-at-a-time leaf-sensitivity map over (parent, child) pairs. Pilot finding: at defaults the physics is dominated by c (31%), roche (27%), G (18%).
+- [x] Innovation #8 UCI packaging — harness logic verified by tests (Elo math + mock-opponent game loop); live matches need an external opponent binary.
+- Leaf vector is now 17 leaves; old constant artifacts load cleanly (missing keys fall back to defaults).
 - Note: the GW leaf renumbers TRAINABLE_LEAVES (14→15); old `trained_constants.json` artifacts load cleanly (missing key falls back to default 0.0).
 
 ### Standing rules for every change

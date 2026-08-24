@@ -35,11 +35,11 @@ The codebase is written to avoid all four traps. That is what makes the project'
 
 ## 9.4 What is learned vs. what is fixed
 
-Learned leaves — **15 of them**, packed in `TRAINABLE_LEAVES` order (`core/constants.py`, single source of truth shared by the loss, trainer, and JSON persistence):
+Learned leaves — **17 of them**, packed in `TRAINABLE_LEAVES` order (`core/constants.py`, single source of truth shared by the loss, trainer, and JSON persistence):
 
-$G$, $\varepsilon$, $c$, $\rho_{\text{roche}}$, bonus, $k_{\text{gain}}$, $\gamma$, $R_g$, $m_{\text{gain}}$, $\lambda_{\text{delta}}$, $c_{\text{om\_gain}}$, $i_{\text{nertia\_gain}}$, $e_{\text{ntropy\_gain}}$, $\lambda_{\text{drift}}$, $\lambda_{\text{gw}}$.
+$G$, $\varepsilon$, $c$, $\rho_{\text{roche}}$, bonus, $k_{\text{gain}}$, $\gamma$, $R_g$, $m_{\text{gain}}$, $\lambda_{\text{delta}}$, $c_{\text{om\_gain}}$, $i_{\text{nertia\_gain}}$, $e_{\text{ntropy\_gain}}$, $\lambda_{\text{drift}}$, $\lambda_{\text{gw}}$, $\lambda_{\text{sch}}$, $dt_{\text{drift}}$.
 
-That is: the nine original physics/scale knobs, the four move-sensitivity (delta) gains, the Verlet-drift gain, and the gravitational-wave gain (init 0.0 — see Ch.7 Step 9).
+That is: the nine original physics/scale knobs, the four move-sensitivity (delta) gains, the Verlet-drift gain, the gravitational-wave gain (init 0.0 — Ch.7 Step 9), the Schwarzschild clustering gain (init 0.0 — Ch.7 Step 10), and the drift-rollout time step (init 0.1 — Ch.7 Step 8).
 
 Fixed by design:
 
@@ -47,8 +47,9 @@ Fixed by design:
 - **$G$ is frequently frozen during training** (`fix_G=True`). Why? Because in the η formula $G$ cancels (§4.3), so training otherwise collapses $G \to 0$ and kills the force terms. When $G$ is frozen it is set to 1.0. The *other* constants still absorb the scaling.
 - **Piece masses** (1,3,3,5,9,1000) are fixed — they are the "vocabulary" of the universe, not learned parameters (Ch.7 honest-framing note).
 - **The velocity decay rate** (`VELOCITY_DECAY = 0.985` per ply) is currently a documented fixed hyperparameter rather than a leaf — promoting it would renumber the leaf vector, so it is deferred until the next training-phase change.
+- **The rollout hop count** (`steps=4`) is fixed integer control flow (`lax.scan` length); its *size*, `dt_drift`, is what training moves.
 
-> **⚠ [ISSUE: G-NONIDENTIFIABLE] (P1, training doc & Audit):** $G$ is largely non-identifiable in the tidal index (it cancels in η). The project handles this by freezing $G$. But the README's flagship line — *"the gravitational constant was learned via gradient descent"* — is only literally true when `fix_G=False`. Be precise: "several constants including $\varepsilon, c, \rho_{\text{roche}}$ are learned; $G$ is typically frozen for identifiability." The credibility-gate artifact shows which leaves actually moved and by how much.
+> **⚠ [ISSUE: G-NONIDENTIFIABLE] (P1, training doc & Audit):** $G$ is largely non-identifiable in the tidal index (it cancels in η). The project handles this by freezing $G$. But the README's flagship line — *"the gravitational constant was learned via gradient descent"* — is only literally true when `fix_G=False`. Be precise: "several constants including $\varepsilon, c, \rho_{\text{roche}}$ are learned; $G$ is typically frozen for identifiability." The credibility-gate artifact shows which leaves actually moved and by how much. For a per-leaf sensitivity map (which leaves the physics *constrains* at current defaults), run `scripts/distill_posterior.py`.
 
 ## 9.5 Forward link
 
