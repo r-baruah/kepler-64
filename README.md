@@ -1,9 +1,11 @@
 <div align="center">
 
 # 🪐 Kepler-64
-### *What if gravity could play chess?*
+### *We didn't teach a computer chess. We built a tiny universe — and let gravity figure out the game.*
 
-A differentiable chess engine built with JAX where pieces exert mass, spacetime curves across the 64 squares, and the enemy King is defeated not by conventional checkmate heuristics, but by **tidal disruption past the Roche limit**.
+Every chess piece has **mass**. Every piece **pulls** on every other piece. Attacks are gravitational fields. Captures are **absorbed into your body**. And you don't checkmate the enemy King — you get close enough that the **tidal forces tear it apart**, exactly like a moon shredded by Jupiter.
+
+Here's the twist: **nobody wrote any chess rules into this engine.** No opening books, no "knights belong on outposts," no grandmaster data. Just the laws of physics — and then gradient descent tuned the constants of that universe (how strong gravity is, how fast its influence travels, when a King collapses) until the physics started playing real chess.
 
 [![Live Observatory](https://img.shields.io/badge/🔭_Live_Observatory-Deploy-2448b8?style=for-the-badge)](https://r-baruah.github.io/kepler-64/)
 [![Tests](https://img.shields.io/badge/tests-62%20passing-16a34a?style=for-the-badge)](#testing--verification)
@@ -11,27 +13,62 @@ A differentiable chess engine built with JAX where pieces exert mass, spacetime 
 [![JAX](https://img.shields.io/badge/JAX-differentiable-f06426?style=for-the-badge&logo=google)](https://github.com/google/jax)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 
-[**Explore Live Web Observatory**](https://r-baruah.github.io/kepler-64/) • [**Quickstart**](#quickstart) • [**How It Works**](#how-gravity-plays-chess) • [**Scientific References**](REFERENCES.md) • [**Cite Project**](#citation)
+[**🔭 Explore the Live Observatory**](https://r-baruah.github.io/kepler-64/) • [**📖 Read the Book**](Kepler-64_Book/PRELUDE.md) • [**🚀 Try It Yourself**](#-try-it-in-3-lines) • [**🧠 How It Works**](#-how-it-works-the-simple-version)
+
+*If a universe where orbital mechanics outplays pawn structures sounds fun, a ⭐ helps other curious people find it.*
 
 </div>
 
 ---
 
-## 🔭 The Live Web Observatory
+## 🌌 The Idea in 30 Seconds
 
-Explore the gravitational field and watch games unfold directly in your browser:
+**1. Pieces become planets.** ♙ Pawn = 1 unit of mass, ♗ Bishop = 3, ♖ Rook = 5, ♕ Queen = 9, ♔ King = a whopping 1000. Place them on the 64 squares and they create a real gravitational field — computed with actual Newtonian equations.
 
-👉 **[https://r-baruah.github.io/kepler-64/](https://r-baruah.github.io/kepler-64/)**
+**2. Attacks become tides.** One enemy piece near your King is an annoyance. But pieces pulling from *opposite sides at once* stretch the King the way the Moon stretches Earth's oceans. The engine measures that stretching with a **tidal tensor** — and when it crosses the critical threshold (the same Roche limit that shreds moons around Jupiter), the King is judged *structurally collapsing*. That's how this universe wins.
 
-- **Gravitational Potential Wells:** Watch the 2D field contours warp in real-time as pieces move across the board.
-- **King Tidal Tension:** Visualizes directional stretching forces acting on both Kings on every turn.
-- **Game Trajectory Timeline:** Follows the gravitational advantage and energy shifts move-by-move.
-- **Interactive Compendium:** Illustrated companion guide explaining the underlying physics and formulas.
-- **Export Animated Clips:** Download animated GIFs of positions and games with live evaluations.
+**3. Captures feed your mass.** Take a piece and you don't just remove it — you **absorb 80% of its mass**. Your piece gets heavier, its pull stronger… and physically more fragile. Greed has a price written into the laws.
+
+**4. The laws themselves are learned.** This universe has **17 knobs** — the strength of gravity, how soft pieces are, how fast gravitational influence travels, the collapse threshold, and more. Training runs gradient descent *straight through the physics simulation* and tunes every knob until the universe's judgment matches what actually happens in real games.
+
+> **The honest footnote:** this is real physics math running on a board — not a claim that chess *is* astrophysics. It's a deliberately engineered universe whose equations happen to be exactly computable, exactly explainable, and exactly learnable.
 
 ---
 
-## 🌌 How Gravity Plays Chess
+## 🔭 See It Live — No Install Needed
+
+The **[Web Observatory](https://r-baruah.github.io/kepler-64/)** renders the invisible parts of every game right in your browser:
+
+- 🗺️ **Gravitational field contours** warping in real time as pieces move
+- 🔴 **Tidal stress ellipses** on both Kings, stretching along their exact "line of failure"
+- 📈 **Game trajectory timeline** — watch who is physically winning, move by move
+- 📚 **Interactive compendium** explaining every formula on screen
+- 🎞️ **Export animated GIFs** of any game with live physics overlays
+
+---
+
+## ✨ The Fun Parts
+
+| Mechanic | In plain words |
+|---|---|
+| 🪐 **Accretion** | Capture a piece → absorb most of its mass. Hoarding captures makes you powerful *and* fragile. |
+| 🌊 **Light-speed gravity** | Influence travels at `c` squares per move (a *learnable* number). Distant threats literally take plies to arrive. |
+| 🏃 **Relativistic pieces** | Move a piece constantly and it gains relativistic mass — kinetic energy is mass even here. |
+| 🌌 **The Multiverse** | Every candidate move is judged across several randomly-varied universes; only plans that survive in *most* realities win. |
+| 🪞 **The Observer** | Optionally, the engine nudges its own constants after each move — the laws co-evolve with the game. |
+| 🕳️ **Event horizons & waves** | Piled-up heavy pieces pay horizon-overlap penalties and radiate away energy — if training decides those laws matter. |
+
+---
+
+## 🧠 How It Works (the simple version)
+
+1. **Board → masses.** The position becomes 64 numbers: each square's mass (White positive, Black negative).
+2. **Masses → field.** Real Newtonian gravity (softened so nothing explodes) builds a force-and-potential landscape across the whole board.
+3. **Field → danger.** At each King, the engine measures how violently the field *stretches* it — and whether that stretch is crossing the learned collapse threshold.
+4. **Search picks the future.** A classic alpha-beta search tries moves and asks the physics: *which line ends with the enemy King torn apart and mine intact?*
+
+<details>
+<summary><b>🔬 The full mathematical pipeline (click to expand)</b></summary>
 
 Traditional chess engines evaluate positions using hand-crafted piece-square tables, mobility counts, or neural networks. **Kepler-64 replaces these heuristics with gravitational field calculations:**
 
@@ -84,9 +121,11 @@ $$M_{\text{capturer}} \leftarrow M_{\text{capturer}} + 0.8 \cdot M_{\text{captur
 
 A Queen that has captured multiple rooks and minor pieces becomes a dense gravitational well, exerting stronger pull across the board.
 
+</details>
+
 ---
 
-## ⚡ Differentiable Learning via JAX
+## ⚡ The Laws Were Learned, Not Written
 
 The physical constants of this universe are **learnable parameters** optimized via automatic differentiation in JAX:
 
@@ -100,7 +139,7 @@ Gradients flow directly through the analytical potential equations and eigenvalu
 
 ---
 
-## 🚀 Quickstart
+## 🚀 Try It in 3 Lines
 
 ### Installation
 
@@ -112,67 +151,60 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-### 3-Line Python Demo
+### Watch the universe make its first move
 
 ```python
 import chess
-from kepler64 import RocheEngine, Board
+from kepler64 import RocheEngine
+from kepler64.core.fastboard import FastBoard
 
-# Initialize the engine
-engine = RocheEngine()
-board = Board.from_chess(chess.Board())
+engine = RocheEngine()                       # creates the universe (auto-loads trained laws)
+board = chess.Board()
+physics = FastBoard.from_chess(board)        # the board as the physics sees it
 
-# Evaluate the position's gravitational curvature
-score = engine.evaluate(board)
-print(f"Position Score: {score}")
+print(f"Gravitational verdict: {engine.evaluate(physics):+.3f}")
 
-# Search for the best move
-best_move = engine.play(board, depth=2)
-print(f"Best Move: {best_move}")
+move = engine.play(board, depth=2)           # the universe picks a move
+print("Kepler-64 plays:", board.san(move))
 ```
 
-### Running the Web Observatory Locally
+Want the full visual experience?
 
 ```bash
-cd viz-web
-npm install
-npm run dev
+cd viz-web && npm install && npm run dev   # → http://localhost:5173
 ```
-Open **`http://localhost:5173/`** in your browser.
 
 ---
 
-## 📁 Repository Structure
+## 🗺️ Project Map
 
 ```text
 kepler-64/
-├── kepler64/                 # Core Python Engine & JAX Math
-│   ├── core/
-│   │   ├── board.py          # Board state and mass vector pipeline
-│   │   ├── constants.py      # Learnable physical constants (G, eps, c, roche)
-│   │   ├── gravity.py        # Plummer potential & pairwise distance solvers
-│   │   ├── tidal.py          # 2x2 Hessian eigenvalues and tidal ratio eta
-│   │   ├── evaluate.py       # Position score breakdown
-│   │   └── transitions.py    # Capture mass accretion mechanics
-│   ├── search/
-│   │   └── minimax.py        # Alpha-beta search and move ranking
-│   ├── training/
-│   │   ├── train.py          # JAX autodiff optimization
-│   │   └── loss.py           # Outcome and policy loss functions
-│   └── viz/
-│       └── glassbox.py       # Matplotlib potential visualization
+├── kepler64/                    # The engine (pure Python + JAX)
+│   ├── core/                    #   THE LAWS: gravity, tidal tensor, evaluation,
+│   │                            #   constants (17 learnable leaves), accretion,
+│   │                            #   Lorentz boost, Schwarzschild & wave terms
+│   ├── search/                  #   Alpha-beta search over the physics
+│   ├── training/                #   Learning the laws from games (JAX autodiff)
+│   ├── multiverse/              #   Layer 2: posterior sampling & Observer
+│   ├── match/                   #   UCI harness for measuring vs real engines
+│   └── tests/                   #   62 tests — every law has a regression test
 │
-├── viz-web/                  # Web Observatory & Interactive Companion
-│   ├── src/
-│   │   ├── core/             # TypeScript ports of gravitational algorithms
-│   │   ├── render/           # Canvas renderers for contours and tidal ellipses
-│   │   ├── ui/               # UI components, timeline, and KaTeX guides
-│   │   └── style.css         # Typography, layout, and visual styles
-│   └── public/               # Piece SVGs and icons
+├── Kepler-64_Book/              # 📖 The complete textbook (start at PRELUDE.md)
 │
-├── .github/workflows/        # Automated deployment to GitHub Pages
-├── CITATION.cff              # Citation metadata
-├── REFERENCES.md             # Scientific bibliography & references
+├── viz-web/                     # 🔭 Web Observatory (TypeScript + Canvas)
+│   ├── src/core/                #   TypeScript ports of the gravitational math
+│   ├── src/render/              #   Contours, tidal ellipses, timelines
+│   └── src/ui/                  #   Board, timeline, compendium UI
+│
+├── scripts/
+│   ├── credibility_gate.py      # Learned-vs-frozen ablation harness
+│   ├── distill_posterior.py     # Per-leaf sensitivity map
+│   └── generate_replay.py       # Replay data for the Observatory
+│
+├── docs/                        # Audit reports, gate results, design notes
+├── REFERENCES.md                # Scientific bibliography
+├── CITATION.cff                 # Citation metadata
 └── README.md
 ```
 
@@ -190,24 +222,38 @@ The same suite runs automatically on every push and pull request via [`​.githu
 
 ### Learned vs Frozen Physics — the Credibility Gate (pilot)
 
-The central claim — *"the constants learned by gradient descent do real work"* — is checked by an automated ablation (`scripts/credibility_gate.py`): self-play harvest → train the 14+ leaves → held-out ranking metrics → color-balanced head-to-head match. **Pilot run (84 self-play examples, 300 Adam steps, 8-game match):**
+The central claim — *"the constants learned by gradient descent do real work"* — is checked by an automated ablation (`scripts/credibility_gate.py`): self-play harvest → train all 17 leaves → held-out ranking metrics → color-balanced head-to-head match. **Pilot run (84 self-play examples, 300 Adam steps, 8-game match):**
 
 | Metric | Frozen | Learned |
 |---|---|---|
 | Head-to-head (W/D/L) | — | **8 / 0 / 0** |
 | Held-out MRR | 0.683 | 0.619 |
 
-**Honest read:** the harness works end-to-end and the learned universe won its pilot match, but 84 examples cannot constrain 14 constants (held-out ranking regressed — small-data overfitting) and n=8 games is far too few to claim an Elo edge. Scaled runs are pending; until then this table is a demonstration of method, not a result. Full numbers: [`docs/credibility_gate_results.md`](docs/credibility_gate_results.md).
+**Honest read:** the harness works end-to-end and the learned universe won its pilot match, but 84 examples cannot constrain 17 constants (held-out ranking regressed — small-data overfitting) and n=8 games is far too few to claim an Elo edge. Scaled runs are pending; until then this table is a demonstration of method, not a result. Full numbers: [`docs/credibility_gate_results.md`](docs/credibility_gate_results.md).
 
 ---
 
-## 🔬 Research Inquiries
+## ❓ Frequently Asked Questions
 
-Kepler-64 is an exploratory project investigating physics-inspired machine learning:
+**Is this real physics?**
+Real *equations*, honestly computed — Newtonian gravity with Plummer softening, real tidal tensors, real eigenvalues, a real symplectic integrator. But the *setting* is an engineered analogy: flat 2D board, point-mass pieces. The project never claims chess is literally astrophysics; the Book has an entire honesty chapter about exactly this.
 
-1. **Emergent Strategy:** Can gradient descent on gravitational fields learn positional ideas like center control and pawn structure without human-crafted rules?
-2. **Tidal Indicators:** Does the tidal stress parameter $\eta$ predict tactical blunders before material is lost?
-3. **Accretion Dynamics:** How do opening lines change when pieces gain mass and exert stronger pull after captures?
+**So… is it actually good at chess?**
+It plays legal, coherent, occasionally creative chess. Against Stockfish? It loses, and proudly so — that was never the point. The point is that every single evaluation can be *explained*: "this move is better because it increases the tidal stretching of the enemy King by X." Try getting that out of a neural network.
+
+**How does it learn without being told anything about chess?**
+Two signals from real games: *who won* (outcome) and *which move a deeper search would pick* (policy). Gradient descent then adjusts the 17 physical constants until the universe's judgment matches reality. No chess rules are ever written in — if the engine develops a liking for central control, gravity discovered it.
+
+**Can I watch what it's thinking?**
+Yes — that's the whole philosophy. The [Web Observatory](https://r-baruah.github.io/kepler-64/) shows the live gravitational field and tidal stress every move, and the [Book](Kepler-64_Book/PRELUDE.md) teaches you to read them from zero.
+
+---
+
+## 🔬 The Bigger Questions
+
+1. **Emergent strategy:** Can gradient descent through gravitational fields discover positional ideas — center control, pawn structure — with zero human chess knowledge?
+2. **Tidal warnings:** Does rising tidal stress predict tactical disasters *before* material is lost?
+3. **Accretion dynamics:** How do openings change when captures make you heavier instead of just richer?
 
 ---
 
