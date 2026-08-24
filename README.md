@@ -257,14 +257,22 @@ Yes — that's the whole philosophy. The [Web Observatory](https://r-baruah.gith
 
 ---
 
-## 👤 Author
+## 👥 Authors & Contributors
 
-**Kepler-64** was created by:
+**Kepler-64** is an open-source project created and maintained by:
 
-- **Ripuranjan Baruah** — *Original Creator & Lead Architect*
-  - GitHub: [@r-baruah](https://github.com/r-baruah)
+- **Ripuranjan Baruah** ([@r-baruah](https://github.com/r-baruah)) — *Original Creator & Lead Architect*
+- **Ray** — *Live preview enhancements & UI optimizations*
 
-Contributions and discussions are welcome via GitHub Issues and Pull Requests.
+<div align="center">
+  <br />
+  <a href="https://github.com/r-baruah/kepler-64/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=r-baruah/kepler-64" alt="Contributors" />
+  </a>
+  <br />
+</div>
+
+Contributions, research discussions, and improvements are always welcome via [GitHub Issues](https://github.com/r-baruah/kepler-64/issues) and [Pull Requests](https://github.com/r-baruah/kepler-64/pulls)!
 
 ---
 
