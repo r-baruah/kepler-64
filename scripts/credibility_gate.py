@@ -138,8 +138,9 @@ def main() -> int:
     ap.add_argument("--log-every", type=int, default=200)
     ap.add_argument("--trained", default="kepler64/training/trained_constants_gate.json")
     ap.add_argument("--state", default="kepler64/training/gate_state.json")
+    ap.add_argument("--allow-skew", action="store_true",
+                    help="train even when harvest outcomes are >80%% one-sided")
     args = ap.parse_args()
-
     t0 = time.time()
     base = Constants()
     run = ["harvest", "train", "match", "report"] if args.only == "all" else [args.only]
@@ -159,6 +160,13 @@ def main() -> int:
         _save_state(args.state, state)
         if len(examples) < 40:
             print("Too few examples to train meaningfully; aborting.", flush=True)
+            return 1
+        skew = max(summary["wins"], summary["losses"]) / max(1, summary["games"])
+        if args.games >= 10 and skew > 0.8 and not args.allow_skew:
+            print(f"Outcome skew {skew:.0%} (>{80}% one-sided): outcome labels are "
+                  f"near-degenerate — failing in minutes, not hours. Rerun with "
+                  f"--allow-skew to train anyway, or raise --max-plies so games "
+                  f"decide naturally.", flush=True)
             return 1
 
     if "train" in run:
