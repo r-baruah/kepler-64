@@ -153,3 +153,23 @@ class RocheEngine:
                         eta_acc: float = 0.8, Rg_old: float = 1.0):
         """Apply 2C accretion on capture: captor absorbs captured mass, expanding Rg."""
         return apply_capture(masses, captor_sq, captured_sq, eta_acc=eta_acc, Rg_old=Rg_old)
+
+    def warmup(self):
+        """Pre-warm JAX JIT compilation for single-board and batch scoring.
+
+        Traces and compiles both `score_white` and `batch_score` kernels on dummy
+        tensors so subsequent searches and matches execute with zero JIT latency.
+        """
+        import jax.numpy as jnp
+        from .core.evaluate import score_white, batch_score
+
+        dummy_mv = jnp.zeros(64, dtype=jnp.float32)
+        _ = score_white(dummy_mv, self.constants, parent=dummy_mv).block_until_ready()
+
+        dummy_batch16 = [dummy_mv] * 16
+        dummy_turns16 = [0] * 16
+        dummy_parents16 = jnp.zeros((16, 64), dtype=jnp.float32)
+        _ = batch_score(dummy_batch16, dummy_turns16, self.constants, pad=16,
+                        parents=dummy_parents16).block_until_ready()
+        return self
+

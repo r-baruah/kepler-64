@@ -106,6 +106,7 @@ def main(argv: list[str] | None = None) -> int:
             out.write("option name Depth type spin default 3 min 1 max 8\n")
             out.write("option name Multiverse type check default true\nuciok\n")
         elif cmd == "isready":
+            engine.warmup()
             out.write("readyok\n")
         elif cmd == "ucinewgame":
             board = chess.Board()

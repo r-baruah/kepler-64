@@ -96,8 +96,8 @@ def head_to_head(constants_a: Constants, constants_b: Constants, *,
     d = sum(1 for r in history if r["res"] == "draw")
     l = sum(1 for r in history if r["res"] == "loss")
 
-    eng_a = RocheEngine(constants=constants_a, load_trained=False)
-    eng_b = RocheEngine(constants=constants_b, load_trained=False)
+    eng_a = RocheEngine(constants=constants_a, load_trained=False).warmup()
+    eng_b = RocheEngine(constants=constants_b, load_trained=False).warmup()
 
     for g in range(already_played, games):
         a_is_white = (g % 2 == 0)

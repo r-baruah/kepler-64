@@ -87,3 +87,34 @@ def test_roche_engine_play_with_observer():
     assert float(engine.constants.G) > 0.0
     arr = engine.constants.to_array()
     assert np.all(np.isfinite(arr))
+
+
+def test_engine_warmup():
+    engine = RocheEngine(load_trained=False)
+    # warmup should return engine instance and run without error
+    ret = engine.warmup()
+    assert ret is engine
+
+
+def test_fastboard_legal_moves_and_king_tracking():
+    from kepler64.core.fastboard import FastBoard
+
+    fens = [
+        chess.STARTING_FEN,
+        "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+        "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+    ]
+    for fen in fens:
+        b = chess.Board(fen)
+        fb = FastBoard.from_chess(b)
+
+        # O(1) king square lookup check
+        assert fb.king_sq(True) == b.king(chess.WHITE)
+        assert fb.king_sq(False) == b.king(chess.BLACK)
+
+        # Move generation equivalence
+        chess_moves = set((m.from_square, m.to_square, m.promotion or 0) for m in b.legal_moves)
+        fb_moves = set(fb.legal_moves())
+        assert fb_moves == chess_moves, f"Move mismatch on {fen}"
+
