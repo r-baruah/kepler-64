@@ -115,6 +115,15 @@ class Constants:
         """
         return -lam_fast * jnp.maximum(0.0, 2.0 - self.c) - lam_slow * jnp.maximum(0.0, self.c - 10.0)
 
+    def to_array(self):
+        """Pack trainable leaves into a float32 array."""
+        return leaves_to_array(self)
+
+    @classmethod
+    def from_array(cls, a):
+        """Unpack leaf array projected into bounds."""
+        return array_to_leaves(a)
+
 
 # Trainable leaf names in params-array order (single source of truth shared by
 # the trainer's _to_arr/_from_arr and by JSON persistence).

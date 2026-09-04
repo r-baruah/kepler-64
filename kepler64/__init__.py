@@ -13,8 +13,25 @@ structural collapse.
 from .core.constants import Constants
 from .core.board import Board
 from .core.evaluate import evaluate
+from .multiverse import (
+    apply_capture,
+    uncertainty_field,
+    stokes_flow,
+    observe_update,
+    multiverse_score_white,
+)
 
-__all__ = ["RocheEngine", "Constants", "Board", "evaluate"]
+__all__ = [
+    "RocheEngine",
+    "Constants",
+    "Board",
+    "evaluate",
+    "apply_capture",
+    "uncertainty_field",
+    "stokes_flow",
+    "observe_update",
+    "multiverse_score_white",
+]
 
 
 class RocheEngine:
@@ -119,3 +136,20 @@ class RocheEngine:
             self.constants = observe_update(self.constants, child_masses)
 
         return chess.Move(f, t, chess.PieceType(promo) if promo else None)
+
+    def uncertainty_field(self, eval_samples):
+        """Compute the spatial variance field across Multiverse evaluation samples (64,)."""
+        return uncertainty_field(eval_samples)
+
+    def stokes_flow(self, eval_samples=None, uncertainty=None, mu: float = 1.0):
+        """Compute the 8x8 Stokes velocity vector field (64, 2) from Multiverse variance."""
+        if uncertainty is None:
+            if eval_samples is None:
+                raise ValueError("Either eval_samples or uncertainty must be provided.")
+            uncertainty = uncertainty_field(eval_samples)
+        return stokes_flow(uncertainty, mu=mu)
+
+    def accrete_capture(self, masses, captor_sq: int, captured_sq: int,
+                        eta_acc: float = 0.8, Rg_old: float = 1.0):
+        """Apply 2C accretion on capture: captor absorbs captured mass, expanding Rg."""
+        return apply_capture(masses, captor_sq, captured_sq, eta_acc=eta_acc, Rg_old=Rg_old)

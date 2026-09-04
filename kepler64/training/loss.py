@@ -116,7 +116,7 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
                         com_gain=cg, inertia_gain=ig,
                         entropy_gain=eg, lambda_drift=dr, lambda_gw=lgw, lambda_sch=lsch, dt_drift=ldt)
 
-    def _policy_row(child_m, msk, turn, row_key, parent):
+    def _policy_and_margin(child_m, msk, turn, row_key, parent, ei):
         if use_multiverse:
             Kc = child_m.shape[0]
             # one posterior seed per child, derived from the row seed
@@ -130,7 +130,17 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
         # white score and Black-to-move wants the LOWEST -> flip for Black ONLY.
         side = jnp.where(turn > 0.0, -white, white)
         side = jnp.where(msk > 0.5, side, -jnp.inf)
-        return jax.nn.log_softmax(side / tau)
+
+        # Softmax cross-entropy term for expert move
+        logp = jax.nn.log_softmax(side / tau)
+        row_policy = -logp[ei]
+
+        # Pairwise margin ranking: expert child against best other legal child
+        exp = side[ei]
+        neg = jnp.max(jnp.where(jnp.arange(side.shape[0]) == ei, -jnp.inf, side))
+        row_mr = jnp.maximum(0.0, margin - (exp - neg))
+
+        return row_policy, row_mr
 
     if turns is None:
         turns = jnp.zeros((moves_m.shape[0],), dtype=jnp.float32)
@@ -145,25 +155,8 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     # generated) — supplies the move-sensitivity (delta) terms their reference.
     parents = M
 
-    logp = jax.vmap(_policy_row)(moves_m, mask, turns, row_keys, parents)   # (N, K)
-    policy = -jnp.mean(jnp.take_along_axis(logp, expert_idx[:, None], axis=1))
-    policy = jnp.where(has_policy > 0.0, policy, 0.0)
-
-    # ---- pairwise margin ranking (optional, easier landscape) ------------
-    # For each position, compare the expert child against the best OTHER legal
-    # child: expert score should exceed it by at least `margin`.  Computed
-    # unconditionally; when margin=0 the term is identically 0, so the jit'd
-    # graph stays static (JAX cannot branch on a traced scalar).  In
-    # outcome-only mode moves_m is a single dummy row, which makes mr=0 too.
-    def _margin_row(child_m, msk, turn, ei, parent):
-        white = jax.vmap(lambda mm: _score_core(mm, G, eps, c, roche, bonus, kgain, gamma, Rg, _mref, mat_gain, ld, cg, ig, eg, dr, lgw, lsch, ldt, parent))(child_m)
-        side = jnp.where(turn > 0.0, -white, white)
-        side = jnp.where(msk > 0.5, side, -jnp.inf)
-        exp = side[ei]
-        neg = jnp.max(jnp.where(jnp.arange(side.shape[0]) == ei, -jnp.inf, side))
-        return jnp.maximum(0.0, margin - (exp - neg))
-    mr = jax.vmap(_margin_row)(moves_m, mask, turns, expert_idx, parents)
-    policy = policy + jnp.mean(mr)
+    policies, mrs = jax.vmap(_policy_and_margin)(moves_m, mask, turns, row_keys, parents, expert_idx)
+    policy = jnp.where(has_policy > 0.0, jnp.mean(policies), 0.0) + jnp.mean(mrs)
 
     # ---- soft monotonicity prior on c ------------------------------------
     prior = 0.1 * jnp.maximum(0.0, 2.0 - c) + 0.1 * jnp.maximum(0.0, c - 10.0)
