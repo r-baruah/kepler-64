@@ -244,11 +244,21 @@ def main() -> int:
                     help="training minibatch (128 laptop-safe; 256/512 on T4)")
     ap.add_argument("--workers", type=int, default=1,
                     help="parallel match workers (1 for laptop CPU, 2-4 on Kaggle/cloud)")
+    ap.add_argument("--teacher-engine", default=None,
+                    help="external master teacher binary (e.g. 'stockfish')")
+    ap.add_argument("--teacher-elo", type=int, default=1600,
+                    help="target Elo for external master teacher (default 1600)")
+    ap.add_argument("--benchmark-engine", default=None,
+                    help="UCI engine for calibrated external benchmark (e.g. 'stockfish')")
+    ap.add_argument("--benchmark-games", type=int, default=0,
+                    help="number of benchmark games against external engine (0 to skip)")
+    ap.add_argument("--benchmark-elo", type=int, default=1500,
+                    help="target Elo for external benchmark engine (default 1500)")
     args = ap.parse_args()
     t0 = time.time()
     base = Constants()
     run = ["harvest", "train", "match", "report"] if args.only == "all" else [args.only]
-    state = _load_state(args.state) if args.only != "all" else {}
+    state = _load_state(args.state) if (args.only != "all" or args.append) else {}
     examples, summary, trained, metrics, match, elo = None, None, None, None, None, None
 
     if "harvest" in run:
@@ -260,7 +270,12 @@ def main() -> int:
                 existing_examples = _load_examples(args.examples)
                 already_played = int(state.get("selfplay", {}).get("games", 0))
                 if already_played == 0 and existing_examples:
-                    already_played = len({ex.get("game_idx", i) for i, ex in enumerate(existing_examples)})
+                    distinct_games = {ex["game_idx"] for ex in existing_examples if "game_idx" in ex}
+                    if distinct_games:
+                        already_played = len(distinct_games)
+                    else:
+                        # Fallback for legacy examples without game_idx: ~8 examples per game
+                        already_played = max(1, len(existing_examples) // 8)
                 print(f"[harvest --append] found {len(existing_examples)} existing examples from {already_played} games.", flush=True)
             except Exception as e:
                 print(f"[harvest --append] warning: could not load existing examples: {e}", flush=True)
@@ -276,7 +291,9 @@ def main() -> int:
             new_examples, new_summary = play_training_games(
                 base, games=remaining_games, max_plies=args.max_plies,
                 move_ms=args.move_ms, teacher_ms=args.teacher_ms,
-                seed=args.seed + already_played, verbose=True)
+                seed=args.seed + already_played, verbose=True,
+                teacher_engine=args.teacher_engine,
+                teacher_elo=args.teacher_elo)
             if existing_examples:
                 examples = existing_examples + new_examples
                 prev_sum = state.get("selfplay", {"games": 0, "wins": 0, "losses": 0, "draws": 0})
@@ -377,12 +394,38 @@ def main() -> int:
         state.update({"match_learned_vs_frozen": match, "elo_proxy": elo, "match_history": match["history"]})
         _save_state(args.state, state)
 
+    benchmark = state.get("benchmark")
+    if args.benchmark_games > 0 and args.benchmark_engine and ("match" in run or args.only in ["match", "report"]):
+        print(f"=== benchmark vs {args.benchmark_engine} (target Elo {args.benchmark_elo}) ===", flush=True)
+        if trained is None:
+            trained = load_constants(args.trained)
+        if trained is not None:
+            from kepler64.match.uci_harness import run_match
+            bw, bl, bd, best_elo = run_match(
+                args.benchmark_engine,
+                opp_elo=args.benchmark_elo,
+                games=args.benchmark_games,
+                depth=3,
+                constants=trained,
+            )
+            benchmark = {
+                "engine": args.benchmark_engine,
+                "opp_elo": args.benchmark_elo,
+                "wins": bw, "losses": bl, "draws": bd,
+                "implied_elo": best_elo,
+            }
+            state["benchmark"] = benchmark
+            _save_state(args.state, state)
+        else:
+            print("Benchmark skipped: no trained constants available.", flush=True)
+
     if "report" in run:
         print("=== 4/4 report ===", flush=True)
         summary = summary or state.get("selfplay")
         metrics = metrics or state.get("metrics")
         match = match or state.get("match_learned_vs_frozen")
         elo = elo if elo is not None else state.get("elo_proxy")
+        benchmark = benchmark or state.get("benchmark")
         if summary is None or metrics is None or match is None or trained is None:
             print("Report needs harvest+train+match outputs; run earlier stages first.",
                   flush=True)
@@ -394,6 +437,7 @@ def main() -> int:
             "metrics": metrics,
             "match_learned_vs_frozen": match,
             "elo_proxy": elo,
+            "benchmark": benchmark,
             "trained_leaves": leaf_dump,
             "wall_seconds": round(time.time() - t0, 1),
         }
@@ -402,19 +446,24 @@ def main() -> int:
         (out_dir / "credibility_gate_results.json").write_text(
             json.dumps(result, indent=2), encoding="utf-8")
         md = _markdown_report(base, leaf_dump, metrics["baseline"],
-                              metrics["trained"], match, elo, summary, args)
+                              metrics["trained"], match, elo, summary, args,
+                              benchmark=benchmark)
         (out_dir / "credibility_gate_results.md").write_text(md, encoding="utf-8")
         print(f"done in {result['wall_seconds']}s -> docs/credibility_gate_results.md",
               flush=True)
     return 0
 
 
-def _markdown_report(base, leaf_dump, m_b, m_t, match, elo, summary, args):
+def _markdown_report(base, leaf_dump, m_b, m_t, match, elo, summary, args, benchmark=None):
     verdict = ("the learned universe plays measurably stronger - the thesis "
                "holds on this run." if elo > 0 else
                "this run did NOT separate learning from noise - treat as an "
                "honest null result and scale data/steps before claiming "
                "anything.")
+    bench_row = ""
+    if benchmark:
+        e_str = f"~ {benchmark['implied_elo']:.0f}" if benchmark.get("implied_elo") is not None else "below threshold"
+        bench_row = f"| Benchmark vs {benchmark['engine']}-{benchmark['opp_elo']} | - | **{benchmark['wins']}/{benchmark['draws']}/{benchmark['losses']}** | Calibrated Elo {e_str} |\n"
     md = f"""# Credibility Gate - Learned vs Frozen Physics
 
 *Generated by `scripts/credibility_gate.py` on {time.strftime('%Y-%m-%d %H:%M')}.
@@ -430,7 +479,7 @@ Self-play: {summary['games']} games -> {summary['examples']} examples
 | MRR (captures) | {m_b['mrr_capture']:.3f} | **{m_t['mrr_capture']:.3f}** | {m_t['mrr_capture'] - m_b['mrr_capture']:+.3f} |
 | MRR (quiet) | {m_b['mrr_quiet']:.3f} | **{m_t['mrr_quiet']:.3f}** | {m_t['mrr_quiet'] - m_b['mrr_quiet']:+.3f} |
 | Head-to-head (W/D/L) | - | **{match['wins']}/{match['draws']}/{match['losses']}** | Elo ~ {elo:+.0f} |
-
+{bench_row}
 **Verdict:** {verdict}
 
 ## Trained leaves after the run
