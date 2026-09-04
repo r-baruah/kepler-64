@@ -168,6 +168,8 @@ def main() -> int:
     ap.add_argument("--state", default="kepler64/training/gate_state.json")
     ap.add_argument("--allow-skew", action="store_true",
                     help="train even when harvest outcomes are >80%% one-sided")
+    ap.add_argument("--batch-size", type=int, default=128,
+                    help="training minibatch (128 laptop-safe; 256/512 on T4)")
     args = ap.parse_args()
     t0 = time.time()
     base = Constants()
@@ -256,10 +258,11 @@ def main() -> int:
         from kepler64.training.train import train_examples
         trained, metrics = train_examples(
             base, examples, steps=args.steps, lr=args.lr, fix_G=True,
-            seed=args.seed, verbose=True, return_metrics=True,
-            log_every=args.log_every, ckpt_every=args.ckpt_every,
-            ckpt_path=args.ckpt, init_arr=init_arr, init_step=init_step,
-            init_opt_state=init_opt_state, init_rng_state=init_rng_state)
+            batch_size=args.batch_size, seed=args.seed, verbose=True,
+            return_metrics=True, log_every=args.log_every,
+            ckpt_every=args.ckpt_every, ckpt_path=args.ckpt, init_arr=init_arr,
+            init_step=init_step, init_opt_state=init_opt_state,
+            init_rng_state=init_rng_state)
         print(f"validation metrics: {json.dumps(metrics, indent=2)}", flush=True)
         save_constants(trained, Path(args.trained), meta={"source": "credibility_gate"})
         state.update({"config": vars(args),
