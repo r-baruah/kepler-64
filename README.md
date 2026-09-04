@@ -3,17 +3,21 @@
 # 🪐 Kepler-64
 ### *We didn't teach a computer chess. We built a tiny universe — and let gravity figure out the game.*
 
+> *"Richard Feynman once said that figuring out the laws of physics is like watching a chess game without knowing the rules — you observe long enough, and you start to deduce the laws underneath.*  
+> *Kepler-64 does the exact opposite: It already knows the rules of chess. It's the universe that has to figure out how to play."*
+
 Every chess piece has **mass**. Every piece **pulls** on every other piece. Attacks are gravitational fields. Captures are **absorbed into your body**. And you don't checkmate the enemy King — you get close enough that the **tidal forces tear it apart**, exactly like a moon shredded by Jupiter.
 
 Here's the twist: **nobody wrote any chess rules into this engine.** No opening books, no "knights belong on outposts," no grandmaster data. Just the laws of physics — and then gradient descent tuned the constants of that universe (how strong gravity is, how fast its influence travels, when a King collapses) until the physics started playing real chess.
 
 [![Live Observatory](https://img.shields.io/badge/🔭_Live_Observatory-Deploy-2448b8?style=for-the-badge)](https://r-baruah.github.io/kepler-64/)
-[![Tests](https://img.shields.io/badge/tests-62%20passing-16a34a?style=for-the-badge)](#testing--verification)
+[![Tests](https://img.shields.io/badge/tests-78%20passing-16a34a?style=for-the-badge)](#testing--verification)
+[![Kaggle GPU](https://img.shields.io/badge/Kaggle-Free%20T4%20Notebook-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](notebooks/kaggle_gate.ipynb)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![JAX](https://img.shields.io/badge/JAX-differentiable-f06426?style=for-the-badge&logo=google)](https://github.com/google/jax)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 
-[**🔭 Explore the Live Observatory**](https://r-baruah.github.io/kepler-64/) • [**📖 Read the Book**](Kepler-64_Book/PRELUDE.md) • [**🚀 Try It Yourself**](#-try-it-in-3-lines) • [**🧠 How It Works**](#-how-it-works-the-simple-version)
+[**🔭 Explore the Live Observatory**](https://r-baruah.github.io/kepler-64/) • [**📖 Read the Book**](Kepler-64_Book/PRELUDE.md) • [**🚀 Try It Yourself**](#-try-it-in-3-lines) • [**♟️ Play via UCI**](#-play-in-any-chess-gui-uci) • [**🧠 How It Works**](#-how-it-works-the-simple-version)
 
 *If a universe where orbital mechanics outplays pawn structures sounds fun, a ⭐ helps other curious people find it.*
 
@@ -151,7 +155,16 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-### Watch the universe make its first move
+### ♟️ Play in Any Chess GUI (UCI)
+
+Want to play against the universe in **Arena, En Croissant, Cutechess, or Banksia**? Kepler-64 speaks the standard Universal Chess Interface (UCI) protocol out of the box:
+
+```bash
+python -m kepler64.uci
+```
+*Point your favorite chess GUI to this command — it handles depth limits, time controls, and instant warmups.*
+
+### 🐍 Watch the universe make its first move in Python
 
 ```python
 import chess
@@ -168,7 +181,11 @@ move = engine.play(board, depth=2)           # the universe picks a move
 print("Kepler-64 plays:", board.san(move))
 ```
 
-Want the full visual experience?
+### ☁️ Train on Kaggle (Free T4 GPU)
+
+Want to run the full training loop or the Credibility Gate without heating up your laptop? Open [`notebooks/kaggle_gate.ipynb`](notebooks/kaggle_gate.ipynb) on Kaggle to run on a free T4 GPU with zero local setup.
+
+Want the full visual experience locally?
 
 ```bash
 cd viz-web && npm install && npm run dev   # → http://localhost:5173
@@ -184,13 +201,16 @@ kepler-64/
 │   ├── core/                    #   THE LAWS: gravity, tidal tensor, evaluation,
 │   │                            #   constants (17 learnable leaves), accretion,
 │   │                            #   Lorentz boost, Schwarzschild & wave terms
-│   ├── search/                  #   Alpha-beta search over the physics
+│   ├── search/                  #   Alpha-beta search with PVS, LMR, and TT hashing
 │   ├── training/                #   Learning the laws from games (JAX autodiff)
-│   ├── multiverse/              #   Layer 2: posterior sampling & Observer
-│   ├── match/                   #   UCI harness for measuring vs real engines
-│   └── tests/                   #   62 tests — every law has a regression test
+│   ├── multiverse/              #   Layer 2: posterior sampling, Stokes flow, Observer
+│   ├── uci.py                   #   UCI engine protocol (play in Arena, En Croissant)
+│   └── tests/                   #   78 tests — 100% green verification suite
 │
 ├── Kepler-64_Book/              # 📖 The complete textbook (start at PRELUDE.md)
+│
+├── notebooks/                   # 📓 Cloud notebooks
+│   └── kaggle_gate.ipynb        #   Kaggle T4 GPU credibility gate runbook
 │
 ├── viz-web/                     # 🔭 Web Observatory (TypeScript + Canvas)
 │   ├── src/core/                #   TypeScript ports of the gravitational math
