@@ -12,12 +12,13 @@ Here's the twist: **nobody wrote any chess rules into this engine.** No opening 
 
 [![Live Observatory](https://img.shields.io/badge/🔭_Live_Observatory-Deploy-2448b8?style=for-the-badge)](https://r-baruah.github.io/kepler-64/)
 [![Tests](https://img.shields.io/badge/tests-80%20passing-16a34a?style=for-the-badge)](#testing--verification)
+[![NotebookLM](https://img.shields.io/badge/NotebookLM-Podcast%20%26%20Video-4285F4?style=for-the-badge&logo=google&logoColor=white)](#-watch--listen--deep-dive-overview)
 [![Kaggle GPU](https://img.shields.io/badge/Kaggle-Free%20T4%20Notebook-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](notebooks/kaggle_gate.ipynb)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![JAX](https://img.shields.io/badge/JAX-differentiable-f06426?style=for-the-badge&logo=google)](https://github.com/google/jax)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 
-[**🔭 Explore the Live Observatory**](https://r-baruah.github.io/kepler-64/) • [**📖 Read the Book**](Kepler-64_Book/PRELUDE.md) • [**🚀 Try It Yourself**](#-try-it-in-3-lines) • [**♟️ Play via UCI**](#-play-in-any-chess-gui-uci) • [**🧠 How It Works**](#-how-it-works-the-simple-version)
+[**🔭 Explore the Live Observatory**](https://r-baruah.github.io/kepler-64/) • [**🎧 Video & Podcast Deep Dives**](#-watch--listen--deep-dive-overview) • [**📖 Read the Book**](Kepler-64_Book/PRELUDE.md) • [**🚀 Try It Yourself**](#-try-it-in-3-lines) • [**♟️ Play via UCI**](#-play-in-any-chess-gui-uci)
 
 *If a universe where orbital mechanics outplays pawn structures sounds fun, a ⭐ helps other curious people find it.*
 
@@ -48,6 +49,18 @@ The **[Web Observatory](https://r-baruah.github.io/kepler-64/)** renders the inv
 - 📈 **Game trajectory timeline** — watch who is physically winning, move by move
 - 📚 **Interactive compendium** explaining every formula on screen
 - 🎞️ **Export animated GIFs** of any game with live physics overlays
+
+---
+
+## 🎧 Watch & Listen — Deep Dive Overview
+
+Want to understand the project deeply without wading through code? Check out these deep dives prepared via **Google NotebookLM**:
+
+| Format | Content | Link |
+|---|---|---|
+| 🎬 **Video Overview** | Fast architectural walkthrough & visual intuition *(10 min)* | [**Watch Video (10:12)**](https://notebook.google.com/notebook/7877cfbe-a6db-422b-a519-480e8fd7d9ab/artifact/2f0aac3a-efa8-42f1-8c5f-501b5b6349bd?utm_source=nlm_web_share&utm_medium=google_oo&utm_campaign=art_share_1&utm_content=&utm_smc=nlm_web_share_google_oo_art_share_1_) |
+| 🎙️ **Deep Dive Podcast** | Detailed conversational breakdown on differentiable gravitational chess *(44 min)* | [**Listen to Podcast (44:34)**](https://notebook.google.com/notebook/7877cfbe-a6db-422b-a519-480e8fd7d9ab/artifact/59aa2aa6-90fe-494e-bbd0-d0c46ee8feb5?utm_source=nlm_web_share&utm_medium=google_oo&utm_campaign=art_share_1&utm_content=&utm_smc=nlm_web_share_google_oo_art_share_1_) |
+| 📓 **Study Notebook** | Full structured knowledge base, concept references, and interactive Q&A notes | [**Open Google NotebookLM**](https://notebook.google.com/notebook/7877cfbe-a6db-422b-a519-480e8fd7d9ab) |
 
 ---
 
