@@ -25,16 +25,21 @@ Hardware notes (Ryzen 5 5500U, 8 GB RAM, Radeon iGPU, no CUDA):
 """
 
 import os
+import shutil
+import time
 
 import jax.random as jrandom
 
 import numpy as np
 
-# ── JAX CPU tuning for this laptop ─────────────────────────────────────────
-# Force XLA to see all 12 logical threads (Ryzen 5500U: 6 cores / 12 threads).
-# Without this JAX pins to physical-core count and wastes half the machine.
+# ── JAX CPU tuning (laptops without a GPU) ─────────────────────────────────
+# Force XLA to see all logical threads. Skipped when a GPU is present
+# (nvidia-smi) or KEPLER64_NO_XLA_TUNE is set: the device-count flag would
+# pin JAX to CPU and strangle cloud-GPU runs.
 _n_logical = os.cpu_count() or 4
-if "XLA_FLAGS" not in os.environ:
+if ("XLA_FLAGS" not in os.environ
+        and not os.environ.get("KEPLER64_NO_XLA_TUNE")
+        and shutil.which("nvidia-smi") is None):
     os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={_n_logical}"
 # Keep JAX from hoarding threads for its own BLAS fork and starving the trainer.
 os.environ.setdefault("OMP_NUM_THREADS", str(_n_logical))
@@ -83,7 +88,9 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
            steps: int = 200, lr: float = 3e-3, fix_G: bool = False,
            batch_size: int = 256, seed: int = 0, tau: float = 2.0,
            margin: float = 0.0, key=None, use_multiverse: bool = False,
-           K: int = 8, sigma: float = 0.1) -> Constants:
+           K: int = 8, sigma: float = 0.1, log_every: int = 0,
+           ckpt_every: int = 0, ckpt_path: str | None = None,
+           init_arr=None, init_step: int = 0) -> Constants:
     """Mini-batch Adam over (M, Y, turns, moves_m, mask, expert_idx).
 
     M (N,64) mass vectors; Y (N,) outcomes {-1,0,+1} White-view; turns (N,)
@@ -95,6 +102,10 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
 
     use_multiverse: score each child under the Layer-2 Bayesian average over K
     posterior realizations of the physics (the "Multiverse"). Requires `key`.
+
+    Resilience: `log_every` prints step/loss/ETA (flushed); `ckpt_every` +
+    `ckpt_path` save a `{arr, step}` npz a killed run resumes from via
+    `init_arr`/`init_step` (fresh optimizer state on resume — documented).
     """
     M = jnp.asarray(M, dtype=jnp.float32)
     Y = jnp.asarray(Y, dtype=jnp.float32)
@@ -117,9 +128,10 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
 
     rng = np.random.default_rng(seed)
     base_key = jrandom.PRNGKey(seed) if key is None else key
-    arr = _to_arr(base)
+    arr = _to_arr(base) if init_arr is None else jnp.asarray(init_arr, dtype=jnp.float32)
     if fix_G:
         arr = arr.at[0].set(1.0)
+    t_start = time.perf_counter()
 
     if _HAS_OPTAX:
         # ── Adam + gradient clipping (preferred) ─────────────────────────────
@@ -144,17 +156,24 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
             if fix_G:
                 new_a = new_a.at[0].set(1.0)
             return val, new_a, new_state
-
-        for step in range(steps):
+        for step in range(init_step, steps):
             perm = rng.permutation(N)
             step_key = jrandom.fold_in(base_key, step) if use_multiverse else None
             for s in range(0, N, batch_size):
                 idx = jnp.asarray(perm[s:s + batch_size], dtype=jnp.int32)
-                _, arr, opt_state = _step(
+                val, arr, opt_state = _step(
                     arr, opt_state,
                     M[idx], Y[idx], moves_m[idx],
                     expert_idx[idx], mask[idx], turns[idx], step_key,
                 )
+            if log_every and (step + 1) % log_every == 0:
+                el = time.perf_counter() - t_start
+                done, total = step + 1 - init_step, steps - init_step
+                print(f"[train] step {step + 1}/{steps}  loss={float(val):.4f}  "
+                      f"elapsed={el:.0f}s eta={el / max(1, done) * (total - done):.0f}s",
+                      flush=True)
+            if ckpt_every and ckpt_path and (step + 1) % ckpt_every == 0:
+                np.savez(ckpt_path, arr=np.asarray(arr), step=np.int64(step + 1))
 
     else:
         # ── SGD fallback (no optax) ───────────────────────────────────────────
@@ -171,12 +190,12 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
             g = jnp.where(gnorm > 1.0, g / gnorm, g)
             return val, g
 
-        for step in range(steps):
+        for step in range(init_step, steps):
             perm = rng.permutation(N)
             step_key = jrandom.fold_in(base_key, step) if use_multiverse else None
             for s in range(0, N, batch_size):
                 idx = jnp.asarray(perm[s:s + batch_size], dtype=jnp.int32)
-                _, g = _step_sgd(
+                val, g = _step_sgd(
                     arr,
                     M[idx], Y[idx], moves_m[idx],
                     expert_idx[idx], mask[idx], turns[idx], step_key,
@@ -185,10 +204,16 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
                 arr = jnp.clip(arr, _LO, _HI)
                 if fix_G:
                     arr = arr.at[0].set(1.0)
+            if log_every and (step + 1) % log_every == 0:
+                el = time.perf_counter() - t_start
+                done, total = step + 1 - init_step, steps - init_step
+                print(f"[train] step {step + 1}/{steps}  loss={float(val):.4f}  "
+                      f"elapsed={el:.0f}s eta={el / max(1, done) * (total - done):.0f}s",
+                      flush=True)
+            if ckpt_every and ckpt_path and (step + 1) % ckpt_every == 0:
+                np.savez(ckpt_path, arr=np.asarray(arr), step=np.int64(step + 1))
 
     return _from_arr(arr)
-
-
 
 def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3,
                    fix_G: bool = False, batch_size: int = 128, seed: int = 0,
@@ -196,7 +221,10 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
                    tau: float = 2.0, margin: float = 0.0,
                    key=None, use_multiverse: bool = False,
                    K: int = 8, sigma: float = 0.1, policy: bool = True,
-                   return_metrics: bool = False):
+                   return_metrics: bool = False, log_every: int = 0,
+                   ckpt_every: int = 0, ckpt_path: str | None = None,
+                   init_arr=None, init_step: int = 0):
+
     """Convenience: build arrays from examples (list of dicts), split train/val,
     train, and report validation ranking metrics so we can see real progress
     (not just overfitting on the training set).
@@ -229,6 +257,8 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
         base, M[tr], Y[tr], turns[tr], train_moves, train_mask, train_expert,
         steps, lr, fix_G, batch_size, seed, tau=tau, margin=margin,
         key=key, use_multiverse=use_multiverse, K=K, sigma=sigma,
+        log_every=log_every, ckpt_every=ckpt_every, ckpt_path=ckpt_path,
+        init_arr=init_arr, init_step=init_step,
     )
 
     metrics = None

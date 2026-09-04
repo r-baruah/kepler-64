@@ -51,9 +51,14 @@ import os
 import sys
 import time
 
-# JAX CPU tuning for this laptop: all logical threads as XLA devices.
+# JAX CPU tuning for GPU-less laptops: all logical threads as XLA devices.
+# Skipped when a GPU is present or KEPLER64_NO_XLA_TUNE is set — the
+# device-count flag would pin JAX to CPU and strangle cloud-GPU runs.
+import shutil
 _n_logical = os.cpu_count() or 4
-if "XLA_FLAGS" not in os.environ:
+if ("XLA_FLAGS" not in os.environ
+        and not os.environ.get("KEPLER64_NO_XLA_TUNE")
+        and shutil.which("nvidia-smi") is None):
     os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={_n_logical}"
 os.environ.setdefault("OMP_NUM_THREADS", str(_n_logical))
 

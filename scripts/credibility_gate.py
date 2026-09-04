@@ -14,6 +14,13 @@ Pipeline (fully self-contained, no external data):
 
 Usage: python scripts/credibility_gate.py [--games 6] [--steps 300]
            [--match-games 8] [--move-ms 150] [--seed 0]
+           [--only harvest|train|match|report] [--examples PATH]
+           [--resume CKPT] [--log-every N] [--ckpt-every N]
+
+Resumability: harvest saves examples (--examples, pickle); train saves a
+`{arr, step}` npz (--ckpt) a killed run resumes via --resume, and prints
+step/loss/ETA (--log-every). Each stage updates --state JSON, so any stage
+reruns alone: e.g. `--only train --examples X.pkl --resume Y.npz`.
 """
 from __future__ import annotations
 
@@ -29,8 +36,33 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import chess
 
-from kepler64.core.constants import Constants, save_constants, TRAINABLE_LEAVES
+from kepler64.core.constants import Constants, save_constants, load_constants, TRAINABLE_LEAVES
 from kepler64.training.selfplay import play_training_games, _terminal_mass_edge
+
+
+def _save_examples(path, examples):
+    import pickle
+    with open(path, "wb") as f:
+        pickle.dump(examples, f)
+
+
+def _load_examples(path):
+    import pickle
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+def _load_state(path):
+    p = Path(path)
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
+    return {}
+
+
+def _save_state(path, state):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
 
 def head_to_head(constants_a: Constants, constants_b: Constants, *,
@@ -97,56 +129,115 @@ def main() -> int:
     ap.add_argument("--match-games", type=int, default=8)
     ap.add_argument("--match-move-ms", type=float, default=150.0)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--only", choices=["all", "harvest", "train", "match", "report"],
+                    default="all")
+    ap.add_argument("--examples", default="kepler64/training/gate_examples.pkl")
+    ap.add_argument("--resume", default=None)
+    ap.add_argument("--ckpt", default="kepler64/training/gate_ckpt.npz")
+    ap.add_argument("--ckpt-every", type=int, default=200)
+    ap.add_argument("--log-every", type=int, default=200)
+    ap.add_argument("--trained", default="kepler64/training/trained_constants_gate.json")
+    ap.add_argument("--state", default="kepler64/training/gate_state.json")
     args = ap.parse_args()
 
     t0 = time.time()
     base = Constants()
+    run = ["harvest", "train", "match", "report"] if args.only == "all" else [args.only]
+    state = _load_state(args.state) if args.only != "all" else {}
+    examples, summary, trained, metrics, match, elo = None, None, None, None, None, None
 
-    print("=== 1/4 self-play harvest ===", flush=True)
-    examples, summary = play_training_games(
-        base, games=args.games, max_plies=args.max_plies,
-        move_ms=args.move_ms, teacher_ms=args.teacher_ms,
-        seed=args.seed, verbose=True)
-    print(f"harvest: {summary}", flush=True)
-    if len(examples) < 40:
-        print("Too few examples to train meaningfully; aborting.", flush=True)
-        return 1
+    if "harvest" in run:
+        print("=== 1/4 self-play harvest ===", flush=True)
+        examples, summary = play_training_games(
+            base, games=args.games, max_plies=args.max_plies,
+            move_ms=args.move_ms, teacher_ms=args.teacher_ms,
+            seed=args.seed, verbose=True)
+        print(f"harvest: {summary}", flush=True)
+        _save_examples(args.examples, examples)
+        print(f"examples saved -> {args.examples}", flush=True)
+        state = {"config": vars(args), "selfplay": summary}
+        _save_state(args.state, state)
+        if len(examples) < 40:
+            print("Too few examples to train meaningfully; aborting.", flush=True)
+            return 1
 
-    print("=== 2/4 train learned universe ===", flush=True)
-    from kepler64.training.train import train_examples
-    trained, metrics = train_examples(
-        base, examples, steps=args.steps, lr=args.lr, fix_G=True,
-        seed=args.seed, verbose=True, return_metrics=True)
-    print(f"validation metrics: {json.dumps(metrics, indent=2)}", flush=True)
+    if "train" in run:
+        print("=== 2/4 train learned universe ===", flush=True)
+        if examples is None:
+            if not Path(args.examples).exists():
+                print(f"No examples: run harvest first (--examples {args.examples}).",
+                      flush=True)
+                return 1
+            examples = _load_examples(args.examples)
+            print(f"loaded {len(examples)} examples <- {args.examples}", flush=True)
+        if len(examples) < 40:
+            print("Too few examples to train meaningfully; aborting.", flush=True)
+            return 1
+        init_arr, init_step = None, 0
+        if args.resume and Path(args.resume).exists():
+            import numpy as np
+            z = np.load(args.resume)
+            init_arr, init_step = z["arr"], int(z["step"])
+            print(f"resuming training at step {init_step} <- {args.resume}", flush=True)
+        from kepler64.training.train import train_examples
+        trained, metrics = train_examples(
+            base, examples, steps=args.steps, lr=args.lr, fix_G=True,
+            seed=args.seed, verbose=True, return_metrics=True,
+            log_every=args.log_every, ckpt_every=args.ckpt_every,
+            ckpt_path=args.ckpt, init_arr=init_arr, init_step=init_step)
+        print(f"validation metrics: {json.dumps(metrics, indent=2)}", flush=True)
+        save_constants(trained, Path(args.trained), meta={"source": "credibility_gate"})
+        state.update({"config": vars(args),
+                      "metrics": metrics,
+                      "trained_leaves": {n: float(getattr(trained, n))
+                                         for n in TRAINABLE_LEAVES}})
+        _save_state(args.state, state)
 
-    print("=== 3/4 head-to-head match ===", flush=True)
-    match = head_to_head(trained, base, games=args.match_games,
-                         move_ms=args.match_move_ms, seed=args.seed + 1)
-    elo = elo_proxy(match["wins"], match["draws"], match["losses"])
-    print(f"match: {match}  elo_proxy={elo:+.0f}", flush=True)
+    if "match" in run:
+        print("=== 3/4 head-to-head match ===", flush=True)
+        if trained is None:
+            trained = load_constants(args.trained)
+            if trained is None:
+                print(f"No trained constants: run train first (--trained {args.trained}).",
+                      flush=True)
+                return 1
+            print(f"loaded trained constants <- {args.trained}", flush=True)
+        match = head_to_head(trained, base, games=args.match_games,
+                             move_ms=args.match_move_ms, seed=args.seed + 1)
+        elo = elo_proxy(match["wins"], match["draws"], match["losses"])
+        print(f"match: {match}  elo_proxy={elo:+.0f}", flush=True)
+        state.update({"match_learned_vs_frozen": match, "elo_proxy": elo})
+        _save_state(args.state, state)
 
-    print("=== 4/4 report ===", flush=True)
-    leaf_dump = {n: float(getattr(trained, n)) for n in TRAINABLE_LEAVES}
-    result = {
-        "config": vars(args),
-        "selfplay": summary,
-        "metrics": metrics,
-        "match_learned_vs_frozen": match,
-        "elo_proxy": elo,
-        "trained_leaves": leaf_dump,
-        "wall_seconds": round(time.time() - t0, 1),
-    }
-    out_dir = Path("docs")
-    out_dir.mkdir(exist_ok=True)
-    (out_dir / "credibility_gate_results.json").write_text(
-        json.dumps(result, indent=2), encoding="utf-8")
-    md = _markdown_report(base, leaf_dump, metrics["baseline"],
-                          metrics["trained"], match, elo, summary, args)
-    (out_dir / "credibility_gate_results.md").write_text(md, encoding="utf-8")
-    save_constants(trained, Path("kepler64/training/trained_constants_gate.json"),
-                   meta={"source": "credibility_gate"})
-    print(f"done in {result['wall_seconds']}s -> docs/credibility_gate_results.md",
-          flush=True)
+    if "report" in run:
+        print("=== 4/4 report ===", flush=True)
+        summary = summary or state.get("selfplay")
+        metrics = metrics or state.get("metrics")
+        match = match or state.get("match_learned_vs_frozen")
+        elo = elo if elo is not None else state.get("elo_proxy")
+        if summary is None or metrics is None or match is None or trained is None:
+            print("Report needs harvest+train+match outputs; run earlier stages first.",
+                  flush=True)
+            return 1
+        leaf_dump = {n: float(getattr(trained, n)) for n in TRAINABLE_LEAVES}
+        result = {
+            "config": vars(args),
+            "selfplay": summary,
+            "metrics": metrics,
+            "match_learned_vs_frozen": match,
+            "elo_proxy": elo,
+            "trained_leaves": leaf_dump,
+            "wall_seconds": round(time.time() - t0, 1),
+        }
+        out_dir = Path("docs")
+        out_dir.mkdir(exist_ok=True)
+        (out_dir / "credibility_gate_results.json").write_text(
+            json.dumps(result, indent=2), encoding="utf-8")
+        md = _markdown_report(base, leaf_dump, metrics["baseline"],
+                              metrics["trained"], match, elo, summary, args)
+        (out_dir / "credibility_gate_results.md").write_text(md, encoding="utf-8")
+        print(f"done in {result['wall_seconds']}s -> docs/credibility_gate_results.md",
+              flush=True)
     return 0
 
 
