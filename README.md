@@ -11,7 +11,7 @@ Every chess piece has **mass**. Every piece **pulls** on every other piece. Atta
 Here's the twist: **nobody wrote any chess rules into this engine.** No opening books, no "knights belong on outposts," no grandmaster data. Just the laws of physics — and then gradient descent tuned the constants of that universe (how strong gravity is, how fast its influence travels, when a King collapses) until the physics started playing real chess.
 
 [![Live Observatory](https://img.shields.io/badge/🔭_Live_Observatory-Deploy-2448b8?style=for-the-badge)](https://r-baruah.github.io/kepler-64/)
-[![Tests](https://img.shields.io/badge/tests-78%20passing-16a34a?style=for-the-badge)](#testing--verification)
+[![Tests](https://img.shields.io/badge/tests-79%20passing-16a34a?style=for-the-badge)](#testing--verification)
 [![Kaggle GPU](https://img.shields.io/badge/Kaggle-Free%20T4%20Notebook-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](notebooks/kaggle_gate.ipynb)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![JAX](https://img.shields.io/badge/JAX-differentiable-f06426?style=for-the-badge&logo=google)](https://github.com/google/jax)
