@@ -27,8 +27,13 @@ def _launch(opp, opp_elo=None):
     if isinstance(opp, dict):
         engine = chess.engine.SimpleEngine.popen_uci([opp["exe"], "--weights=" + opp["weights"]])
     else:
-        bin_path = opp if Path(opp).is_file() else (shutil.which(opp) or opp)
-        engine = chess.engine.SimpleEngine.popen_uci(bin_path)
+        bin_path = opp if Path(opp).is_file() else shutil.which(opp)
+        if not bin_path and opp == "stockfish":
+            for candidate in ["/usr/games/stockfish", "/usr/local/bin/stockfish", "/usr/bin/stockfish"]:
+                if Path(candidate).is_file():
+                    bin_path = candidate
+                    break
+        engine = chess.engine.SimpleEngine.popen_uci(bin_path or opp)
     if opp_elo is not None:
         try:
             engine.configure({"UCI_LimitStrength": True, "UCI_Elo": int(opp_elo)})
