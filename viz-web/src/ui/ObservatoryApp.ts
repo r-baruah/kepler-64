@@ -341,7 +341,7 @@ export class ObservatoryApp {
     const moveEvaluations: { san: string; score: number }[] = [];
     const evalBoard = new KeplerBoard();
 
-    const sampleMoves = legalMoves.slice(0, 4);
+    const sampleMoves = legalMoves;
     sampleMoves.forEach((m) => {
       tempChess.move(m);
       evalBoard.loadFen(tempChess.fen());
@@ -363,7 +363,7 @@ export class ObservatoryApp {
 
     moveEvaluations.sort((a, b) => b.score - a.score);
 
-    candidateList.innerHTML = moveEvaluations.map((m, idx) => `
+    candidateList.innerHTML = moveEvaluations.slice(0, 4).map((m, idx) => `
       <li class="candidate-item">
         <div style="display:flex; align-items:center; gap:6px;">
           <span class="cand-rank">#${idx + 1}</span>
@@ -663,6 +663,15 @@ export class ObservatoryApp {
     this.cleanupWorker();
     this.cleanupMultiverseWorker();
 
+    const incoming = getPersona(personaId).config;
+    const cfgKeys = Object.keys(incoming) as (keyof ConstantsConfig)[];
+    const customized = !cfgKeys.every((k) => this.config[k] === DEFAULT_CONSTANTS[k]);
+    if (customized && !cfgKeys.every((k) => this.config[k] === incoming[k]) &&
+      !window.confirm('Entering play replaces your tuned Lab constants with the persona universe. Continue?')) {
+      const select = this.container.querySelector('#persona-select') as HTMLSelectElement | null;
+      if (select) select.value = this.personaId;
+      return;
+    }
     if (this.mode === 'replay') {
       this.replayConfig = { ...this.config };
     }
@@ -839,15 +848,20 @@ export class ObservatoryApp {
       }
       if (!applied) return;
 
-      // Automatically branch into interactive play from this position
-      this.mode = 'play';
-      this.liveChess = tempChess;
-      this.playerColor = tempChess.turn() === 'w' ? 'b' : 'w';
-      this.moves = this.liveChess.history({ verbose: true });
+      // Stay in Replay/Analysis: extend the line as a variation. Entering
+      // play-vs-bot is explicit (mode deck), never a side effect of touching
+      // the board.
+      this.moves = tempChess.history({ verbose: true });
       this.currentPlyIndex = Math.max(0, this.moves.length - 1);
       this.updateModeDeckUI();
-      this.refreshLiveGame();
-      this.maybeScheduleBot();
+      this.syncBoardToPly(this.currentPlyIndex);
+      this.updateCandidateMoves();
+      this.updateSparklineData();
+      const slider = this.container.querySelector('#ply-slider') as HTMLInputElement | null;
+      if (slider) {
+        slider.max = Math.max(0, this.moves.length - 1).toString();
+        slider.value = this.currentPlyIndex.toString();
+      }
     }
   }
 
@@ -1223,6 +1237,11 @@ export class ObservatoryApp {
                       <span>Disruption Force</span>
                       <div class="waterfall-bar-track"><div class="waterfall-bar-fill fill-pos" style="width:0%;"></div></div>
                       <span class="val">+0.00</span>
+                    </li>
+                    <li id="row-own-force" class="waterfall-row">
+                      <span>Own Disruption Force</span>
+                      <div class="waterfall-bar-track"><div class="waterfall-bar-fill fill-neg" style="width:0%;"></div></div>
+                      <span class="val">-0.00</span>
                     </li>
                     <li id="row-binding" class="waterfall-row">
                       <span>Binding Energy (ΔE)</span>
