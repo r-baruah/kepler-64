@@ -4,8 +4,8 @@ physics? This is the single most important honesty artifact in the project.
 Pipeline (fully self-contained, no external data):
   1. SELF-PLAY  - play N games with the default universe; harvest outcome +
      teacher-labeled policy examples (training/selfplay.py).
-  2. TRAIN      - fit the 14 leaves on those examples (Adam through the whole
-     gravity kernel). fix_G=True: G is non-identifiable in the tidal index.
+  2. TRAIN      - fit the trainable leaves (TRAINABLE_LEAVES) on those examples
+     (Adam through the whole gravity kernel). fix_G=True: G is non-identifiable.
   3. VALIDATE   - held-out ranking metrics (top-1 / MRR) learned vs base.
   4. MATCH      - head-to-head, colors balanced, fixed time budget per move;
      ply-capped games adjudicated by terminal army-mass edge (the engine's
@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import chess
 
-from kepler64.core.constants import Constants, save_constants
+from kepler64.core.constants import Constants, save_constants, TRAINABLE_LEAVES
 from kepler64.training.selfplay import play_training_games, _terminal_mass_edge
 
 
@@ -126,10 +126,7 @@ def main() -> int:
     print(f"match: {match}  elo_proxy={elo:+.0f}", flush=True)
 
     print("=== 4/4 report ===", flush=True)
-    leaf_names = ("G", "eps", "c", "roche", "bonus", "kgain", "gamma", "Rg",
-                  "mat_gain", "lambda_delta", "com_gain", "inertia_gain",
-                  "entropy_gain", "lambda_drift")
-    leaf_dump = {n: float(getattr(trained, n)) for n in leaf_names}
+    leaf_dump = {n: float(getattr(trained, n)) for n in TRAINABLE_LEAVES}
     result = {
         "config": vars(args),
         "selfplay": summary,
