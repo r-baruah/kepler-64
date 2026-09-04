@@ -37,6 +37,7 @@ from .tidal import tidal_tensor_at, eig2x2
 from .constants import Constants
 
 _MAX_MOVES = 218  # theoretical max legal moves in chess
+_OFF_DIAG = 1.0 - jnp.eye(64, dtype=jnp.float32)
 
 
 def _king_idx(masses, sign: float):
@@ -217,7 +218,7 @@ def _gw_radiation(masses_army: "jnp.ndarray", G: float, eps: float) -> float:
     nothing. The diagonal is masked (a mass does not radiate against itself).
     """
     w = masses_army ** 2
-    pair_kernel = (1.0 - jnp.eye(64)) / ((_DIST + eps) ** 5)
+    pair_kernel = _OFF_DIAG / ((_DIST + eps) ** 5)
     return (G ** 4) * jnp.dot(w, jnp.dot(pair_kernel, w))
 
 
@@ -235,7 +236,7 @@ def _schwarzschild_overlap(masses_army: "jnp.ndarray", G: float,
     r_s = 2.0 * G * m / (c * c)
     d = _DIST + eps
     overlap = jax.nn.sigmoid(2.0 * ((r_s[:, None] + r_s[None, :]) - d))
-    pair = (m[:, None] * m[None, :]) * overlap * (1.0 - jnp.eye(64))
+    pair = (m[:, None] * m[None, :]) * overlap * _OFF_DIAG
     return jnp.sum(pair)
 
 
