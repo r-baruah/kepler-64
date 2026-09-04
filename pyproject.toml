@@ -18,6 +18,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "scipy"]
+[project.scripts]
+kepler64-uci = "kepler64.uci:main"
 
 [project.urls]
 Repository = "https://github.com/r-baruah/kepler-64"
