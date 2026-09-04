@@ -118,3 +118,20 @@ def test_fastboard_legal_moves_and_king_tracking():
         fb_moves = set(fb.legal_moves())
         assert fb_moves == chess_moves, f"Move mismatch on {fen}"
 
+
+def test_parallel_head_to_head_matches():
+    from scripts.credibility_gate import head_to_head
+    from kepler64.core.constants import Constants
+
+    c = Constants()
+    saved = []
+
+    def _on_game_end(hist, match):
+        saved.append(match["games"])
+
+    res = head_to_head(c, c, games=2, move_ms=10.0, max_plies=4, workers=2, on_game_end=_on_game_end)
+    assert res["games"] == 2
+    assert len(res["history"]) == 2
+    assert len(saved) == 2
+
+

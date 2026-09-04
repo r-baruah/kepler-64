@@ -28,6 +28,7 @@ import argparse
 import json
 import math
 import os
+os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 import sys
 import time
 from pathlib import Path
@@ -71,9 +72,12 @@ def _load_examples(path):
 
 def _load_state(path):
     p = Path(path)
-    if p.exists():
+    if not p.exists():
+        return {}
+    try:
         return json.loads(p.read_text(encoding="utf-8"))
-    return {}
+    except Exception:
+        return {}
 
 
 def _save_state(path, state):
@@ -82,58 +86,126 @@ def _save_state(path, state):
     _atomic_save(path, _write)
 
 
+_match_worker_eng_a = None
+_match_worker_eng_b = None
+
+
+def _init_match_worker(constants_a: Constants, constants_b: Constants):
+    global _match_worker_eng_a, _match_worker_eng_b
+    from kepler64 import RocheEngine
+    _match_worker_eng_a = RocheEngine(constants=constants_a, load_trained=False).warmup()
+    _match_worker_eng_b = RocheEngine(constants=constants_b, load_trained=False).warmup()
+
+
+def _play_single_match_game(g: int, max_plies: int, move_ms: float):
+    global _match_worker_eng_a, _match_worker_eng_b
+    a_is_white = (g % 2 == 0)
+    board = chess.Board()
+    plies = 0
+    while not board.is_game_over() and plies < max_plies:
+        white_to_move = board.turn == chess.WHITE
+        eng = _match_worker_eng_a if white_to_move == a_is_white else _match_worker_eng_b
+        mv = eng.play(board, search_time_ms=move_ms, use_multiverse=False)
+        if mv is None:
+            break
+        board.push(mv)
+        plies += 1
+
+    oc = board.outcome()
+    if oc is not None and oc.winner is not None:
+        a_won = (oc.winner == chess.WHITE) == a_is_white
+        res = "win" if a_won else "loss"
+    elif plies >= max_plies:
+        edge = _terminal_mass_edge(board)
+        if edge == 0.0:
+            res = "draw"
+        else:
+            a_won = (edge > 0) == a_is_white
+            res = "win" if a_won else "loss"
+    else:
+        res = "draw"
+    return {"game": g, "res": res, "plies": plies, "color": "W" if a_is_white else "B"}
+
+
 def head_to_head(constants_a: Constants, constants_b: Constants, *,
                  games: int, move_ms: float, max_plies: int = 60,
                  seed: int = 0, initial_history: list | None = None,
-                 on_game_end=None):
+                 on_game_end=None, workers: int = 1):
     """A vs B, colors balanced. Returns dict with wins/draws/losses for A."""
     from kepler64 import RocheEngine
     import numpy as np
 
     history = list(initial_history) if initial_history else []
-    already_played = len(history)
     w = sum(1 for r in history if r["res"] == "win")
     d = sum(1 for r in history if r["res"] == "draw")
     l = sum(1 for r in history if r["res"] == "loss")
 
-    eng_a = RocheEngine(constants=constants_a, load_trained=False).warmup()
-    eng_b = RocheEngine(constants=constants_b, load_trained=False).warmup()
+    played_ids = {r["game"] for r in history}
+    remaining_games = [g for g in range(games) if g not in played_ids]
 
-    for g in range(already_played, games):
-        a_is_white = (g % 2 == 0)
-        board = chess.Board()
-        plies = 0
-        while not board.is_game_over() and plies < max_plies:
-            white_to_move = board.turn == chess.WHITE
-            eng = eng_a if white_to_move == a_is_white else eng_b
-            mv = eng.play(board, search_time_ms=move_ms, use_multiverse=False)
-            if mv is None:
-                break
-            board.push(mv)
-            plies += 1
+    if workers <= 1:
+        eng_a = RocheEngine(constants=constants_a, load_trained=False).warmup()
+        eng_b = RocheEngine(constants=constants_b, load_trained=False).warmup()
 
-        oc = board.outcome()
-        if oc is not None and oc.winner is not None:
-            a_won = (oc.winner == chess.WHITE) == a_is_white
-            res = "win" if a_won else "loss"
-        elif plies >= max_plies:
-            edge = _terminal_mass_edge(board)          # +1 white ahead, -1 black
-            if edge == 0.0:
-                res = "draw"
-            else:
-                a_won = (edge > 0) == a_is_white
+        for g in remaining_games:
+            a_is_white = (g % 2 == 0)
+            board = chess.Board()
+            plies = 0
+            while not board.is_game_over() and plies < max_plies:
+                white_to_move = board.turn == chess.WHITE
+                eng = eng_a if white_to_move == a_is_white else eng_b
+                mv = eng.play(board, search_time_ms=move_ms, use_multiverse=False)
+                if mv is None:
+                    break
+                board.push(mv)
+                plies += 1
+
+            oc = board.outcome()
+            if oc is not None and oc.winner is not None:
+                a_won = (oc.winner == chess.WHITE) == a_is_white
                 res = "win" if a_won else "loss"
-        else:
-            res = "draw"
-        w += res == "win"
-        d += res == "draw"
-        l += res == "loss"
-        record = {"game": g, "res": res, "plies": plies, "color": "W" if a_is_white else "B"}
-        history.append(record)
-        print(f"[match] game {g + 1}/{games}: A({'W' if a_is_white else 'B'}) "
-              f"{res} after {plies} plies", flush=True)
-        if on_game_end:
-            on_game_end(history, {"wins": w, "draws": d, "losses": l, "games": len(history)})
+            elif plies >= max_plies:
+                edge = _terminal_mass_edge(board)          # +1 white ahead, -1 black
+                if edge == 0.0:
+                    res = "draw"
+                else:
+                    a_won = (edge > 0) == a_is_white
+                    res = "win" if a_won else "loss"
+            else:
+                res = "draw"
+            w += res == "win"
+            d += res == "draw"
+            l += res == "loss"
+            record = {"game": g, "res": res, "plies": plies, "color": "W" if a_is_white else "B"}
+            history.append(record)
+            print(f"[match] game {g + 1}/{games}: A({'W' if a_is_white else 'B'}) "
+                  f"{res} after {plies} plies", flush=True)
+            if on_game_end:
+                on_game_end(history, {"wins": w, "draws": d, "losses": l, "games": len(history)})
+    else:
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        ctx = mp.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=workers, mp_context=ctx,
+                                 initializer=_init_match_worker,
+                                 initargs=(constants_a, constants_b)) as executor:
+            futures = {
+                executor.submit(_play_single_match_game, g, max_plies, move_ms): g
+                for g in remaining_games
+            }
+            for fut in as_completed(futures):
+                record = fut.result()
+                history.append(record)
+                res = record["res"]
+                w += res == "win"
+                d += res == "draw"
+                l += res == "loss"
+                print(f"[match] game {record['game'] + 1}/{games}: A({record['color']}) "
+                      f"{res} after {record['plies']} plies", flush=True)
+                if on_game_end:
+                    on_game_end(history, {"wins": w, "draws": d, "losses": l, "games": len(history)})
+
+    history.sort(key=lambda r: r["game"])
     return {"wins": w, "draws": d, "losses": l, "games": len(history), "history": history}
 
 
@@ -170,6 +242,8 @@ def main() -> int:
                     help="train even when harvest outcomes are >80%% one-sided")
     ap.add_argument("--batch-size", type=int, default=128,
                     help="training minibatch (128 laptop-safe; 256/512 on T4)")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="parallel match workers (1 for laptop CPU, 2-4 on Kaggle/cloud)")
     args = ap.parse_args()
     t0 = time.time()
     base = Constants()
@@ -296,7 +370,8 @@ def main() -> int:
         match = head_to_head(trained, base, games=args.match_games,
                              move_ms=args.match_move_ms, seed=args.seed + 1,
                              initial_history=initial_history,
-                             on_game_end=_on_game_end)
+                             on_game_end=_on_game_end,
+                             workers=args.workers)
         elo = elo_proxy(match["wins"], match["draws"], match["losses"])
         print(f"match: {match}  elo_proxy={elo:+.0f}", flush=True)
         state.update({"match_learned_vs_frozen": match, "elo_proxy": elo, "match_history": match["history"]})
