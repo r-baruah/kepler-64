@@ -30,6 +30,7 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from .gravity import force_field, potential_field, _COORDS, _DIST
 from .tidal import tidal_tensor_at, eig2x2
@@ -489,6 +490,51 @@ def evaluate(board, constants) -> float:
     return s if board.turn == 0 else -s
 
 
+_LEAF_ORDER = ("G", "eps", "c", "roche", "bonus", "kgain", "gamma", "Rg",
+               "mref", "mat_gain", "lambda_delta", "com_gain", "inertia_gain",
+               "entropy_gain", "lambda_drift", "lambda_gw", "lambda_sch",
+               "dt_drift")
+
+
+def _leaves_array(constants) -> "jnp.ndarray":
+    """The 18 eval scalars in `_score_body` order, as a traced array.
+
+    Traced (not static): changing a leaf never recompiles the batch kernel.
+    Defaults mirror `score_white` so pre-GW artifacts still load.
+    """
+    return jnp.asarray([
+        constants.G, constants.eps, constants.c, constants.roche,
+        constants.bonus, constants.kgain, constants.gamma, constants.Rg,
+        constants.mref, constants.mat_gain, constants.lambda_delta,
+        constants.com_gain, constants.inertia_gain, constants.entropy_gain,
+        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0),
+        getattr(constants, "lambda_sch", 0.0),
+        getattr(constants, "dt_drift", 0.1),
+    ], dtype=jnp.float32)
+
+
+def _row_static(m, leaves):
+    return _score_body(m, *leaves, None)
+
+
+def _row_parent(m, p, leaves):
+    return _score_body(m, *leaves, p)
+
+
+@jax.jit
+def _batch_core_static(buf, white_turn, mask, leaves):
+    white = jax.vmap(_row_static, in_axes=(0, None))(buf, leaves)
+    side = jnp.where(white_turn, white, -white)
+    return jnp.where(mask, side, -jnp.inf)
+
+
+@jax.jit
+def _batch_core_parents(buf, parent_buf, white_turn, mask, leaves):
+    white = jax.vmap(_row_parent, in_axes=(0, 0, None))(buf, parent_buf, leaves)
+    side = jnp.where(white_turn, white, -white)
+    return jnp.where(mask, side, -jnp.inf)
+
+
 def batch_score(masses_list, turns, constants, pad: int = _MAX_MOVES,
                 parents=None):
     """Pad a list of child mass vectors to `pad` (the 218-max), vmap-evaluate.
@@ -498,22 +544,31 @@ def batch_score(masses_list, turns, constants, pad: int = _MAX_MOVES,
 
     If `parents` is given (a (N,64) array of the parent mass vectors), the
     move-sensitivity (delta) terms are active for each child.
+
+    One XLA call per batch: assembly stays in eager JAX over static shapes
+    (the child count `n` never enters a traced graph, so no per-count
+    recompile), leaves ride as a traced array (no recompile on value
+    change), and the mask is a plain precomputed row.
     """
     n = len(masses_list)
-    buf = jnp.zeros((pad, 64), dtype=jnp.float32)
+    buf_np = np.zeros((pad, 64), dtype=np.float32)
     if n:
-        stacked = jnp.stack([jnp.asarray(m, dtype=jnp.float32) for m in masses_list])
-        buf = buf.at[:n].set(stacked)
-    turns_buf = jnp.array([*(turns if n else [0]), *([0] * (pad - n))], dtype=jnp.int32)
+        buf_np[:n] = np.stack(
+            [np.asarray(m, dtype=np.float32) for m in masses_list])
+    white_np = np.zeros(pad, dtype=bool)
+    if n:
+        white_np[:n] = [t == 0 for t in turns]
+    mask_np = np.arange(pad) < n
+    leaves = _leaves_array(constants)
+    buf = jnp.asarray(buf_np)
+    white_turn = jnp.asarray(white_np)
+    mask = jnp.asarray(mask_np)
     if parents is not None:
-        parent_buf = jnp.zeros((pad, 64), dtype=jnp.float32)
-        parent_buf = parent_buf.at[:n].set(jnp.asarray(parents, dtype=jnp.float32))
-        white = jax.vmap(score_white, in_axes=(0, None, 0))(buf, constants, parent_buf)
-    else:
-        white = jax.vmap(score_white, in_axes=(0, None))(buf, constants)  # (pad,)
-    side = jnp.where(turns_buf == 0, white, -white)
-    mask = jnp.concatenate([jnp.ones(n), jnp.zeros(pad - n)])
-    return jnp.where(mask > 0.5, side, -jnp.inf)
+        parent_np = np.zeros((pad, 64), dtype=np.float32)
+        parent_np[:n] = np.asarray(parents, dtype=np.float32)
+        return _batch_core_parents(buf, jnp.asarray(parent_np), white_turn,
+                                   mask, leaves)
+    return _batch_core_static(buf, white_turn, mask, leaves)
 
 
 # ── Layer 2: "the Multiverse" ────────────────────────────────────────────────
