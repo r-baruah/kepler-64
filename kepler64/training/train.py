@@ -24,9 +24,11 @@ Hardware notes (Ryzen 5 5500U, 8 GB RAM, Radeon iGPU, no CUDA):
     gradient-norm-clipped SGD, which is ~3x slower to converge.
 """
 
+import json
 import os
 import shutil
 import time
+from pathlib import Path
 
 import jax.random as jrandom
 
@@ -44,8 +46,22 @@ if ("XLA_FLAGS" not in os.environ
 # Keep JAX from hoarding threads for its own BLAS fork and starving the trainer.
 os.environ.setdefault("OMP_NUM_THREADS", str(_n_logical))
 
+# Persistent XLA compilation cache: avoid recompiling kernels on process restarts.
+# Opt out via KEPLER64_NO_CACHE=1; custom path via JAX_COMPILATION_CACHE_DIR.
+if not os.environ.get("KEPLER64_NO_CACHE"):
+    _cache_dir = os.environ.get("JAX_COMPILATION_CACHE_DIR",
+                                os.path.expanduser("~/.cache/kepler64_jax_cache"))
+    os.environ.setdefault("JAX_COMPILATION_CACHE_DIR", _cache_dir)
+
 import jax
 import jax.numpy as jnp
+
+if not os.environ.get("KEPLER64_NO_CACHE"):
+    try:
+        from jax.experimental.compilation_cache import compilation_cache as _cc
+        _cc.set_cache_dir(os.environ["JAX_COMPILATION_CACHE_DIR"])
+    except Exception:
+        pass
 
 try:
     import optax
@@ -84,13 +100,82 @@ _LO = LEAF_LO_F
 _HI = LEAF_HI_F
 
 
+def atomic_save_npz(path: str | Path, **arrays):
+    """Write an npz file atomically via temporary file and os.replace."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = p.with_name(f"{p.stem}.tmp.{os.getpid()}{p.suffix}")
+    try:
+        np.savez(tmp_path, **arrays)
+        os.replace(tmp_path, p)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+
+
+def load_checkpoint(ckpt_path: str | Path, rerun_cmd: str = "python scripts/credibility_gate.py --only train"):
+    """Load an npz checkpoint, validating required keys and catching corruption."""
+    p = Path(ckpt_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Checkpoint file not found: {p}")
+    try:
+        z = np.load(p, allow_pickle=False)
+        files = set(z.files)
+    except Exception as e:
+        raise RuntimeError(
+            f"Checkpoint file '{p}' is corrupt or unreadable: {e}. "
+            f"To restart cleanly, rerun: {rerun_cmd}"
+        ) from e
+
+    if "arr" not in files or "step" not in files:
+        missing = {"arr", "step"} - files
+        raise RuntimeError(
+            f"Checkpoint file '{p}' is corrupt (missing required keys: {missing}). "
+            f"To restart cleanly, rerun: {rerun_cmd}"
+        )
+
+    arr = z["arr"]
+    step = int(z["step"])
+    rng_state = None
+    if "rng_state" in files:
+        try:
+            rng_state = json.loads(str(z["rng_state"]))
+        except Exception:
+            pass
+
+    opt_state_leaves = None
+    if "opt_state_num_leaves" in files:
+        num = int(z["opt_state_num_leaves"])
+        leaves = [z[f"opt_state_{i}"] for i in range(num) if f"opt_state_{i}" in files]
+        if len(leaves) == num:
+            opt_state_leaves = leaves
+    elif "opt_state_0" in files:
+        leaves = []
+        i = 0
+        while f"opt_state_{i}" in files:
+            leaves.append(z[f"opt_state_{i}"])
+            i += 1
+        opt_state_leaves = leaves
+
+    return {
+        "arr": arr,
+        "step": step,
+        "rng_state": rng_state,
+        "opt_state_leaves": opt_state_leaves,
+    }
+
+
 def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx=None,
-           steps: int = 200, lr: float = 3e-3, fix_G: bool = False,
-           batch_size: int = 256, seed: int = 0, tau: float = 2.0,
-           margin: float = 0.0, key=None, use_multiverse: bool = False,
-           K: int = 8, sigma: float = 0.1, log_every: int = 0,
-           ckpt_every: int = 0, ckpt_path: str | None = None,
-           init_arr=None, init_step: int = 0) -> Constants:
+          steps: int = 200, lr: float = 3e-3, fix_G: bool = False,
+          batch_size: int = 256, seed: int = 0, tau: float = 2.0,
+          margin: float = 0.0, key=None, use_multiverse: bool = False,
+          K: int = 8, sigma: float = 0.1, log_every: int = 0,
+          ckpt_every: int = 0, ckpt_path: str | None = None,
+          init_arr=None, init_step: int = 0,
+          init_opt_state=None, init_rng_state=None) -> Constants:
     """Mini-batch Adam over (M, Y, turns, moves_m, mask, expert_idx).
 
     M (N,64) mass vectors; Y (N,) outcomes {-1,0,+1} White-view; turns (N,)
@@ -104,8 +189,8 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
     posterior realizations of the physics (the "Multiverse"). Requires `key`.
 
     Resilience: `log_every` prints step/loss/ETA (flushed); `ckpt_every` +
-    `ckpt_path` save a `{arr, step}` npz a killed run resumes from via
-    `init_arr`/`init_step` (fresh optimizer state on resume — documented).
+    `ckpt_path` save an atomic `{arr, step, opt_state, rng_state}` npz a killed
+    run resumes from via `init_arr`/`init_step`/`init_opt_state`/`init_rng_state`.
     """
     M = jnp.asarray(M, dtype=jnp.float32)
     Y = jnp.asarray(Y, dtype=jnp.float32)
@@ -127,6 +212,12 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
         has_policy = jnp.array(0.0)
 
     rng = np.random.default_rng(seed)
+    if init_rng_state is not None:
+        if isinstance(init_rng_state, (str, bytes)):
+            rng.bit_generator.state = json.loads(init_rng_state)
+        elif isinstance(init_rng_state, dict):
+            rng.bit_generator.state = init_rng_state
+
     base_key = jrandom.PRNGKey(seed) if key is None else key
     arr = _to_arr(base) if init_arr is None else jnp.asarray(init_arr, dtype=jnp.float32)
     if fix_G:
@@ -141,7 +232,14 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
             optax.clip_by_global_norm(1.0),
             optax.adam(lr),
         )
-        opt_state = opt.init(arr)
+        if init_opt_state is not None:
+            if isinstance(init_opt_state, list):
+                _, treedef = jax.tree_util.tree_flatten(opt.init(arr))
+                opt_state = jax.tree_util.tree_unflatten(treedef, [jnp.asarray(x) for x in init_opt_state])
+            else:
+                opt_state = init_opt_state
+        else:
+            opt_state = opt.init(arr)
 
         @jax.jit
         def _step(a, state, bM, bY, bMM, bEI, bMK, bT, step_key):
@@ -173,7 +271,16 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
                       f"elapsed={el:.0f}s eta={el / max(1, done) * (total - done):.0f}s",
                       flush=True)
             if ckpt_every and ckpt_path and (step + 1) % ckpt_every == 0:
-                np.savez(ckpt_path, arr=np.asarray(arr), step=np.int64(step + 1))
+                ckpt_dict = {
+                    "arr": np.asarray(arr),
+                    "step": np.int64(step + 1),
+                    "rng_state": np.array(json.dumps(rng.bit_generator.state)),
+                }
+                leaves = [np.asarray(x) for x in jax.tree_util.tree_leaves(opt_state)]
+                ckpt_dict["opt_state_num_leaves"] = np.int64(len(leaves))
+                for i, l in enumerate(leaves):
+                    ckpt_dict[f"opt_state_{i}"] = l
+                atomic_save_npz(ckpt_path, **ckpt_dict)
 
     else:
         # ── SGD fallback (no optax) ───────────────────────────────────────────
@@ -211,7 +318,10 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
                       f"elapsed={el:.0f}s eta={el / max(1, done) * (total - done):.0f}s",
                       flush=True)
             if ckpt_every and ckpt_path and (step + 1) % ckpt_every == 0:
-                np.savez(ckpt_path, arr=np.asarray(arr), step=np.int64(step + 1))
+                atomic_save_npz(ckpt_path,
+                                arr=np.asarray(arr),
+                                step=np.int64(step + 1),
+                                rng_state=np.array(json.dumps(rng.bit_generator.state)))
 
     return _from_arr(arr)
 
@@ -223,7 +333,8 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
                    K: int = 8, sigma: float = 0.1, policy: bool = True,
                    return_metrics: bool = False, log_every: int = 0,
                    ckpt_every: int = 0, ckpt_path: str | None = None,
-                   init_arr=None, init_step: int = 0):
+                   init_arr=None, init_step: int = 0,
+                   init_opt_state=None, init_rng_state=None):
 
     """Convenience: build arrays from examples (list of dicts), split train/val,
     train, and report validation ranking metrics so we can see real progress
@@ -259,6 +370,7 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
         key=key, use_multiverse=use_multiverse, K=K, sigma=sigma,
         log_every=log_every, ckpt_every=ckpt_every, ckpt_path=ckpt_path,
         init_arr=init_arr, init_step=init_step,
+        init_opt_state=init_opt_state, init_rng_state=init_rng_state,
     )
 
     metrics = None

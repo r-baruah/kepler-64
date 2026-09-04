@@ -40,10 +40,27 @@ from kepler64.core.constants import Constants, save_constants, load_constants, T
 from kepler64.training.selfplay import play_training_games, _terminal_mass_edge
 
 
+def _atomic_save(path, write_fn):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = p.with_name(f"{p.stem}.tmp.{os.getpid()}{p.suffix}")
+    try:
+        write_fn(tmp_path)
+        os.replace(tmp_path, p)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+
+
 def _save_examples(path, examples):
     import pickle
-    with open(path, "wb") as f:
-        pickle.dump(examples, f)
+    def _write(p):
+        with open(p, "wb") as f:
+            pickle.dump(examples, f)
+    _atomic_save(path, _write)
 
 
 def _load_examples(path):
@@ -60,24 +77,29 @@ def _load_state(path):
 
 
 def _save_state(path, state):
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    def _write(p):
+        p.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    _atomic_save(path, _write)
 
 
 def head_to_head(constants_a: Constants, constants_b: Constants, *,
                  games: int, move_ms: float, max_plies: int = 60,
-                 seed: int = 0):
+                 seed: int = 0, initial_history: list | None = None,
+                 on_game_end=None):
     """A vs B, colors balanced. Returns dict with wins/draws/losses for A."""
     from kepler64 import RocheEngine
     import numpy as np
 
-    rng = np.random.default_rng(seed)
+    history = list(initial_history) if initial_history else []
+    already_played = len(history)
+    w = sum(1 for r in history if r["res"] == "win")
+    d = sum(1 for r in history if r["res"] == "draw")
+    l = sum(1 for r in history if r["res"] == "loss")
+
     eng_a = RocheEngine(constants=constants_a, load_trained=False)
     eng_b = RocheEngine(constants=constants_b, load_trained=False)
 
-    w = d = l = 0
-    for g in range(games):
+    for g in range(already_played, games):
         a_is_white = (g % 2 == 0)
         board = chess.Board()
         plies = 0
@@ -106,9 +128,13 @@ def head_to_head(constants_a: Constants, constants_b: Constants, *,
         w += res == "win"
         d += res == "draw"
         l += res == "loss"
+        record = {"game": g, "res": res, "plies": plies, "color": "W" if a_is_white else "B"}
+        history.append(record)
         print(f"[match] game {g + 1}/{games}: A({'W' if a_is_white else 'B'}) "
               f"{res} after {plies} plies", flush=True)
-    return {"wins": w, "draws": d, "losses": l, "games": games}
+        if on_game_end:
+            on_game_end(history, {"wins": w, "draws": d, "losses": l, "games": len(history)})
+    return {"wins": w, "draws": d, "losses": l, "games": len(history), "history": history}
 
 
 def elo_proxy(w: int, d: int, l: int) -> float:
@@ -132,6 +158,8 @@ def main() -> int:
     ap.add_argument("--only", choices=["all", "harvest", "train", "match", "report"],
                     default="all")
     ap.add_argument("--examples", default="kepler64/training/gate_examples.pkl")
+    ap.add_argument("--append", action="store_true",
+                    help="append to existing examples, playing only remaining games")
     ap.add_argument("--resume", default=None)
     ap.add_argument("--ckpt", default="kepler64/training/gate_ckpt.npz")
     ap.add_argument("--ckpt-every", type=int, default=200)
@@ -149,15 +177,49 @@ def main() -> int:
 
     if "harvest" in run:
         print("=== 1/4 self-play harvest ===", flush=True)
-        examples, summary = play_training_games(
-            base, games=args.games, max_plies=args.max_plies,
-            move_ms=args.move_ms, teacher_ms=args.teacher_ms,
-            seed=args.seed, verbose=True)
-        print(f"harvest: {summary}", flush=True)
-        _save_examples(args.examples, examples)
-        print(f"examples saved -> {args.examples}", flush=True)
-        state = {"config": vars(args), "selfplay": summary}
-        _save_state(args.state, state)
+        existing_examples = []
+        already_played = 0
+        if args.append and Path(args.examples).exists():
+            try:
+                existing_examples = _load_examples(args.examples)
+                already_played = int(state.get("selfplay", {}).get("games", 0))
+                if already_played == 0 and existing_examples:
+                    already_played = len({ex.get("game_idx", i) for i, ex in enumerate(existing_examples)})
+                print(f"[harvest --append] found {len(existing_examples)} existing examples from {already_played} games.", flush=True)
+            except Exception as e:
+                print(f"[harvest --append] warning: could not load existing examples: {e}", flush=True)
+                existing_examples = []
+                already_played = 0
+
+        remaining_games = max(0, args.games - already_played)
+        if remaining_games == 0 and existing_examples:
+            print(f"[harvest --append] already have {already_played} games >= requested {args.games}. Skipping selfplay.", flush=True)
+            examples = existing_examples
+            summary = state.get("selfplay", {"games": already_played, "examples": len(examples), "wins": 0, "losses": 0, "draws": 0})
+        else:
+            new_examples, new_summary = play_training_games(
+                base, games=remaining_games, max_plies=args.max_plies,
+                move_ms=args.move_ms, teacher_ms=args.teacher_ms,
+                seed=args.seed + already_played, verbose=True)
+            if existing_examples:
+                examples = existing_examples + new_examples
+                prev_sum = state.get("selfplay", {"games": 0, "wins": 0, "losses": 0, "draws": 0})
+                summary = {
+                    "games": prev_sum.get("games", already_played) + new_summary["games"],
+                    "examples": len(examples),
+                    "wins": prev_sum.get("wins", 0) + new_summary["wins"],
+                    "losses": prev_sum.get("losses", 0) + new_summary["losses"],
+                    "draws": prev_sum.get("draws", 0) + new_summary["draws"],
+                }
+            else:
+                examples, summary = new_examples, new_summary
+            print(f"harvest: {summary}", flush=True)
+            _save_examples(args.examples, examples)
+            print(f"examples saved -> {args.examples}", flush=True)
+            state["selfplay"] = summary
+            state["config"] = vars(args)
+            _save_state(args.state, state)
+
         if len(examples) < 40:
             print("Too few examples to train meaningfully; aborting.", flush=True)
             return 1
@@ -181,18 +243,23 @@ def main() -> int:
         if len(examples) < 40:
             print("Too few examples to train meaningfully; aborting.", flush=True)
             return 1
-        init_arr, init_step = None, 0
-        if args.resume and Path(args.resume).exists():
-            import numpy as np
-            z = np.load(args.resume)
-            init_arr, init_step = z["arr"], int(z["step"])
-            print(f"resuming training at step {init_step} <- {args.resume}", flush=True)
+        init_arr, init_step, init_opt_state, init_rng_state = None, 0, None, None
+        if args.resume:
+            from kepler64.training.train import load_checkpoint
+            ckpt = load_checkpoint(args.resume, rerun_cmd="python scripts/credibility_gate.py --only train")
+            init_arr, init_step = ckpt["arr"], ckpt["step"]
+            init_opt_state = ckpt["opt_state_leaves"]
+            init_rng_state = ckpt["rng_state"]
+            print(f"resuming training at step {init_step} <- {args.resume} "
+                  f"(opt_state={'restored' if init_opt_state is not None else 'fresh'}, "
+                  f"rng={'restored' if init_rng_state is not None else 'fresh'})", flush=True)
         from kepler64.training.train import train_examples
         trained, metrics = train_examples(
             base, examples, steps=args.steps, lr=args.lr, fix_G=True,
             seed=args.seed, verbose=True, return_metrics=True,
             log_every=args.log_every, ckpt_every=args.ckpt_every,
-            ckpt_path=args.ckpt, init_arr=init_arr, init_step=init_step)
+            ckpt_path=args.ckpt, init_arr=init_arr, init_step=init_step,
+            init_opt_state=init_opt_state, init_rng_state=init_rng_state)
         print(f"validation metrics: {json.dumps(metrics, indent=2)}", flush=True)
         save_constants(trained, Path(args.trained), meta={"source": "credibility_gate"})
         state.update({"config": vars(args),
@@ -210,11 +277,26 @@ def main() -> int:
                       flush=True)
                 return 1
             print(f"loaded trained constants <- {args.trained}", flush=True)
+
+        initial_history = state.get("match_history", [])
+        if initial_history and len(initial_history) < args.match_games:
+            print(f"resuming match from game {len(initial_history) + 1}/{args.match_games}", flush=True)
+        elif initial_history and len(initial_history) >= args.match_games:
+            print(f"match already completed with {len(initial_history)} games.", flush=True)
+
+        def _on_game_end(hist, current_match):
+            state["match_history"] = hist
+            state["match_learned_vs_frozen"] = current_match
+            state["elo_proxy"] = elo_proxy(current_match["wins"], current_match["draws"], current_match["losses"])
+            _save_state(args.state, state)
+
         match = head_to_head(trained, base, games=args.match_games,
-                             move_ms=args.match_move_ms, seed=args.seed + 1)
+                             move_ms=args.match_move_ms, seed=args.seed + 1,
+                             initial_history=initial_history,
+                             on_game_end=_on_game_end)
         elo = elo_proxy(match["wins"], match["draws"], match["losses"])
         print(f"match: {match}  elo_proxy={elo:+.0f}", flush=True)
-        state.update({"match_learned_vs_frozen": match, "elo_proxy": elo})
+        state.update({"match_learned_vs_frozen": match, "elo_proxy": elo, "match_history": match["history"]})
         _save_state(args.state, state)
 
     if "report" in run:

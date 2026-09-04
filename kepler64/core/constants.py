@@ -17,6 +17,7 @@ Scale discipline (why the defaults are what they are):
 
 from dataclasses import dataclass, fields, asdict
 import json
+import os
 import pathlib
 
 import jax.numpy as jnp
@@ -174,7 +175,16 @@ def save_constants(c: "Constants", path=None, meta: dict | None = None) -> pathl
     if meta:
         payload["_meta"] = meta
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    tmp_path = path.with_name(f"{path.stem}.tmp.{os.getpid()}{path.suffix}")
+    try:
+        tmp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
     return path
 
 

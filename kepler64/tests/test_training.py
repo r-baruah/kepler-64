@@ -122,3 +122,54 @@ def test_roche_engine_respects_explicit_constants():
     c = Constants(bonus=77.0)
     eng = RocheEngine(c)
     assert abs(eng.constants.bonus - 77.0) < 1e-3
+
+
+def test_checkpoint_atomic_and_resumable(tmp_path):
+    """Resuming training with restored optimizer and RNG state matches uninterrupted run."""
+    import numpy as np
+    from kepler64.training.train import train, load_checkpoint
+    from kepler64.core.constants import leaves_to_array
+
+    base = Constants()
+    rng = np.random.default_rng(42)
+    N = 32
+    M = rng.standard_normal((N, 64)).astype(np.float32)
+    Y = rng.choice([-1.0, 0.0, 1.0], size=N).astype(np.float32)
+    turns = np.zeros(N, dtype=np.float32)
+
+    # 1. Uninterrupted 6-step run
+    c_full = train(base, M, Y, turns, steps=6, batch_size=16, seed=42, lr=1e-2)
+    arr_full = np.asarray(leaves_to_array(c_full))
+
+    # 2. Interrupted run: 3 steps -> ckpt -> resume 3 steps
+    ckpt_file = tmp_path / "ckpt.npz"
+    c_part1 = train(base, M, Y, turns, steps=3, batch_size=16, seed=42, lr=1e-2,
+                    ckpt_every=3, ckpt_path=str(ckpt_file))
+    assert ckpt_file.exists()
+
+    ckpt = load_checkpoint(ckpt_file)
+    assert ckpt["step"] == 3
+    assert ckpt["opt_state_leaves"] is not None
+    assert ckpt["rng_state"] is not None
+
+    c_part2 = train(base, M, Y, turns, steps=6, batch_size=16, seed=42, lr=1e-2,
+                    init_arr=ckpt["arr"], init_step=ckpt["step"],
+                    init_opt_state=ckpt["opt_state_leaves"],
+                    init_rng_state=ckpt["rng_state"])
+    arr_resumed = np.asarray(leaves_to_array(c_part2))
+
+    # Leaves must match closely (identical Adam state + continuous RNG permutations)
+    assert np.allclose(arr_full, arr_resumed, atol=1e-5), f"Diff: {np.abs(arr_full - arr_resumed).max()}"
+
+
+def test_corrupt_checkpoint_detection(tmp_path):
+    """Corrupt or incomplete checkpoint raises descriptive RuntimeError."""
+    import pytest
+    from kepler64.training.train import load_checkpoint
+
+    # Corrupt/incomplete checkpoint (missing required keys)
+    bad_ckpt = tmp_path / "bad.npz"
+    np.savez(bad_ckpt, something_else=np.array([1, 2, 3]))
+
+    with pytest.raises(RuntimeError, match="is corrupt"):
+        load_checkpoint(bad_ckpt)
