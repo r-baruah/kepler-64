@@ -2,8 +2,9 @@
 
 The universe learns from itself: the engine plays games with its own physics,
 and a DEEPER time-budget integration of the SAME gravity kernel labels every
-sampled position. Gradient descent through the physics adjusts the 14
-trainable physical constants so the shallow eval reads like the deep eval.
+sampled position. Gradient descent through the physics adjusts the trainable
+physical constants (see TRAINABLE_LEAVES in kepler64/core/constants.py) so the
+shallow eval reads like the deep eval.
 
 No opening books, no hardcoded chess values, no invented heuristics — the only
 supervisory signals are real self-play outcomes and the kernel's own deeper
