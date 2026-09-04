@@ -43,6 +43,44 @@ for _sq in range(64):
 # Castling rights bitmask: WK=1, WQ=2, BK=4, BQ=8.
 _WK, _WQ, _BK, _BQ = 1, 2, 4, 8
 
+# Precomputed target squares for O(1) step attacks and moves.
+_KNIGHT_TARGETS = {}
+_KING_TARGETS = {}
+_PAWN_ATTACK_SOURCES = {True: {}, False: {}}
+
+for _sq in range(64):
+    _f, _r = _sq % 8, _sq // 8
+    # Knights
+    _kt = []
+    for _dx, _dy in _KNIGHT:
+        _nf, _nr = _f + _dx, _r + _dy
+        if 0 <= _nf < 8 and 0 <= _nr < 8:
+            _kt.append(_nr * 8 + _nf)
+    _KNIGHT_TARGETS[_sq] = tuple(_kt)
+
+    # Kings
+    _kg = []
+    for _dx, _dy in _KING:
+        _nf, _nr = _f + _dx, _r + _dy
+        if 0 <= _nf < 8 and 0 <= _nr < 8:
+            _kg.append(_nr * 8 + _nf)
+    _KING_TARGETS[_sq] = tuple(_kg)
+
+    # Pawns
+    _w_src = []
+    for _df in (-1, 1):
+        _nf, _nr = _f + _df, _r - 1
+        if 0 <= _nf < 8 and 0 <= _nr < 8:
+            _w_src.append(_nr * 8 + _nf)
+    _PAWN_ATTACK_SOURCES[True][_sq] = tuple(_w_src)
+
+    _b_src = []
+    for _df in (-1, 1):
+        _nf, _nr = _f + _df, _r + 1
+        if 0 <= _nf < 8 and 0 <= _nr < 8:
+            _b_src.append(_nr * 8 + _nf)
+    _PAWN_ATTACK_SOURCES[False][_sq] = tuple(_b_src)
+
 # Mass LUT indexed by abs(piece type): 0=empty,1=P,2=N,3=B,4=R,5=Q,6=K.
 _MASS_LUT = np.array([0.0, 1.0, 3.0, 3.0, 5.0, 9.0, 1000.0], dtype=np.float32)
 
@@ -59,14 +97,25 @@ VELOCITY_DECAY = 0.985
 
 
 class FastBoard:
-    __slots__ = ("pieces", "turn", "castling", "ep", "velocity")
+    __slots__ = ("pieces", "turn", "castling", "ep", "velocity", "_kw", "_kb")
 
-    def __init__(self, pieces=None, turn=0, castling=0, ep=-1, velocity=None):
+    def __init__(self, pieces=None, turn=0, castling=0, ep=-1, velocity=None,
+                 kw=None, kb=None):
         self.pieces = pieces if pieces is not None else np.zeros(64, dtype=np.int8)
         self.turn = turn          # 0 = white to move, 1 = black
         self.castling = castling  # bitmask
         self.ep = ep              # en-passant target square, -1 if none
         self.velocity = velocity if velocity is not None else np.zeros(64, dtype=np.float32)
+        if kw is None:
+            idx_w = np.nonzero(self.pieces == 6)[0]
+            self._kw = int(idx_w[0]) if idx_w.size else -1
+        else:
+            self._kw = kw
+        if kb is None:
+            idx_b = np.nonzero(self.pieces == -6)[0]
+            self._kb = int(idx_b[0]) if idx_b.size else -1
+        else:
+            self._kb = kb
 
     # ---- construction ----------------------------------------------------
     @classmethod
@@ -118,39 +167,28 @@ class FastBoard:
 
     # ---- queries ---------------------------------------------------------
     def king_sq(self, white: bool) -> int:
-        target = 6 if white else -6
-        idx = np.nonzero(self.pieces == target)[0]
-        return int(idx[0]) if idx.size else -1
+        return self._kw if white else self._kb
 
     def square_attacked(self, sq: int, by_white: bool) -> bool:
         """Is `sq` attacked by side `by_white`? Pure ray-walk, no allocation."""
         board = self.pieces
-        f, r = sq % 8, sq // 8
-        # Pawn attacks.
-        if by_white:
-            for df in (-1, 1):
-                nf, nr = f + df, r - 1
-                if 0 <= nf < 8 and 0 <= nr < 8 and board[nr * 8 + nf] == 1:
-                    return True
-        else:
-            for df in (-1, 1):
-                nf, nr = f + df, r + 1
-                if 0 <= nf < 8 and 0 <= nr < 8 and board[nr * 8 + nf] == -1:
-                    return True
+        target_pawn = 1 if by_white else -1
+        for s in _PAWN_ATTACK_SOURCES[by_white][sq]:
+            if board[s] == target_pawn:
+                return True
+
         # Knight.
-        for dx, dy in _KNIGHT:
-            nf, nr = f + dx, r + dy
-            if 0 <= nf < 8 and 0 <= nr < 8:
-                p = board[nr * 8 + nf]
-                if p != 0 and (p > 0) == by_white and abs(p) == 2:
-                    return True
+        for t in _KNIGHT_TARGETS[sq]:
+            p = board[t]
+            if p != 0 and (p > 0) == by_white and abs(p) == 2:
+                return True
+
         # King.
-        for dx, dy in _KING:
-            nf, nr = f + dx, r + dy
-            if 0 <= nf < 8 and 0 <= nr < 8:
-                p = board[nr * 8 + nf]
-                if p != 0 and (p > 0) == by_white and abs(p) == 6:
-                    return True
+        for t in _KING_TARGETS[sq]:
+            p = board[t]
+            if p != 0 and (p > 0) == by_white and abs(p) == 6:
+                return True
+
         # Sliding orth (R/Q).
         for di in _ROOK:
             for t in _RAYS[(sq, di)]:
@@ -159,6 +197,7 @@ class FastBoard:
                     if (p > 0) == by_white and abs(p) in (4, 5):
                         return True
                     break
+
         # Sliding diag (B/Q).
         for di in _BISHOP:
             for t in _RAYS[(sq, di)]:
@@ -186,7 +225,7 @@ class FastBoard:
             if pt == 1:
                 self._pawn_moves(sq, f, r, white, moves)
             elif pt == 2:
-                self._step_moves(sq, f, r, white, _KNIGHT, moves)
+                self._step_moves(sq, white, _KNIGHT_TARGETS[sq], moves)
             elif pt == 3:
                 self._slide_moves(sq, white, _BISHOP, moves)
             elif pt == 4:
@@ -194,19 +233,16 @@ class FastBoard:
             elif pt == 5:
                 self._slide_moves(sq, white, (0, 1, 2, 3, 4, 5, 6, 7), moves)
             elif pt == 6:
-                self._step_moves(sq, f, r, white, _KING, moves)
+                self._step_moves(sq, white, _KING_TARGETS[sq], moves)
                 self._castle_moves(sq, white, moves)
         return moves
 
-    def _step_moves(self, sq, f, r, white, offsets, moves):
+    def _step_moves(self, sq, white, targets, moves):
         board = self.pieces
-        for dx, dy in offsets:
-            nf, nr = f + dx, r + dy
-            if 0 <= nf < 8 and 0 <= nr < 8:
-                t = nr * 8 + nf
-                tp = int(board[t])
-                if tp == 0 or (tp > 0) != white:
-                    moves.append((sq, t, 0))
+        for t in targets:
+            tp = int(board[t])
+            if tp == 0 or (tp > 0) != white:
+                moves.append((sq, t, 0))
 
     def _slide_moves(self, sq, white, dirs, moves):
         board = self.pieces
@@ -281,24 +317,64 @@ class FastBoard:
                     and not self.square_attacked(58, True):
                 moves.append((60, 58, 0))
 
-    def legal_moves(self):
+    def is_legal(self, move) -> bool:
+        """Check legality of pseudo-legal move in-place without allocating a child board."""
+        f, t, promo = move
         white = self.turn == 0
-        legal = []
-        for mv in self._gen_pseudo():
-            nb = self.apply(mv)
-            k = nb.king_sq(white)
-            if k >= 0 and not nb.square_attacked(k, not white):
-                legal.append(mv)
-        return legal
+        board = self.pieces
+        p = int(board[f])
+        pt = abs(p)
+        king_sq = t if pt == 6 else (self._kw if white else self._kb)
+        if king_sq < 0:
+            return False
+
+        # Castling moves: arrival square king safety
+        if pt == 6 and abs(t - f) == 2:
+            dest_orig = board[t]
+            board[t] = p
+            board[f] = 0
+            attacked = self.square_attacked(t, not white)
+            board[f] = p
+            board[t] = dest_orig
+            return not attacked
+
+        # En-passant capture
+        if pt == 1 and t == self.ep and int(board[t]) == 0:
+            cap_sq = t - (8 if white else -8)
+            board[t] = promo if promo else p
+            board[f] = 0
+            board[cap_sq] = 0
+            attacked = self.square_attacked(king_sq, not white)
+            board[cap_sq] = -1 if white else 1
+            board[f] = p
+            board[t] = 0
+            return not attacked
+
+        # Standard move: in-place make, test, unmake
+        dest_orig = board[t]
+        board[t] = promo if promo else p
+        board[f] = 0
+        attacked = self.square_attacked(king_sq, not white)
+        board[f] = p
+        board[t] = dest_orig
+        return not attacked
+
+    def legal_moves(self):
+        return [mv for mv in self._gen_pseudo() if self.is_legal(mv)]
 
     # ---- application -----------------------------------------------------
     def apply(self, move):
         f, t, promo = move
-        nb = FastBoard(self.pieces.copy(), self.turn, self.castling, -1)
-        board = nb.pieces
-        p = int(board[f])
+        p = int(self.pieces[f])
         white = p > 0
         pt = abs(p)
+
+        new_kw = t if (pt == 6 and white) else self._kw
+        new_kb = t if (pt == 6 and not white) else self._kb
+
+        nb = FastBoard(self.pieces.copy(), self.turn, self.castling, -1,
+                       kw=new_kw, kb=new_kb)
+        board = nb.pieces
 
         # Velocity accumulator (feeds the Lorentz mass boost): each piece's
         # recent-motion activity. The moved piece carries its own momentum

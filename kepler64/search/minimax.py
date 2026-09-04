@@ -67,6 +67,7 @@ _ZOB_CASTLE = _rand64(16)
 _ZOB_EP = _rand64(65)
 # Per-square random multipliers for the mass-state checksum.
 _MASS_RAND = _rand64(64)
+_SQ_64 = np.arange(64, dtype=np.int64)
 
 
 def _mass_checksum(m) -> int:
@@ -107,9 +108,8 @@ class TT:
     @staticmethod
     def _hash(board, child_m, parent_m) -> int:
         pieces = board.pieces
-        sq = np.arange(64, dtype=np.int64)
         idx = pieces.astype(np.int64) + 6  # 0=empty, 1..12 pieces
-        h = int(np.bitwise_xor.reduce(np.where(idx != 6, _ZOB[sq, idx], 0)))
+        h = int(np.bitwise_xor.reduce(np.where(idx != 6, _ZOB[_SQ_64, idx], 0)))
         h ^= int(_ZOB_CASTLE[int(board.castling) & 0xF])
         h ^= int(_ZOB_EP[int(board.ep) + 1])  # ep in [-1,63] -> [0,64]
         h ^= int(_ZOB_TURN[int(board.turn)])
