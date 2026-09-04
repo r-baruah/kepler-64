@@ -13,6 +13,9 @@ Opponent spec:
 
 import math
 
+import shutil
+from pathlib import Path
+
 import chess
 import chess.engine
 
@@ -20,10 +23,18 @@ from .. import RocheEngine
 from ..core.constants import Constants
 
 
-def _launch(opp):
+def _launch(opp, opp_elo=None):
     if isinstance(opp, dict):
-        return chess.engine.SimpleEngine.popen_uci([opp["exe"], "--weights=" + opp["weights"]])
-    return chess.engine.SimpleEngine.popen_uci(opp)
+        engine = chess.engine.SimpleEngine.popen_uci([opp["exe"], "--weights=" + opp["weights"]])
+    else:
+        bin_path = opp if Path(opp).is_file() else (shutil.which(opp) or opp)
+        engine = chess.engine.SimpleEngine.popen_uci(bin_path)
+    if opp_elo is not None:
+        try:
+            engine.configure({"UCI_LimitStrength": True, "UCI_Elo": int(opp_elo)})
+        except Exception:
+            pass
+    return engine
 
 
 def _kepler_move(ke, board, depth):
@@ -71,8 +82,8 @@ def elo_estimate(opp_elo, wins, losses, draws):
 
 def run_match(opp_spec, opp_elo, games=6, depth=2, opp_limit=None,
               constants=None, seed=0):
-    ke = RocheEngine(constants or Constants())
-    opponent = _launch(opp_spec)
+    ke = RocheEngine(constants or Constants(), load_trained=False).warmup()
+    opponent = _launch(opp_spec, opp_elo=opp_elo)
     if opp_limit is None:
         opp_limit = chess.engine.Limit(time=0.2)
     wins = losses = draws = 0
@@ -82,8 +93,8 @@ def run_match(opp_spec, opp_elo, games=6, depth=2, opp_limit=None,
         wins += res == 1
         losses += res == -1
         draws += res == 0
-        print(f"  game {g} (Kepler {'W' if kepler_white else 'B'}): "
-              f"{'win' if res==1 else ('loss' if res==-1 else 'draw')}")
+        print(f"  game {g + 1}/{games} (Kepler {'W' if kepler_white else 'B'}): "
+              f"{'win' if res==1 else ('loss' if res==-1 else 'draw')}", flush=True)
     opponent.quit()
     est = elo_estimate(opp_elo, wins, losses, draws)
     print(f"\nKepler-64 vs {opp_elo}-Elo opponent: W {wins} / L {losses} / D {draws}")

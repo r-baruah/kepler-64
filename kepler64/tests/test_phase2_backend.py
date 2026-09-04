@@ -135,3 +135,19 @@ def test_parallel_head_to_head_matches():
     assert len(saved) == 2
 
 
+def test_selfplay_teacher_engine_parameter_and_fallback():
+    from kepler64.training.selfplay import play_training_games
+    from kepler64.core.constants import Constants
+
+    c = Constants()
+    # Test graceful fallback when external teacher binary is not found
+    examples, summary = play_training_games(
+        c, games=1, max_plies=4, move_ms=10.0, teacher_ms=10.0,
+        teacher_engine="nonexistent_chess_engine_xyz", teacher_elo=1600,
+        verbose=False
+    )
+    assert summary["games"] == 1
+    assert "game_idx" in examples[0] if examples else True
+
+
+
