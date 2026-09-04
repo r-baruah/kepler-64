@@ -63,6 +63,11 @@ def play_training_games(constants: Constants,
     external_teacher = None
     if teacher_engine:
         bin_path = teacher_engine if Path(teacher_engine).is_file() else shutil.which(teacher_engine)
+        if not bin_path and teacher_engine == "stockfish":
+            for candidate in ["/usr/games/stockfish", "/usr/local/bin/stockfish", "/usr/bin/stockfish"]:
+                if Path(candidate).is_file():
+                    bin_path = candidate
+                    break
         if bin_path:
             try:
                 external_teacher = chess.engine.SimpleEngine.popen_uci(bin_path)
