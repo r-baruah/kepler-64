@@ -71,7 +71,8 @@ def _unpack(p):
 
 def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
          tau: float = 1.0, margin: float = 0.0, key=None, use_multiverse: bool = False,
-         K: int = 8, sigma: float = 0.1, out_scale: float = 30.0):
+         K: int = 8, sigma: float = 0.1, out_scale: float = 0.25):
+
     """All-scalar, jit-compatible.
 
     M           : (N,64) mass vectors of positions            (outcome + policy)
@@ -86,11 +87,9 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     margin      : if >0, ADD a pairwise margin-ranking loss (expert should beat
                   a random legal move by `margin`) — an easier landscape than
                   the sharp cross-entropy over all K children.
-    out_scale   : outcome sigmoid scale. The physics eval is in units of ~±10s
-                  for decisive material swings; with unit scale its sigmoid is
-                  saturated on every training position and the outcome gradient
-                  vanishes. Scaling by ~30 puts typical scores inside the
-                  sigmoid's informative band.
+    out_scale   : outcome sigmoid scale. The physics eval is in units of ~±1-5 pawns.
+                  out_scale=0.25 maps a ±4-pawn edge into the informative [-1, +1]
+                  sigmoid band without saturation or gradient explosion.
     """
     G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr, lgw, lsch, ldt = _unpack(params)
     # mref is a FIXED unit scale (not trained) — keeps the tidal index well
@@ -160,7 +159,13 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
 
     # ---- soft monotonicity prior on c ------------------------------------
     prior = 0.1 * jnp.maximum(0.0, 2.0 - c) + 0.1 * jnp.maximum(0.0, c - 10.0)
-    return ce + 0.5 * policy + prior
+
+    # When policy data is available (self-play / expert moves), policy is the primary
+    # supervisory signal. Outcome Y is noisy (a player can blunder 60 plies later),
+    # so coupling it with high weight corrupts opening/middlegame evaluations.
+    # When outcome-only (has_policy == 0), fall back to scaled cross-entropy ce.
+    return jnp.where(has_policy > 0.0, policy + prior, ce + prior)
+
 
 
 @jax.jit
