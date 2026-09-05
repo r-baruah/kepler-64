@@ -29,8 +29,10 @@ Thumbs.db
 # Internal design & planning scratch
 DESIGN.md
 PRODUCT.md
-# docs/ is tracked: audit + credibility-gate artifacts
+# Private docs & research artifacts (local only)
+docs/
 # Kepler-64_Book/ is tracked: the public textbook, synced with code
+
 
 # Project generated artifacts & scratch
 Planning/
