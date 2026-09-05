@@ -134,10 +134,16 @@ TRAINABLE_LEAVES = (
 )
 
 # Physical projection bounds per leaf (same order as TRAINABLE_LEAVES).
-LEAF_LO = (0.01, 0.01, 1.0, 0.05, 0.01, 0.01, 0.0, 0.1, 0.0,
-           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01)
-LEAF_HI = (50.0, 20.0, 10.0, 20.0, 500., 50.0, 50., 10.0, 10.0,
-           10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 1.0)
+# Scale discipline & physical invariants (The Alien Physics Guardrails):
+# - eps <= 0.8: on an 8x8 board (spacing 1.0), softening > 0.8 flattens gravity into a blur.
+# - mat_gain >= 1.5: piece mass must remain decisive over quiet positional noise.
+# - lambda_delta, lambda_drift >= 0.1-0.2: dynamic rate-of-change cannot be extinguished.
+# - entropy_gain <= 6.0: prevents dispersion noise from drowning out tidal forces.
+LEAF_LO = (0.01, 0.05, 1.0, 0.05, 0.01, 0.01, 0.0, 0.1, 1.5,
+           0.2, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.01)
+LEAF_HI = (50.0, 0.8, 10.0, 20.0, 500., 50.0, 50., 10.0, 10.0,
+           10.0, 10.0, 10.0, 6.0, 10.0, 10.0, 10.0, 1.0)
+
 
 
 def leaves_to_array(c: "Constants"):

@@ -14,7 +14,7 @@ The book is organized in four Parts plus an Appendix:
 - **Part A — Foundations** (Chapters 1–6): the physics and math you must know *before* the architecture. Newtonian gravity, Plummer softening, the tidal tensor, Roche/Hill scaling, the speed of light as a gate, and automatic differentiation.
 - **Part B — The Core Engine** (Chapters 7–11): how Kepler-64 turns a chess position into a mass vector and runs it through the gravity → tidal → η → score pipeline, plus the 218-pad vmap trick and the Verlet rollout.
 - **Part C — Learning & Layer 2** (Chapters 12–13): training through physics and the Multiverse/Observer/Accretion mechanisms.
-- **Part D — Critique & Strategy** (Chapters 14–15): an independent review of every gap, bug, misassumption, and missed innovation ([14_Review.md](14_Review.md)), plus the requirements mapping ([15_Mapping.md](15_Mapping.md)).
+- **Part D — Critique & Strategy** (Chapters 14–16): an independent review of every gap, bug, misassumption, and missed innovation ([14_Review.md](14_Review.md)), the requirements mapping ([15_Mapping.md](15_Mapping.md)), and the empirical case study on the Alien Physics Fallacy ([16_The_Alien_Physics_Fallacy.md](16_The_Alien_Physics_Fallacy.md)).
 - **Appendix**: glossary, formula sheet, references.
 
 **Prerequisites.** A 12th-grade science background (basic algebra, vectors, Newtonian mechanics, a little statistics). No chess-engine experience required and no deep CS theory. Wherever a concept is first used it is defined once and linked back.
