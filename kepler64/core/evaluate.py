@@ -484,6 +484,44 @@ def score_white_terms(masses: "jnp.ndarray", constants, parent=None) -> EvalTerm
     )
 
 
+def king_physics(masses, constants) -> dict:
+    """Per-king readout for presentation: what the evaluator sees at each King.
+
+    For each colour, reports the King's square and mass, the tidal index eta
+    produced by the ENEMY army (enters the score linearly as tidal_enemy /
+    tidal_self), the enemy army's force magnitude at the King, and the
+    disruption gauge sigmoid(kgain * (|F| - roche)) — the term the learned
+    Roche threshold actually gates. `collapsing` is gauge > 0.5, i.e. the
+    pull at the King has crossed the threshold.
+    """
+    masses = jnp.asarray(masses, dtype=jnp.float32)
+    c = constants
+    white_co, black_co, wk, bk, kings_ok = _army_split(masses)
+    if not bool(kings_ok):
+        return {}
+    U_w = potential_field(white_co, c.eps, c.G, c.c)
+    U_b = potential_field(black_co, c.eps, c.G, c.c)
+    F_w = force_field(white_co, c.eps, c.G, c.c)
+    F_b = force_field(black_co, c.eps, c.G, c.c)
+    out = {}
+    for colour, ksq, U_enemy, F_enemy in (("white", wk, U_b, F_b),
+                                          ("black", bk, U_w, F_w)):
+        k_mass = float(jnp.abs(masses[ksq]))
+        eta = float(_eta(U_enemy, ksq, k_mass, c.Rg, c.mref))
+        force = float(jnp.linalg.norm(F_enemy[ksq]))
+        gauge = float(jax.nn.sigmoid(c.kgain * (force - c.roche)))
+        out[colour] = {
+            "square": int(ksq),
+            "mass": k_mass,
+            "eta": eta,
+            "force": force,
+            "roche": float(c.roche),
+            "gauge": gauge,
+            "collapsing": gauge > 0.5,
+        }
+    return out
+
+
 def evaluate(board, constants) -> float:
     """Score from the perspective of the side to move."""
     masses = board.mass_vector()

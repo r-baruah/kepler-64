@@ -70,6 +70,11 @@ class RocheEngine:
              multiverse_seed: int | None = None, observe: bool = False):
         """Search + return the best move (as a python-chess Move).
 
+        `board` may be a chess.Board, a FastBoard, or a `GameState`
+        (core/universe.py). Only a GameState carries the game's history into
+        the physics — accreted mass from earlier captures and the velocity
+        behind the Lorentz boost; the other two start the root at rest mass.
+
         `depth` caps iterative deepening (default 3). Pass `search_time_ms` to
         search with a wall-clock budget instead of a fixed depth: the engine
         deepens until the budget is exhausted and returns the best move of the
@@ -92,7 +97,17 @@ class RocheEngine:
         from .core.fastboard import FastBoard
         from .search.minimax import best_move, best_move_time, iterative_search
 
-        fb = board if isinstance(board, FastBoard) else FastBoard.from_chess(board)
+        from .core.universe import GameState
+
+        root_masses = None
+        if isinstance(board, GameState):
+            # Carried universe: accretion + velocity from the real game line.
+            state = board
+            board = state.board
+            fb = state.fb
+            root_masses = state.masses
+        else:
+            fb = board if isinstance(board, FastBoard) else FastBoard.from_chess(board)
         mv_seed = 20260808 if multiverse_seed is None else multiverse_seed
 
         # Closed-orbit history: every position already on the line (board
@@ -113,11 +128,13 @@ class RocheEngine:
             mv, _ = iterative_search(self, fb, max_depth=max_depth,
                                      time_ms=search_time_ms, seen=seen,
                                      use_multiverse=use_multiverse,
-                                     multiverse_seed=mv_seed)
+                                     multiverse_seed=mv_seed,
+                                     root_masses=root_masses)
         else:
             mv, _ = iterative_search(self, fb, max_depth=depth, seen=seen,
                                      use_multiverse=use_multiverse,
-                                     multiverse_seed=mv_seed)
+                                     multiverse_seed=mv_seed,
+                                     root_masses=root_masses)
         if mv is None:
             return None
         f, t, promo = mv
@@ -129,7 +146,8 @@ class RocheEngine:
             from .multiverse.observer import observe_update
 
             fb_child = fb.apply(mv)
-            parent_mv = fb.mass_vector(float(self.constants.c))
+            parent_mv = (fb.mass_vector(float(self.constants.c))
+                         if root_masses is None else root_masses)
             child_masses = child_mass_vector(
                 fb, mv, parent_mv, child_board=fb_child,
                 c_lorentz=float(self.constants.c))
