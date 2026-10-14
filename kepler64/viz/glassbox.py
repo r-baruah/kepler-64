@@ -403,8 +403,6 @@ def render_position(
     """
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.patches as mpatches
-    import matplotlib.patheffects as pe
     import matplotlib.pyplot as plt
 
     cb        = getattr(board, "_chess", None)

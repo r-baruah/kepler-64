@@ -162,7 +162,6 @@ def to_arrays(examples):
     """Stack examples into padded numpy arrays. Returns a 7-tuple ending with
     `expert_capture` ((N,) float mask, 1 where the expert move is a capture;
     all-zeros when examples carry no capture label)."""
-    n = len(examples)
     M = np.stack([e["mass"] for e in examples]).astype(np.float32)
     Y = np.array([e["outcome"] for e in examples], dtype=np.float32)
     turns = np.array([e["turn"] for e in examples], dtype=np.float32)

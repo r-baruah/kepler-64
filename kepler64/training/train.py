@@ -33,7 +33,6 @@ Hardware notes (Ryzen 5 5500U, 8 GB RAM, Radeon iGPU, no CUDA):
 
 import json
 import os
-import shutil
 import time
 from pathlib import Path
 

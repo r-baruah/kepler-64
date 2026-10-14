@@ -134,7 +134,6 @@ def head_to_head(constants_a: Constants, constants_b: Constants, *,
                  on_game_end=None, workers: int = 1):
     """A vs B, colors balanced. Returns dict with wins/draws/losses for A."""
     from kepler64 import RocheEngine
-    import numpy as np
 
     history = list(initial_history) if initial_history else []
     w = sum(1 for r in history if r["res"] == "win")

@@ -194,11 +194,11 @@ def main():
                               limit_games=30, limit_positions=8000)
         examples = puz + games
         print(f"[train] external data: {len(examples)} examples")
-        print(f"[train] outcome-only phase ...")
+        print("[train] outcome-only phase ...")
         champion = trainmod.train_examples(champion, examples, steps=args.steps,
                                            lr=args.lr, fix_G=args.fix_G,
                                            verbose=True, policy=False)
-        print(f"[train] policy phase ...")
+        print("[train] policy phase ...")
         champion = trainmod.train_examples(champion, examples, steps=args.steps,
                                            lr=args.lr, fix_G=args.fix_G,
                                            verbose=True, policy=True)
@@ -223,7 +223,7 @@ def main():
             })
             print(f"[round] ACCEPTED — champion persisted -> {args.out}")
         else:
-            print(f"[round] rejected — champion unchanged")
+            print("[round] rejected — champion unchanged")
 
     print(f"\n[train] done: {accepted_rounds}/{args.rounds} rounds accepted")
     print(f"[train] final constants: {champion}")

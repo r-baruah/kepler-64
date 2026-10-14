@@ -45,7 +45,6 @@ def panel_pairs():
     """(child_masses, parent_masses) pairs — the delta terms are difference-
     form (child − parent), so a meaningful panel needs BOTH sides of each
     transition, exactly like the search sees them."""
-    import numpy as np
     from kepler64.core.transitions import child_mass_vector
 
     out = []

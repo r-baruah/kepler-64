@@ -17,7 +17,6 @@ a hand-written evaluation: the match is pure search physics vs search physics.
 from __future__ import annotations
 
 import chess
-import numpy as np
 
 from ..core.constants import Constants
 from .elo import elo_from_record
@@ -34,7 +33,6 @@ def play_match(candidate: Constants, baseline: Constants, *,
     """
     from .. import RocheEngine
 
-    rng = __import__("numpy").random.default_rng(seed)
     cand = RocheEngine(candidate)
     base = RocheEngine(baseline)
     wins = losses = draws = 0
