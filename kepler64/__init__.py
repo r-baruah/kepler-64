@@ -95,7 +95,7 @@ class RocheEngine:
         import chess
 
         from .core.fastboard import FastBoard
-        from .search.minimax import best_move, best_move_time, iterative_search
+        from .search.minimax import iterative_search, seen_positions
 
         from .core.universe import GameState
 
@@ -115,14 +115,7 @@ class RocheEngine:
         # which change on every ply and would defeat the comparison). A root
         # move that lands back on a seen board is a cycle with no net
         # momentum: the laws assign it the draw value.
-        seen = None
-        if isinstance(board, chess.Board) and board.move_stack:
-            seen = set()
-            b = board.copy()
-            seen.add(" ".join(b.fen().split()[:4]))
-            for _ in range(len(board.move_stack)):
-                b.pop()
-                seen.add(" ".join(b.fen().split()[:4]))
+        seen = seen_positions(board) if isinstance(board, chess.Board) else None
 
         if search_time_ms is not None:
             mv, _ = iterative_search(self, fb, max_depth=max_depth,
