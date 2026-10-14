@@ -112,3 +112,12 @@ def test_normalized_policy_loss_is_finite_on_a_flat_row():
                normalize_scores=True)
     assert np.isfinite(float(val))
     assert abs(float(val) - np.log(n)) < 0.2
+
+
+def test_uci_search_replays_the_move_list():
+    from kepler64.uci import parse_position, search
+
+    board = parse_position("position startpos moves e2e4 d7d5 e4d5 g8f6".split(),
+                           chess.Board())
+    uci, _ = search(board, RocheEngine(Constants(), load_trained=False), 1, None)
+    assert chess.Move.from_uci(uci) in board.legal_moves

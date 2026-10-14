@@ -23,7 +23,7 @@ import chess
 
 from . import RocheEngine
 from .core.constants import Constants
-from .core.fastboard import FastBoard
+from .core.universe import GameState
 from .search.minimax import iterative_search
 
 ENGINE_NAME = "Kepler-64"
@@ -78,12 +78,25 @@ def go_budget(tokens: list[str], turn_white: bool) -> tuple[int, float | None]:
 
 def search(board: chess.Board, engine: RocheEngine,
            max_depth: int, time_ms: float | None) -> tuple[str, int]:
-    """Search and return (bestmove_uci, info_cp). `info_cp` is native*100."""
-    fb = FastBoard.from_chess(board)
-    seen = {" ".join(board.fen().split()[:4])} if board.move_stack else None
-    mv, score = iterative_search(engine, fb, max_depth=max_depth,
+    """Search and return (bestmove_uci, info_cp). `info_cp` is native*100.
+
+    The game is replayed from the GUI's move list through a GameState, so
+    mass absorbed on earlier captures and piece velocity carry into the
+    search, and every position already on the line counts for the
+    closed-orbit (repetition) rule.
+    """
+    state = GameState.from_moves(board.move_stack, start=board.root(),
+                                 c=float(engine.constants.c))
+    seen = None
+    if board.move_stack:
+        b = board.copy()
+        seen = {" ".join(b.fen().split()[:4])}
+        while b.move_stack:
+            b.pop()
+            seen.add(" ".join(b.fen().split()[:4]))
+    mv, score = iterative_search(engine, state.fb, max_depth=max_depth,
                                  time_ms=time_ms, seen=seen,
-                                 use_multiverse=True)
+                                 use_multiverse=True, root_masses=state.masses)
     if mv is None:
         return "0000", 0
     f, t, promo = mv
