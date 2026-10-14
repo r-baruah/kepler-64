@@ -6,6 +6,8 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 dependencies = [
+    # Lower bounds only: requirements.txt is the pinned lock (jax[cpu]==0.10.2),
+    # which satisfies these ranges.
     "jax>=0.4",
     "jaxlib>=0.4",
     "numpy",
@@ -17,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "scipy"]
+dev = ["pytest", "scipy", "ruff"]
 [project.scripts]
 kepler64-uci = "kepler64.uci:main"
 
@@ -31,3 +33,19 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["kepler64*"]
+
+[tool.ruff]
+target-version = "py310"
+extend-exclude = ["viz-web", "notebooks", "Kepler-64_Book"]
+
+[tool.ruff.lint]
+# Conservative: real errors (E9) and pyflakes (F: unused imports/names).
+select = ["E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Files owned by other workstreams: tolerate existing pyflakes findings so CI
+# stays green; tighten as they are cleaned up.
+"kepler64/__init__.py" = ["F401"]
+"kepler64/core/*" = ["F401", "F841"]
+"kepler64/uci.py" = ["F401"]
+"kepler64/tests/*" = ["F401", "F841"]
