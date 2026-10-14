@@ -437,8 +437,9 @@ def render_position(
     try:
         score = float(evaluate(board, constants))
         eval_str = f"    eval {score:+.3f}"
-    except Exception:
-        pass
+    except Exception as exc:  # header eval is cosmetic; never kill the render
+        warnings.warn(f"render_position: eval header skipped ({exc!r})",
+                      stacklevel=2)
 
     c = constants
     phys = (f"G = {c.G:.3f}    ε = {c.eps:.3f}    "
