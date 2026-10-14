@@ -61,7 +61,7 @@ Lorentz mass is **wired into play**: `FastBoard` keeps a per-piece velocity accu
 
 ## 13.6 Image-seeded universe: constants from a photograph
 
-`core/image_seed.py` derives the universe's origin from a file (`seed_from_image`, `image_seed.py:24-41`): SHA-256 of the bytes gives a deterministic PRNG seed (decorative), and a **genuine 2D FFT of the decoded 8×8 grayscale image** → log-compressed → normalized → maps to $[G,\varepsilon,\rho_{\text{roche}},c]_{\text{init}}$. An 8×8 crop maps pixel intensity → initial piece masses (`initial_masses_from_image`, `image_seed.py:44-53`).
+`core/image_seed.py` derives the universe's origin from a file (`seed_from_image`, `image_seed.py:24-41`): a **genuine 2D FFT of the decoded 8×8 grayscale image** → log-compressed → normalized → maps to $[G,\varepsilon,\rho_{\text{roche}},c]_{\text{init}}$. An 8×8 crop maps pixel intensity → initial piece masses (`initial_masses_from_image`, `image_seed.py:44-53`).
 
 > **(Resolved)** The former [ISSUE: IMAGE-FFT-OF-BYTES] and [ISSUE: IMAGE-NORM-COLLAPSE] are closed: `_fft_magnitudes` now decodes the image with Pillow (8×8 grayscale) and takes the real FFT of the *pixels* (falling back to byte-entropy seeding only when Pillow is unavailable), and the spectrum is **log-compressed before normalization** so low-frequency-dominated natural images do not collapse every constant onto a clamp.
 
