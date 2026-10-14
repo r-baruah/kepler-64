@@ -341,7 +341,7 @@ class FastBoard:
         # En-passant capture
         if pt == 1 and t == self.ep and int(board[t]) == 0:
             cap_sq = t - (8 if white else -8)
-            board[t] = promo if promo else p
+            board[t] = (promo if p > 0 else -promo) if promo else p
             board[f] = 0
             board[cap_sq] = 0
             attacked = self.square_attacked(king_sq, not white)
@@ -352,7 +352,7 @@ class FastBoard:
 
         # Standard move: in-place make, test, unmake
         dest_orig = board[t]
-        board[t] = promo if promo else p
+        board[t] = (promo if p > 0 else -promo) if promo else p
         board[f] = 0
         attacked = self.square_attacked(king_sq, not white)
         board[f] = p
@@ -403,7 +403,7 @@ class FastBoard:
             board[cap] = 0
 
         # Move / promote the piece.
-        board[t] = promo if promo else p
+        board[t] = (promo if p > 0 else -promo) if promo else p
         board[f] = 0
 
         # Castling rook.
