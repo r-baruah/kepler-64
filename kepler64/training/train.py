@@ -175,7 +175,8 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
           K: int = 8, sigma: float = 0.1, log_every: int = 0,
           ckpt_every: int = 0, ckpt_path: str | None = None,
           init_arr=None, init_step: int = 0,
-          init_opt_state=None, init_rng_state=None) -> Constants:
+          init_opt_state=None, init_rng_state=None,
+          normalize_scores: bool = False) -> Constants:
     """Mini-batch Adam over (M, Y, turns, moves_m, mask, expert_idx).
 
     M (N,64) mass vectors; Y (N,) outcomes {-1,0,+1} White-view; turns (N,)
@@ -245,7 +246,8 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
         def _step(a, state, bM, bY, bMM, bEI, bMK, bT, step_key):
             val, g = jax.value_and_grad(loss_fn)(
                 a, bM, bY, bMM, bEI, has_policy, bMK, bT, tau, margin,
-                step_key, use_multiverse, K, sigma)
+                step_key, use_multiverse, K, sigma,
+                normalize_scores=normalize_scores)
             if fix_G:
                 g = g.at[0].set(0.0)
             updates, new_state = opt.update(g, state)
@@ -289,7 +291,8 @@ def train(base: Constants, M, Y, turns=None, moves_m=None, mask=None, expert_idx
         def _step_sgd(a, bM, bY, bMM, bEI, bMK, bT, step_key):
             val, g = jax.value_and_grad(loss_fn)(
                 a, bM, bY, bMM, bEI, has_policy, bMK, bT, tau, margin,
-                step_key, use_multiverse, K, sigma)
+                step_key, use_multiverse, K, sigma,
+                normalize_scores=normalize_scores)
             if fix_G:
                 g = g.at[0].set(0.0)
             # clip gradient norm to 1.0
@@ -334,7 +337,8 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
                    return_metrics: bool = False, log_every: int = 0,
                    ckpt_every: int = 0, ckpt_path: str | None = None,
                    init_arr=None, init_step: int = 0,
-                   init_opt_state=None, init_rng_state=None):
+                   init_opt_state=None, init_rng_state=None,
+                   normalize_scores: bool = False):
 
     """Convenience: build arrays from examples (list of dicts), split train/val,
     train, and report validation ranking metrics so we can see real progress
@@ -371,6 +375,7 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
         log_every=log_every, ckpt_every=ckpt_every, ckpt_path=ckpt_path,
         init_arr=init_arr, init_step=init_step,
         init_opt_state=init_opt_state, init_rng_state=init_rng_state,
+        normalize_scores=normalize_scores,
     )
 
     metrics = None

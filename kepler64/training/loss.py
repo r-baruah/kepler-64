@@ -72,7 +72,8 @@ def _unpack(p):
 
 def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
          tau: float = 1.0, margin: float = 0.0, key=None, use_multiverse: bool = False,
-         K: int = 8, sigma: float = 0.1, out_scale: float = 0.25):
+         K: int = 8, sigma: float = 0.1, out_scale: float = 0.25,
+         normalize_scores: bool = False):
 
     """All-scalar, jit-compatible.
 
@@ -91,6 +92,14 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
     out_scale   : outcome sigmoid scale. The physics eval is in units of ~±1-5 pawns.
                   out_scale=0.25 maps a ±4-pawn edge into the informative [-1, +1]
                   sigmoid band without saturation or gradient explosion.
+    normalize_scores : standardize each position's child scores (zero mean,
+                  unit std over legal moves) before the softmax. The policy
+                  loss then depends only on how the physics ORDERS the moves,
+                  not on its overall scale, so the optimizer cannot lower the
+                  loss by flattening the landscape (switching the disruption
+                  gauge off, shrinking Rg). See
+                  training/NOTES_constants_at_bounds.md. Off by default so
+                  existing runs are reproducible.
     """
     G, eps, c, roche, bonus, kgain, gamma, Rg, mat_gain, ld, cg, ig, eg, dr, lgw, lsch, ldt = _unpack(params)
     # mref is a FIXED unit scale (not trained) — keeps the tidal index well
@@ -129,6 +138,12 @@ def loss(params, M, Y, moves_m, expert_idx, has_policy, mask=None, turns=None,
         # _score_core is WHITE-perspective, so White-to-move wants the HIGHEST
         # white score and Black-to-move wants the LOWEST -> flip for Black ONLY.
         side = jnp.where(turn > 0.0, -white, white)
+        if normalize_scores:
+            valid = msk > 0.5
+            n = jnp.maximum(jnp.sum(valid), 1.0)
+            mean = jnp.sum(jnp.where(valid, side, 0.0)) / n
+            var = jnp.sum(jnp.where(valid, (side - mean) ** 2, 0.0)) / n
+            side = (side - mean) / jnp.sqrt(var + 1e-6)
         side = jnp.where(msk > 0.5, side, -jnp.inf)
 
         # Softmax cross-entropy term for expert move

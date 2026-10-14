@@ -94,3 +94,21 @@ def test_trained_constants_with_meta_load():
     path = ROOT / "kepler64" / "training" / "trained_constants.json"
     assert "_meta" in json.loads(path.read_text())
     assert load_constants(path) is not None
+
+
+def test_normalized_policy_loss_is_finite_on_a_flat_row():
+    # Every child identical -> zero score spread. Normalization must not
+    # divide by zero; the loss is the uniform cross-entropy log(n).
+    import jax.numpy as jnp
+    from kepler64.training.loss import loss
+
+    parent = np.asarray(FastBoard.from_chess(chess.Board()).mass_vector(), dtype=np.float32)
+    n = 5
+    moves_m = np.stack([parent] * n)[None]
+    mask = np.ones((1, n), dtype=np.float32)
+    val = loss(leaves_to_array(Constants()), jnp.asarray(parent[None]), jnp.zeros(1),
+               jnp.asarray(moves_m), jnp.zeros(1, dtype=jnp.int32), jnp.asarray(1.0),
+               mask=jnp.asarray(mask), turns=jnp.zeros(1), tau=1.0,
+               normalize_scores=True)
+    assert np.isfinite(float(val))
+    assert abs(float(val) - np.log(n)) < 0.2
