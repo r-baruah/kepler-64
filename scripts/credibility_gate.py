@@ -124,7 +124,8 @@ def _play_single_match_game(g: int, max_plies: int, move_ms: float):
             res = "win" if a_won else "loss"
     else:
         res = "draw"
-    return {"game": g, "res": res, "plies": plies, "color": "W" if a_is_white else "B"}
+    return {"game": g, "res": res, "plies": plies, "color": "W" if a_is_white else "B",
+            "adjudicated": oc is None and plies >= max_plies}
 
 
 def head_to_head(constants_a: Constants, constants_b: Constants, *,
@@ -176,7 +177,8 @@ def head_to_head(constants_a: Constants, constants_b: Constants, *,
             w += res == "win"
             d += res == "draw"
             l += res == "loss"
-            record = {"game": g, "res": res, "plies": plies, "color": "W" if a_is_white else "B"}
+            record = {"game": g, "res": res, "plies": plies, "color": "W" if a_is_white else "B",
+                      "adjudicated": oc is None and plies >= max_plies}
             history.append(record)
             print(f"[match] game {g + 1}/{games}: A({'W' if a_is_white else 'B'}) "
                   f"{res} after {plies} plies", flush=True)
@@ -206,7 +208,11 @@ def head_to_head(constants_a: Constants, constants_b: Constants, *,
                     on_game_end(history, {"wins": w, "draws": d, "losses": l, "games": len(history)})
 
     history.sort(key=lambda r: r["game"])
-    return {"wins": w, "draws": d, "losses": l, "games": len(history), "history": history}
+    # Ply-capped games are scored by terminal mass edge, not played out:
+    # report how many results that covers so a summary never hides it.
+    adjudicated = sum(1 for r in history if r.get("adjudicated"))
+    return {"wins": w, "draws": d, "losses": l, "games": len(history),
+            "adjudicated": adjudicated, "history": history}
 
 
 def elo_proxy(w: int, d: int, l: int) -> float:
@@ -481,6 +487,7 @@ Self-play: {summary['games']} games -> {summary['examples']} examples
 | MRR (captures) | {m_b['mrr_capture']:.3f} | **{m_t['mrr_capture']:.3f}** | {m_t['mrr_capture'] - m_b['mrr_capture']:+.3f} |
 | MRR (quiet) | {m_b['mrr_quiet']:.3f} | **{m_t['mrr_quiet']:.3f}** | {m_t['mrr_quiet'] - m_b['mrr_quiet']:+.3f} |
 | Head-to-head (W/D/L) | - | **{match['wins']}/{match['draws']}/{match['losses']}** | Elo ~ {elo:+.0f} |
+| ...of which adjudicated at ply cap by mass | - | {match.get('adjudicated', 'n/a')} of {match['games']} | not played out |
 {bench_row}
 **Verdict:** {verdict}
 
