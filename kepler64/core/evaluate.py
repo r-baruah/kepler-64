@@ -26,6 +26,7 @@ All heavy math is pure JAX. Training imports ``_score_core`` as a stable private
 alias of the shared traced body so ``jax.grad`` can move every trainable leaf.
 """
 
+from dataclasses import replace
 from typing import NamedTuple
 
 import jax
@@ -34,7 +35,7 @@ import numpy as np
 
 from .gravity import force_field, potential_field, _COORDS, _DIST
 from .tidal import tidal_tensor_at, eig2x2
-from .constants import Constants
+from .constants import Constants, TRAINABLE_LEAVES
 
 _MAX_MOVES = 218  # theoretical max legal moves in chess
 _OFF_DIAG = 1.0 - jnp.eye(64, dtype=jnp.float32)
@@ -457,13 +458,7 @@ def score_white(masses: "jnp.ndarray", constants, parent=None) -> float:
     """Evaluate from White's perspective. Pass `parent` (a mass vector) to
     activate the move-sensitivity (delta) terms."""
     return _score_core_static(
-        masses, constants.G, constants.eps, constants.c, constants.roche,
-        constants.bonus, constants.kgain, constants.gamma, constants.Rg,
-        constants.mref, constants.mat_gain, constants.lambda_delta,
-        constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0),
-        getattr(constants, "lambda_sch", 0.0),
-        getattr(constants, "dt_drift", 0.1), parent,
+        masses, *_eval_args(constants), parent,
     )
 
 
@@ -477,13 +472,7 @@ _score_terms_jit = jax.jit(_score_terms_body)
 def score_white_terms(masses: "jnp.ndarray", constants, parent=None) -> EvalTerms:
     """Return weighted contributions that sum exactly to ``score_white``."""
     return _score_terms_jit(
-        masses, constants.G, constants.eps, constants.c, constants.roche,
-        constants.bonus, constants.kgain, constants.gamma, constants.Rg,
-        constants.mref, constants.mat_gain, constants.lambda_delta,
-        constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0),
-        getattr(constants, "lambda_sch", 0.0),
-        getattr(constants, "dt_drift", 0.1), parent,
+        masses, *_eval_args(constants), parent,
     )
 
 
@@ -532,10 +521,19 @@ def evaluate(board, constants) -> float:
     return s if board.turn == 0 else -s
 
 
-_LEAF_ORDER = ("G", "eps", "c", "roche", "bonus", "kgain", "gamma", "Rg",
-               "mref", "mat_gain", "lambda_delta", "com_gain", "inertia_gain",
-               "entropy_gain", "lambda_drift", "lambda_gw", "lambda_sch",
-               "dt_drift")
+# `_score_body` positional order: the trainable leaves with the fixed unit
+# scale `mref` (not trainable) slotted in after `Rg`. Derived from
+# constants.TRAINABLE_LEAVES so the two can never drift apart.
+_EVAL_ORDER = (TRAINABLE_LEAVES[:TRAINABLE_LEAVES.index("Rg") + 1] + ("mref",)
+               + TRAINABLE_LEAVES[TRAINABLE_LEAVES.index("Rg") + 1:])
+# Defaults for leaves that pre-GW/pre-drift-dt artifacts may lack.
+_EVAL_DEFAULTS = {"lambda_gw": 0.0, "lambda_sch": 0.0, "dt_drift": 0.1}
+
+
+def _eval_args(constants) -> tuple:
+    """The 18 eval scalars in `_score_body` order."""
+    return tuple(getattr(constants, n, _EVAL_DEFAULTS[n]) if n in _EVAL_DEFAULTS
+                 else getattr(constants, n) for n in _EVAL_ORDER)
 
 
 def _leaves_array(constants) -> "jnp.ndarray":
@@ -544,15 +542,7 @@ def _leaves_array(constants) -> "jnp.ndarray":
     Traced (not static): changing a leaf never recompiles the batch kernel.
     Defaults mirror `score_white` so pre-GW artifacts still load.
     """
-    return jnp.asarray([
-        constants.G, constants.eps, constants.c, constants.roche,
-        constants.bonus, constants.kgain, constants.gamma, constants.Rg,
-        constants.mref, constants.mat_gain, constants.lambda_delta,
-        constants.com_gain, constants.inertia_gain, constants.entropy_gain,
-        constants.lambda_drift, getattr(constants, "lambda_gw", 0.0),
-        getattr(constants, "lambda_sch", 0.0),
-        getattr(constants, "dt_drift", 0.1),
-    ], dtype=jnp.float32)
+    return jnp.asarray(_eval_args(constants), dtype=jnp.float32)
 
 
 def _row_static(m, leaves):
@@ -630,29 +620,12 @@ def _perturb_constants(base: "Constants", key, sigma: float = 0.1) -> "Constants
     reach gate `c` is clipped back to its physical prior [1, 10]. `mref` is a
     fixed unit scale (not a trainable weight), so it is held constant.
     """
-    keys = _jr.split(key, 17)
-    (kG, ke, kc, kr, kb, kkg, kg, kR, kmg, kld, kcg, kig, keg,
-     kdr, kgw, ksch, kdt) = keys
-    return Constants(
-        G=base.G * (1.0 + sigma * _jr.normal(kG)),
-        eps=base.eps * (1.0 + sigma * _jr.normal(ke)),
-        c=jnp.clip(base.c * (1.0 + sigma * _jr.normal(kc)), 1.0, 10.0),
-        roche=base.roche * (1.0 + sigma * _jr.normal(kr)),
-        bonus=base.bonus * (1.0 + sigma * _jr.normal(kb)),
-        kgain=base.kgain * (1.0 + sigma * _jr.normal(kkg)),
-        gamma=base.gamma * (1.0 + sigma * _jr.normal(kg)),
-        Rg=base.Rg * (1.0 + sigma * _jr.normal(kR)),
-        mref=base.mref,
-        mat_gain=base.mat_gain * (1.0 + sigma * _jr.normal(kmg)),
-        lambda_delta=base.lambda_delta * (1.0 + sigma * _jr.normal(kld)),
-        com_gain=base.com_gain * (1.0 + sigma * _jr.normal(kcg)),
-        inertia_gain=base.inertia_gain * (1.0 + sigma * _jr.normal(kig)),
-        entropy_gain=base.entropy_gain * (1.0 + sigma * _jr.normal(keg)),
-        lambda_drift=base.lambda_drift * (1.0 + sigma * _jr.normal(kdr)),
-        lambda_gw=base.lambda_gw * (1.0 + sigma * _jr.normal(kgw)),
-        lambda_sch=base.lambda_sch * (1.0 + sigma * _jr.normal(ksch)),
-        dt_drift=base.dt_drift * (1.0 + sigma * _jr.normal(kdt)),
-    )
+    keys = _jr.split(key, len(TRAINABLE_LEAVES))
+    updates = {}
+    for name, k in zip(TRAINABLE_LEAVES, keys):
+        v = getattr(base, name) * (1.0 + sigma * _jr.normal(k))
+        updates[name] = jnp.clip(v, 1.0, 10.0) if name == "c" else v
+    return replace(base, **updates)
 
 
 def multiverse_score_white(masses: "jnp.ndarray", constants: "Constants",
@@ -671,11 +644,3 @@ def multiverse_score_white(masses: "jnp.ndarray", constants: "Constants",
         return score_white(masses, _perturb_constants(constants, k, sigma), parent)
 
     return jnp.mean(jax.vmap(_one)(keys))
-
-
-def score_white_layer2(masses: "jnp.ndarray", constants: "Constants",
-                       key, K: int = 8, sigma: float = 0.1,
-                       parent=None) -> "jnp.ndarray":
-    """Convenience: Layer-1 by default, Layer-2 when `use_multiverse` is set."""
-    return multiverse_score_white(masses, constants, key, K=K, sigma=sigma,
-                                  parent=parent)

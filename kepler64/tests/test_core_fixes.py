@@ -72,3 +72,36 @@ def test_legal_moves_match_python_chess_depth2(fen):
         assert child.to_chess().board_fen() == cb.board_fen()
         assert _mvset(child) == _cmset(cb), (fen, m)
         cb.pop()
+
+
+# ── eval argument list derived from TRAINABLE_LEAVES ────────────────────────
+
+def test_eval_args_order_and_scores_consistent():
+    import jax
+    from kepler64.core import evaluate as ev
+    from kepler64.core.constants import Constants, load_constants
+
+    assert ev._EVAL_ORDER == (
+        "G", "eps", "c", "roche", "bonus", "kgain", "gamma", "Rg", "mref",
+        "mat_gain", "lambda_delta", "com_gain", "inertia_gain", "entropy_gain",
+        "lambda_drift", "lambda_gw", "lambda_sch", "dt_drift")
+    k = load_constants()
+    explicit = [k.G, k.eps, k.c, k.roche, k.bonus, k.kgain, k.gamma, k.Rg,
+                k.mref, k.mat_gain, k.lambda_delta, k.com_gain, k.inertia_gain,
+                k.entropy_gain, k.lambda_drift, k.lambda_gw, k.lambda_sch,
+                k.dt_drift]
+    assert list(ev._eval_args(k)) == explicit
+    base = np.asarray(FastBoard.from_chess(chess.Board(
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+    )).mass_vector(k.c))
+    rng = np.random.default_rng(1)
+    rows = [base * rng.uniform(0.7, 1.4, 64).astype(np.float32) for _ in range(3)]
+    batch = np.asarray(ev.batch_score(rows, [0] * 3, k, pad=4))[:3]
+    single = [float(ev.score_white(r, k)) for r in rows]
+    terms = [float(ev.score_white_terms(r, k).total) for r in rows]
+    assert np.allclose(batch, single, atol=1e-6)
+    assert np.allclose(terms, single, atol=1e-6)
+    # perturbation keeps c in its prior and leaves mref untouched
+    p = ev._perturb_constants(k, jax.random.PRNGKey(3), sigma=0.5)
+    assert 1.0 <= float(p.c) <= 10.0 and p.mref == k.mref
+    assert isinstance(p, Constants)
