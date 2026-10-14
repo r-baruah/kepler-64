@@ -2,8 +2,7 @@
 
 chess:  the starting masses and the fundamental constants of the universe are
         derived from a single photograph — not from a UNIX timestamp.
-physics: SHA-256(byte_array) -> PRNGKey (decorative determinism). The REAL hook:
-        if Pillow is available we DECODE the image to 8x8 grayscale and take the
+physics: if Pillow is available we DECODE the image to 8x8 grayscale and take the
         genuine 2D FFT of the pixels; otherwise we fall back to byte-entropy
         seeding from the raw file bytes (a pseudo-random constant generator, NOT
         an image FFT). Log-compression is applied before normalization so the
@@ -12,13 +11,12 @@ physics: SHA-256(byte_array) -> PRNGKey (decorative determinism). The REAL hook:
         initial piece masses, so the opening position itself is image-derived.
 """
 
-import hashlib
 from dataclasses import replace
 
 import jax.numpy as jnp
 import numpy as np
 
-from .constants import Constants, PIECE_MASSES
+from .constants import Constants
 
 try:
     from PIL import Image
@@ -31,7 +29,6 @@ except Exception:  # pragma: no cover - PIL optional
 def seed_from_image(path: str, base: Constants) -> Constants:
     with open(path, "rb") as fh:
         raw = fh.read()
-    _ = int.from_bytes(hashlib.sha256(raw).digest(), "big")  # deterministic seed
 
     spectrum = _fft_magnitudes(path, raw)
     # Log-compress the spectrum so low-frequency-dominated natural images do not

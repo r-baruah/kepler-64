@@ -17,8 +17,6 @@ try:
 except ImportError:  # python-chess only required for the v1 adapter / training
     chess = None
 
-from .constants import PIECE_MASSES
-
 # Square index convention: sq = rank*8 + file, rank 0 = rank 1 (white back rank).
 SQ_NAMES = None  # populated lazily if chess is available
 
@@ -42,7 +40,7 @@ class Board:
         return cls(
             pieces=pieces,
             turn=0 if board.turn else 1,
-            castling=board.castling_xfen(),
+            castling=int(board.castling_rights),  # python-chess castling bitboard
             ep_square=board.ep_square or -1,
             halfmove=board.halfmove_clock,
             fullmove=board.fullmove_number,
@@ -80,7 +78,7 @@ class Board:
     def _color_at(self, sq) -> int:
         if self._chess is not None:
             pc = self._chess.piece_at(sq)
-            return 0 if pc and pc.color == chess.WHITE else 1
+            return 0 if pc and pc.color else 1  # chess.WHITE is True
         return 0 if sq < 16 else 1
 
     # ---- legal moves -------------------------------------------------------

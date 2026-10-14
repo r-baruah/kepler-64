@@ -105,3 +105,30 @@ def test_eval_args_order_and_scores_consistent():
     p = ev._perturb_constants(k, jax.random.PRNGKey(3), sigma=0.5)
     assert 1.0 <= float(p.c) <= 10.0 and p.mref == k.mref
     assert isinstance(p, Constants)
+
+
+# ── Lorentz helper identical to the previous inline formula ────────────────
+
+def test_lorentz_gamma_helper_matches_inline_formula():
+    from kepler64.core.fastboard import lorentz_gamma, LORENTZ_C_DEFAULT
+    from kepler64.core.constants import Constants
+    assert LORENTZ_C_DEFAULT == Constants().c
+    rng = np.random.default_rng(2)
+    fb = FastBoard.from_chess(chess.Board())
+    v = rng.uniform(0, 8, 64).astype(np.float32)
+    for c in (1.0, 4.0, 6.0, 9.5):
+        u = v / (v + c)
+        ref = 1.0 / np.sqrt(1.0 - u * u)
+        ref[np.abs(fb.pieces) == 6] = 1.0
+        assert np.array_equal(lorentz_gamma(v, fb.pieces, c), ref)
+    fb.velocity = v
+    base = np.sign(fb.pieces) * np.array([0, 1, 3, 3, 5, 9, 1000], np.float32)[np.abs(fb.pieces)]
+    assert np.array_equal(np.asarray(fb.mass_vector(4.0)),
+                          (base * lorentz_gamma(v, fb.pieces, 4.0)).astype(np.float32))
+
+
+def test_board_adapter_without_chess_global():
+    from kepler64.core.board import Board
+    b = Board.from_chess(chess.Board())
+    assert isinstance(b.castling, int)
+    assert b._color_at(0) == 0 and b._color_at(63) == 1
