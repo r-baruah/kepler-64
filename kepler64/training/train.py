@@ -401,31 +401,3 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
     if return_metrics:
         return trained, metrics
     return trained
-
-
-def train_from_data(base: Constants, data_dir: str, steps: int = 200,
-                    lr: float = 3e-3, fix_G: bool = True,
-                    puzzle_limit: int = 5000, game_limit: int = 30,
-                    game_positions: int = 8000, seed: int = 0, verbose: bool = True):
-    """One-call pipeline for this laptop: load real data, train, report.
-
-    Defaults chosen for the Ryzen 5 5500U / 8 GB machine:
-      * puzzle_limit=5000 (the stale 200-puzzle run was too small to learn)
-      * game_limit=30, game_positions=8000 (your own games as behavioural clone)
-      * fix_G=True (G is non-identifiable in the tidal index)
-    """
-    from .data import puzzle_examples, game_examples
-    puz = puzzle_examples(os.path.join(data_dir, "puzzles_50k.csv"),
-                          limit=puzzle_limit)
-    if verbose:
-        print(f"[train] loaded {len(puz)} puzzle examples")
-    games = game_examples(os.path.join(data_dir, "games", "Ripu01.pgn"),
-                          limit_games=game_limit, limit_positions=game_positions)
-    if verbose:
-        print(f"[train] loaded {len(games)} game-position examples")
-    examples = puz + games
-    if not examples:
-        raise ValueError("No training examples loaded — check data_dir path.")
-    return train_examples(base, examples, steps, lr, fix_G,
-                          batch_size=128, seed=seed, verbose=verbose)
-

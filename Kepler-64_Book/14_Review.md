@@ -42,7 +42,7 @@
 ### C1 — The ablation gate is missing from the published artifacts
 **What:** The single most important honesty check — train with learned constants vs $G{=}1$ fixed and report the Elo/accuracy delta — is specified as a "first-class README artifact" (`Kepler-64 Audit` Honest/Dishonest table, `Kepler-64 Scaffold.md`) but is **not present** in README.md.
 **Why it matters:** The entire thesis is *"gravity, learned via gradient descent, does real work."* Without the delta, a reviewer (or an ML audience) will assume the physics is cosmetic window-dressing over the material term — exactly the failure mode the audit warns about ("if the delta is <50 Elo, the thesis collapses").
-**How the fix works:** Run `training/ablation.py` (or a manual `fix_G=True` vs `fix_G=False` train) on the full 5k-puzzle / 10k-position dataset; publish a table: `G=1 fixed` → Elo/MRR vs `G learned` → Elo/MRR, with the delta. Put it in README under the benchmarks. See §12.4.
+**How the fix works:** Run `scripts/credibility_gate.py` (or a manual `fix_G=True` vs `fix_G=False` train) on the full 5k-puzzle / 10k-position dataset; publish a table: `G=1 fixed` → Elo/MRR vs `G learned` → Elo/MRR, with the delta. Put it in README under the benchmarks. See §12.4.
 **See:** §12.4, §9.4.
 
 ### C2 — Silent wrong King detection — ✅ resolved

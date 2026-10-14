@@ -511,19 +511,3 @@ def game_gif(
         warnings.warn(f"GIF assembly failed ({exc}); PNG frames retained.",
                       stacklevel=2)
     return out_path
-
-
-# ---------------------------------------------------------------------------
-# Backward-compatibility shims
-# ---------------------------------------------------------------------------
-
-def render_sheet(ax, board, constants):
-    """Deprecated — delegates to render_field."""
-    warnings.warn("render_sheet() is deprecated; use render_field() instead.",
-                  DeprecationWarning, stacklevel=2)
-    return render_field(ax, board, constants)
-
-
-def render_eta_timeline(ax, eta_history, roche: float) -> None:
-    """Deprecated — timeline strip removed; this is now a no-op."""
-    ax.axis("off")

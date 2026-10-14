@@ -41,7 +41,7 @@ Both now use the same formula: $\eta = R_g^3\lambda_1/m_{\text{ref}}^2$. The eva
 
 ## 11.6 Project link
 
-`RocheEngine.play` → `game_gif(engine, out_path="kepler64.gif")` produces the showcase (`README.md` Usage). This is the artifact to lead with in any writeup.
+`game_gif(engine, out_path="kepler64.gif")` produces the showcase. It is not wired into the CLI or the README Usage; call it directly from Python: `from kepler64.viz.glassbox import game_gif; game_gif(RocheEngine())` (needs `imageio` and `pillow`). It requires an object with `.play(chess_board)` and `.constants`. This is the artifact to lead with in any writeup.
 
 ## 11.7 Forward link
 
