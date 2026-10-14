@@ -11,7 +11,7 @@ Every chess piece has **mass**. Every piece **pulls** on every other piece. Atta
 Here's the twist: **nobody wrote any chess rules into this engine.** No opening books, no "knights belong on outposts," no grandmaster data. Just the laws of physics — and then gradient descent tuned the constants of that universe (how strong gravity is, how fast its influence travels, when a King collapses) until the physics started playing real chess.
 
 [![Live Observatory](https://img.shields.io/badge/🔭_Live_Observatory-Deploy-2448b8?style=for-the-badge)](https://r-baruah.github.io/kepler-64/)
-[![Tests](https://img.shields.io/badge/tests-92%20passing-16a34a?style=for-the-badge)](#testing--verification)
+[![Tests](https://img.shields.io/badge/tests-93%20passing-16a34a?style=for-the-badge)](#testing--verification)
 [![NotebookLM](https://img.shields.io/badge/NotebookLM-Podcast%20%26%20Video-4285F4?style=for-the-badge&logo=google&logoColor=white)](#-watch--listen--deep-dive-overview)
 [![Kaggle GPU](https://img.shields.io/badge/Kaggle-Free%20T4%20Notebook-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](notebooks/kaggle_gate.ipynb)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -218,7 +218,7 @@ kepler-64/
 │   ├── training/                #   Learning the laws from games (JAX autodiff)
 │   ├── multiverse/              #   Layer 2: posterior sampling, Stokes flow, Observer
 │   ├── uci.py                   #   UCI engine protocol (play in Arena, En Croissant)
-│   └── tests/                   #   92 tests — 100% green verification suite
+│   └── tests/                   #   93 tests — 100% green verification suite
 │
 ├── Kepler-64_Book/              # 📖 The complete textbook (start at PRELUDE.md)
 │
