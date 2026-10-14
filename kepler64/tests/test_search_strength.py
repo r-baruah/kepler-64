@@ -121,8 +121,9 @@ def test_search_values_match_plain_negamax_reference():
         from kepler64.search.minimax import _quiesce
         if board.is_game_over():
             return -100000.0 if board.is_checkmate() else 0.0
-        current_mv = board.mass_vector() if masses_override is None else masses_override
-        parent = board.mass_vector() if parent_masses is None else parent_masses
+        c = float(engine.constants.c)
+        current_mv = board.mass_vector(c) if masses_override is None else masses_override
+        parent = board.mass_vector(c) if parent_masses is None else parent_masses
         if depth <= 1:
             return _quiesce(engine, board, alpha, beta, current_mv, qdepth=3,
                             parent_masses=parent)
@@ -130,8 +131,10 @@ def test_search_values_match_plain_negamax_reference():
         for m in board.legal_moves():
             child = board.apply(m)
             # Mirror the real search: pass child_board so the Lorentz velocity
-            # boost (mass_vector's relativistic term) is applied identically.
-            mv = child_mass_vector(board, m, current_mv, child_board=child)
+            # boost (mass_vector's relativistic term) is applied identically,
+            # under the same learned light speed.
+            mv = child_mass_vector(board, m, current_mv, child_board=child,
+                                   c_lorentz=c)
             val = -reference(engine, child, depth - 1, -beta, -alpha, mv,
                             parent_masses=current_mv)
             if val > best:
