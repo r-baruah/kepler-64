@@ -11,7 +11,7 @@ Every chess piece has **mass**. Every piece **pulls** on every other piece. Atta
 Here's the twist: **nobody wrote any chess rules into this engine.** No opening books, no "knights belong on outposts," no grandmaster data. Just the laws of physics — and then gradient descent tuned the constants of that universe (how strong gravity is, how fast its influence travels, when a King collapses) until the physics started playing real chess.
 
 [![Live Observatory](https://img.shields.io/badge/🔭_Live_Observatory-Deploy-2448b8?style=for-the-badge)](https://r-baruah.github.io/kepler-64/)
-[![Tests](https://img.shields.io/badge/tests-80%20passing-16a34a?style=for-the-badge)](#testing--verification)
+[![Tests](https://img.shields.io/badge/tests-92%20passing-16a34a?style=for-the-badge)](#testing--verification)
 [![NotebookLM](https://img.shields.io/badge/NotebookLM-Podcast%20%26%20Video-4285F4?style=for-the-badge&logo=google&logoColor=white)](#-watch--listen--deep-dive-overview)
 [![Kaggle GPU](https://img.shields.io/badge/Kaggle-Free%20T4%20Notebook-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](notebooks/kaggle_gate.ipynb)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -32,7 +32,7 @@ Here's the twist: **nobody wrote any chess rules into this engine.** No opening 
 
 **2. Attacks become tides.** One enemy piece near your King is an annoyance. But pieces pulling from *opposite sides at once* stretch the King the way the Moon stretches Earth's oceans. The engine measures that stretching with a **tidal tensor** — and when it crosses the critical threshold (the same Roche limit that shreds moons around Jupiter), the King is judged *structurally collapsing*. That's how this universe wins.
 
-**3. Captures feed your mass.** Take a piece and you don't just remove it — you **absorb 80% of its mass**. Your piece gets heavier, its pull stronger… and physically more fragile. Greed has a price written into the laws.
+**3. Captures feed your mass.** Take a piece and you don't just remove it — you **absorb 80% of its mass**. Your piece gets heavier, its pull stronger… and a King that swallows mass grows more extended and easier to tear apart. Greed has a price written into the laws.
 
 **4. The laws themselves are learned.** This universe has **17 knobs** — the strength of gravity, how soft pieces are, how fast gravitational influence travels, the collapse threshold, and more. Training runs gradient descent *straight through the physics simulation* and tunes every knob until the universe's judgment matches what actually happens in real games.
 
@@ -68,7 +68,7 @@ Want to understand the project deeply without wading through code? Check out the
 
 | Mechanic | In plain words |
 |---|---|
-| 🪐 **Accretion** | Capture a piece → absorb most of its mass. Hoarding captures makes you powerful *and* fragile. |
+| 🪐 **Accretion** | Capture a piece → absorb most of its mass. Hoarding captures makes you powerful; a greedy King also grows fragile. |
 | 🌊 **Light-speed gravity** | Influence travels at `c` squares per move (a *learnable* number). Distant threats literally take plies to arrive. |
 | 🏃 **Relativistic pieces** | Move a piece constantly and it gains relativistic mass — kinetic energy is mass even here. |
 | 🌌 **The Multiverse** | Every candidate move is judged across several randomly-varied universes; only plans that survive in *most* realities win. |
@@ -129,7 +129,7 @@ In celestial mechanics, when an orbiting body passes within the **Roche limit**,
 
 $$\eta = \frac{R_g^3 \cdot \lambda_1}{m_{\text{ref}}^2}$$
 
-When $\eta > \rho_{\text{roche}}$, the King undergoes **Roche Disruption**—a physical checkmate.
+$\eta$ enters the score directly: the more the enemy army stretches a King, the worse for its side. The learned Roche threshold $\rho_{\text{roche}}$ gates a separate disruption gauge, $\sigma\big(k_{\text{gain}}(|F_{\text{King}}| - \rho_{\text{roche}})\big)$: once the enemy army's pull on the King crosses it, the King is judged **disrupting**. That is the engine's physical stand-in for checkmate (real checkmate still ends the game).
 
 ### 4. Capture Accretion
 When a piece captures an opponent, mass is preserved: the capturing piece **absorbs 80% of the captured piece's mass**:
@@ -148,7 +148,7 @@ The physical constants of this universe are **learnable parameters** optimized v
 
 $$\theta = \{ G, \; \varepsilon, \; c, \; \rho_{\text{roche}}, \; R_g, \; k_{\text{gain}}, \; \gamma, \; \dots \}$$
 
-Using gradient descent on master games, Kepler-64 tunes these constants by balancing game outcomes and expert move rankings:
+Using gradient descent on its own self-play games, Kepler-64 tunes these constants. The expert is its own deeper search; when a teacher move exists the policy term is used alone, and the outcome term only stands in when there is none:
 
 $$\mathcal{L} = \mathcal{L}_{\text{outcome}}(\sigma(S(p)), y) + \alpha \mathcal{L}_{\text{policy}}(S(p_{\text{expert}}), S(p_{\text{legal}}))$$
 
@@ -218,7 +218,7 @@ kepler-64/
 │   ├── training/                #   Learning the laws from games (JAX autodiff)
 │   ├── multiverse/              #   Layer 2: posterior sampling, Stokes flow, Observer
 │   ├── uci.py                   #   UCI engine protocol (play in Arena, En Croissant)
-│   └── tests/                   #   78 tests — 100% green verification suite
+│   └── tests/                   #   92 tests — 100% green verification suite
 │
 ├── Kepler-64_Book/              # 📖 The complete textbook (start at PRELUDE.md)
 │
