@@ -34,7 +34,21 @@ from ..core.transitions import child_mass_vector
 
 INF = float("inf")
 MATE = 100000.0
-_MAX_MOVES = 218
+# Mate-distance scoring: a mate delivered `p` plies from the root scores
+# +/-(MATE - p), so faster mates win and slower mates are delayed. Any score
+# with |s| >= _MATE_BOUND is "mate-ish" (search never reaches 512 plies).
+_MATE_BOUND = MATE - 512.0
+
+# Multiverse re-score head: candidates whose searched values lie within this
+# many Kepler units of the searched best are arbitrated by the K-realization mean.
+_TIE_EPS = 1.2
+
+# Check the wall-clock deadline every this many nodes (negamax + quiescence).
+_TIME_CHECK_NODES = 16
+
+# History scores are capped well below the killer (20k) and capture (100k)
+# bonuses so a quiet move's history can never outrank them.
+_HISTORY_MAX = 10_000
 
 # ── static geometry for cheap numpy move ordering (no JAX device round-trip) ─
 _DIST_NP = np.asarray(_DIST)
@@ -81,6 +95,28 @@ def _mass_checksum(m) -> int:
     return int((bits * _MASS_RAND).sum()) & 0xFFFFFFFFFFFFFFFF
 
 
+def _tt_score_in(score: float, ply: int) -> float:
+    """Root-relative mate score -> node-relative, for storing in the TT."""
+    if score >= _MATE_BOUND:
+        return score + ply
+    if score <= -_MATE_BOUND:
+        return score - ply
+    return score
+
+
+def _tt_score_out(score: float, ply: int) -> float:
+    """Node-relative TT mate score -> root-relative at the probing ply."""
+    if score >= _MATE_BOUND:
+        return score - ply
+    if score <= -_MATE_BOUND:
+        return score + ply
+    return score
+
+
+class _SearchTimeout(Exception):
+    """Raised inside the tree when the wall-clock deadline passes."""
+
+
 class TT:
     """Open-addressing transposition table.
 
@@ -117,7 +153,10 @@ class TT:
         return h
 
     def lookup(self, board, child_m, parent_m):
-        h = self._hash(board, child_m, parent_m)
+        return self.probe(self._hash(board, child_m, parent_m))
+
+    def probe(self, h: int):
+        """Look up by a precomputed hash (see `_hash`)."""
         slot = h & self.mask
         k = self.keys[slot]
         if self.occupied[slot] and k == h:
@@ -127,7 +166,10 @@ class TT:
 
     def store(self, board, child_m, parent_m, depth: int, flag: int,
               score: float, move):
-        h = self._hash(board, child_m, parent_m)
+        self.put(self._hash(board, child_m, parent_m), depth, flag, score, move)
+
+    def put(self, h: int, depth: int, flag: int, score: float, move):
+        """Store by a precomputed hash (see `_hash`)."""
         slot = h & self.mask
         # Depth-preferred replacement: a DEEPER stored entry always survives,
         # whether the incoming key differs (different position, same slot) or
@@ -160,12 +202,6 @@ def _score_position(masses, constants: Constants, turn: int,
     return s if turn == 0 else -s
 
 
-def _terminal(board: FastBoard) -> float:
-    if board.is_checkmate():
-        return -MATE  # side to move is mated
-    return 0.0
-
-
 def _mass_capture_value(board: FastBoard, m) -> float:
     """MVV-LVA-ish capture value from raw masses (cheap, no device traffic)."""
     f, t, _ = m
@@ -196,16 +232,19 @@ def _ordered_moves(board: FastBoard, constants: Constants,
     scored = []
     for m in moves:
         sc = 0.0
+        cap = board.is_capture(m)
         if tt_move is not None and m == tt_move:
             sc += 1_000_000.0
-        elif board.is_capture(m):
+        elif cap:
             sc += 100_000.0 + _mass_capture_value(board, m)
         if root_pv and m == root_pv:
             sc += 50_000.0
         if killers:
             if m in killers[ply]:
                 sc += 20_000.0
-        if history is not None:
+        if history is not None and not cap:
+            # Quiet moves only: history is a quiet-move heuristic and is capped
+            # (_HISTORY_MAX) so it never outranks killers or captures.
             sc += float(history[m[0] * 64 + m[1]])
         if sc == 0.0:
             # Quiet, unhinted move: the physics tiebreak decides its slot among
@@ -237,17 +276,24 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
     """
     if stats is not None:
         stats["nodes"] = stats.get("nodes", 0) + 1
+    if ctx is not None:
+        ctx.tick()
     consts = engine.constants
 
     current_mv = board.mass_vector(float(consts.c)) if masses_override is None else masses_override
     parent = board.mass_vector(float(consts.c)) if parent_masses is None else parent_masses
 
-    # TT probe: full physics state keyed.
+    # TT probe: full physics state keyed. The hash is computed ONCE per node
+    # and reused for the store at the end.
     tt_move = None
+    tt_hash = None
     if ctx is not None:
-        hit = ctx.tt.lookup(board, current_mv, parent)
+        tt_hash = ctx.tt._hash(board, current_mv, parent)
+        hit = ctx.tt.probe(tt_hash)
         if hit is not None:
             h_depth, h_flag, h_score, h_move = hit
+            # Mate scores are stored node-relative; make them root-relative.
+            h_score = _tt_score_out(h_score, ply)
             tt_move = None if h_move < 0 else (
                 (h_move >> 16) & 0x3F, (h_move >> 8) & 0x3F, h_move & 0xF)
             if h_depth >= depth:
@@ -265,17 +311,20 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
 
     if depth <= 1:
         return _quiesce(engine, board, alpha, beta, current_mv, qdepth=3,
-                        parent_masses=parent, stats=stats, ctx=ctx)
+                        parent_masses=parent, stats=stats, ctx=ctx, ply=ply)
 
     consts = engine.constants
 
+    # (Zugzwang guard: no null move when the side to move has only king and
+    # pawns, where passing can genuinely be the best move.)
     # Null-move pruning ("gravitational field probe"): if passing the turn
     # still leaves us at or above beta, no opponent reply can save it — prune.
     # The window (-beta, -beta+1) is only well-formed for a FINITE beta; with
     # beta = +INF it degenerates to (alpha=-INF, beta=-INF) and every stand-pat
     # cutoffs to -INF, which poisoned every search at depth >= 3 (the old
     # engine returned +INF at the root and best_move collapsed to None).
-    if allow_null and depth >= 3 and beta < INF and not board.in_check(board.turn == 0):
+    if (allow_null and depth >= 3 and beta < INF and _has_non_pawn_material(board)
+            and not board.in_check(board.turn == 0)):
         # Velocity passes through so the probe's Lorentz-boosted masses match
         # the real line's physical state (a null probe without momentum reads
         # a different universe than the position it stands in for).
@@ -299,7 +348,7 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
     if not ordered:
         # No legal moves: mate (side in check) or stalemate — decided without a
         # second move generation (the list is already the terminal probe).
-        return -MATE if board.in_check(board.turn == 0) else 0.0
+        return -(MATE - ply) if board.in_check(board.turn == 0) else 0.0
 
     best = -INF
     best_move = None
@@ -346,12 +395,13 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
             if ctx is not None and best_move is not None and not board.is_capture(best_move):
                 k1, k2 = ctx.killers[ply]
                 ctx.killers[ply] = [best_move, k1]
-                ctx.history[best_move[0] * 64 + best_move[1]] += depth * depth
+                hi = best_move[0] * 64 + best_move[1]
+                ctx.history[hi] = min(ctx.history[hi] + depth * depth,
+                                      _HISTORY_MAX)
             break
-        # A forced mate is found: with flat mate scoring nothing scores higher,
-        # and continuing would push alpha to the mate ceiling, corrupting the
-        # remaining zero-window probes into false +MATE values. Stop the node.
-        if best >= MATE - 1:
+        # Mating at the very next ply is the best a node at `ply` can score
+        # (MATE - ply - 1); nothing later can beat it, so stop the node.
+        if best >= MATE - ply - 1:
             break
 
     # TT store (side-to-move values, full-state key). Fail-soft flagging:
@@ -365,57 +415,74 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
             flag = _TT_LOWER
         else:
             flag = _TT_EXACT
-        ctx.tt.store(board, current_mv, parent, depth,
-                     flag, best, best_move)
+        # Mate scores are stored node-relative (see _tt_score_in).
+        ctx.tt.put(tt_hash, depth, flag, _tt_score_in(best, ply), best_move)
     return best
+
+
+def _has_non_pawn_material(board: FastBoard) -> bool:
+    """True if the side to move owns any piece besides king and pawns (a
+    rule-level fact read off the board; used as the null-move zugzwang guard)."""
+    own = board.pieces if board.turn == 0 else -board.pieces
+    return bool(np.any((own >= 2) & (own <= 5)))
+
+
+def _pad_for(n: int) -> int:
+    """Static batch width: reuse the 16/32 compiled shapes, then the 218 pad."""
+    return 16 if n <= 16 else 32 if n <= 32 else 218
 
 
 def _quiesce(engine, board: FastBoard, alpha: float, beta: float,
              masses_override=None, qdepth: int = 4, parent_masses=None,
-             stats=None, ctx=None):
+             stats=None, ctx=None, ply: int = 0, known_stand=None):
     """Quiescence search: resolve forcing lines so the eval isn't read at a
     volatile horizon.
 
-    Standard stand-pat with capture expansion — and, when the side to move is
-    in check, ALL legal evasions are considered (quiet escapes included), so
-    hanging-piece saves and king escapes are not pushed past the horizon.
-    Capture children of a node are scored in ONE `batch_score` vmap (the
-    218-pad sweep), so the cost per node is a single XLA call rather than one
-    score_white per capture. Capped to avoid blow-ups.
+    Stand-pat with capture expansion — and, when the side to move is in check,
+    NO stand-pat (the side must answer the check; standing pat there is
+    unsound) and ALL legal evasions are searched, quiet escapes included.
+    Children of a node are scored in ONE `batch_score` vmap against their TRUE
+    parent (this node's mass vector, exactly as the recursive call and
+    training/loss.py score them), so the cost per node is a single XLA call.
+    The batch score of a child doubles as that child's stand-pat (`known_stand`,
+    negated into the child's perspective), so no position is scored twice.
+    Fail-soft throughout. Mate scores carry the distance `ply`.
     """
+    if ctx is not None:
+        ctx.tick()
     in_chk = board.in_check(board.turn == 0)
     moves = board.legal_moves()
     if not moves:
         # Mate or stalemate — decided from the existing generation.
-        return -MATE if in_chk else 0.0
+        return -(MATE - ply) if in_chk else 0.0
     if stats is not None:
         stats["qnodes"] = stats.get("qnodes", 0) + 1
     current_mv = masses_override if masses_override is not None else board.mass_vector(float(engine.constants.c))
     parent = board.mass_vector(float(engine.constants.c)) if parent_masses is None else parent_masses
-    stand = _score_position(current_mv, engine.constants, board.turn,
-                            parent=parent)
-    if stand >= beta:
-        # Fail-soft: return the exact stand-pat value, not the flat beta. A
-        # fail-hard `return beta` here, inside a zero-window probe whose beta
-        # is -MATE (alpha was already pushed to a mate), negates to a FALSE
-        # +MATE at the parent — the "every quiet move scores mate" bug.
-        return stand
-    if stand > alpha:
-        alpha = stand
 
     if in_chk:
-        # In check: every legal evasion matters (quiet moves can save a piece
-        # or flee the attack). Evasions include captures, so this subsumes the
-        # capture set below.
-        evasions = moves
-        evasions.sort(key=lambda m: (0 if board.is_capture(m) else 1,
-                                     -_mass_capture_value(board, m)))
-        moves = evasions[:14]
+        best = -INF  # no stand-pat while in check
+        # Every legal evasion matters; captures first.
+        moves.sort(key=lambda m: (0 if board.is_capture(m) else 1,
+                                  -_mass_capture_value(board, m)))
     else:
-        # Stand-pat quiescence: expand captures AND quiet checking moves. A
-        # quiet move that gives check is forcing — ignoring it at the horizon
-        # is the classic way a search hangs pieces to a discovered check or a
-        # mate it never saw.
+        if known_stand is not None:
+            stand = known_stand
+        else:
+            stand = _score_position(current_mv, engine.constants, board.turn,
+                                    parent=parent)
+        if stand >= beta:
+            # Fail-soft: return the exact stand-pat value, not the flat beta. A
+            # fail-hard `return beta` here, inside a zero-window probe whose
+            # beta is -MATE (alpha was already pushed to a mate), negates to a
+            # FALSE +MATE at the parent — the "every quiet move scores mate" bug.
+            return stand
+        best = stand
+        if stand > alpha:
+            alpha = stand
+        # Expand captures AND quiet checking moves. A quiet move that gives
+        # check is forcing — ignoring it at the horizon is the classic way a
+        # search hangs pieces to a discovered check or a mate it never saw.
         caps = []
         checks = []
         for m in moves:
@@ -426,46 +493,61 @@ def _quiesce(engine, board: FastBoard, alpha: float, beta: float,
                 if nb.in_check(nb.turn == 0):
                     checks.append(m)
         if not caps and not checks:
-            return alpha
+            return stand
         caps.sort(key=lambda m: -_mass_capture_value(board, m))
         moves = caps[:10] + checks[:4]
 
     # Score all candidate children in ONE vmap sweep (side-to-move perspective),
-    # with parent threading so the move-sensitivity (delta) terms are active.
+    # against this node as their parent so the move-sensitivity (delta) terms
+    # match the recursive call and the training objective.
     child_m = []
-    parents = []
     for m in moves:
         child = board.apply(m)
-        mv = child_mass_vector(board, m, current_mv, child_board=child,
-                               c_lorentz=float(engine.constants.c))
-        child_m.append(mv)
-        parents.append(parent)
-    pad = 16 if len(moves) <= 16 else 32
+        child_m.append(child_mass_vector(board, m, current_mv, child_board=child,
+                                         c_lorentz=float(engine.constants.c)))
     scores = batch_score(child_m, [board.turn] * len(child_m), engine.constants,
-                         pad=pad, parents=jnp.stack(parents))
-    order = sorted(range(len(moves)), key=lambda i: -float(scores[i]))
+                         pad=_pad_for(len(moves)),
+                         parents=jnp.stack([current_mv] * len(child_m)))
+    sc = [float(scores[i]) for i in range(len(moves))]
+    order = sorted(range(len(moves)), key=lambda i: -sc[i])
     for i in order:
         if qdepth <= 1:
-            val = float(scores[i])
+            val = sc[i]
         else:
             child = board.apply(moves[i])
             val = -_quiesce(engine, child, -beta, -alpha, child_m[i],
                             qdepth - 1, parent_masses=current_mv, stats=stats,
-                            ctx=ctx)
+                            ctx=ctx, ply=ply + 1, known_stand=-sc[i])
+        if val > best:
+            best = val
         if val >= beta:
             return val
         if val > alpha:
             alpha = val
-    return alpha
+    return best
 
 
 class _SearchCtx:
-    __slots__ = ("tt", "killers", "history")
+    __slots__ = ("tt", "killers", "history", "deadline", "_ticks")
 
-    def __init__(self):
+    def __init__(self, deadline: float | None = None):
         self.tt = TT()
         self.killers = [[None, None] for _ in range(64)]
         self.history = [0] * 4096
+        self.deadline = deadline  # absolute time.perf_counter() value, or None
+        self._ticks = 0
+
+    def tick(self):
+        """Count a node; every _TIME_CHECK_NODES check the deadline and abort
+        the iteration (caught in iterative_search) once it has passed."""
+        self._ticks += 1
+        if (self.deadline is not None and self._ticks % _TIME_CHECK_NODES == 0
+                and time.perf_counter() > self.deadline):
+            raise _SearchTimeout
+
+    def age_history(self):
+        """Halve history between iterations so stale cutoffs fade."""
+        self.history = [h >> 1 for h in self.history]
 
 
 def _root_static_order(board: FastBoard, engine, parent_mv):
@@ -507,7 +589,7 @@ def _search_root_iteration(engine, board, parent_mv, ordered, d, alpha, beta,
             # line. A cycle exchanges no net mass flux — a draw by physics. Do
             # not pick it over any real progress; search-time reuse is wasted
             # on it (score it as 0 and move on).
-            val = 0.0 if d > 1 else -INF
+            val = 0.0
         elif first:
             val = -negamax(engine, child, d - 1, -beta, -alpha, mv,
                            parent_masses=parent_mv, stats=stats, ctx=ctx, ply=1)
@@ -524,10 +606,9 @@ def _search_root_iteration(engine, board, parent_mv, ordered, d, alpha, beta,
         if val > alpha:
             alpha = val
         scored.append((m, val))
-        # A forced mate is found at the root: nothing scores higher with flat
-        # mate scoring, and continuing would let the mate-inflated alpha corrupt
-        # the remaining zero-window probes into false +MATE values.
-        if iter_score >= MATE - 1:
+        # Mate in 1 at the root is the highest possible score (MATE - 1); a
+        # slower mate can still be improved on, so only stop for this one.
+        if iter_score >= MATE - 1:  # mate in 1: the best possible score
             break
     return iter_best, iter_score, scored, False
 
@@ -553,7 +634,7 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
     `use_multiverse` runs the Layer-2 posterior-average evaluation (the
     multiverse) on a small re-score head: the top candidates are re-ranked
     under the K-realization mean when the ordinary search cannot separate
-    them (they lie within `_TIE_EPS`). This is deliberately root-only —
+    them (they lie within `_TIE_EPS` (named constant, 1.2)). This is deliberately root-only —
     K× scoring on every leaf would cost 8× per node for no tactical win.
 
     `root_masses` is the game's carried mass vector (accretion + Lorentz from
@@ -563,13 +644,13 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
     moves = board.legal_moves()
     if not moves:
         return None, None
-    ctx = _SearchCtx()
+    t0 = time.perf_counter()
+    ctx = _SearchCtx(deadline=None if time_ms is None else t0 + time_ms / 1000.0)
     parent_mv = (board.mass_vector(float(engine.constants.c)) if root_masses is None
                  else jnp.asarray(root_masses, dtype=jnp.float32))
     root_pv = None
     ordered = None
     best, best_score = None, None
-    t0 = time.perf_counter()
     scored = []
     prev_score = None
 
@@ -580,6 +661,11 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
             ordered = _ordered_moves(board, engine.constants, tt_move=None,
                                      killers=None, history=None, ply=0,
                                      root_pv=root_pv)
+            # Previous completed iteration's scores, best first; moves it did
+            # not score (cut short by a mate) keep the fallback order after.
+            if scored:
+                rank = {m: -v for m, v in scored}
+                ordered = sorted(ordered, key=lambda m: rank.get(m, INF))
 
         # Aspiration window: from depth 3 onward assume the previous iteration's
         # score holds and search a narrow window first. A fail-low/high re-search
@@ -591,9 +677,12 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
         else:
             alpha, beta = -INF, INF
 
-        iter_best, iter_score, iter_scored, timed_out = _search_root_iteration(
-            engine, board, parent_mv, ordered, d, alpha, beta, seen, stats,
-            ctx, t0, time_ms)
+        try:
+            iter_best, iter_score, iter_scored, timed_out = _search_root_iteration(
+                engine, board, parent_mv, ordered, d, alpha, beta, seen, stats,
+                ctx, t0, time_ms)
+        except _SearchTimeout:
+            iter_best, iter_score, iter_scored, timed_out = None, -INF, [], True
 
         if timed_out:
             # Budget spent mid-iteration: keep the last complete result. Never
@@ -607,9 +696,12 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
         # Aspiration fail: the true score left the window — re-search full-width.
         if prev_score is not None and d >= 3 and (
                 iter_score <= alpha or iter_score >= beta):
-            iter_best, iter_score, iter_scored, timed_out = _search_root_iteration(
-                engine, board, parent_mv, ordered, d, -INF, INF, seen, stats,
-                ctx, t0, time_ms)
+            try:
+                iter_best, iter_score, iter_scored, timed_out = _search_root_iteration(
+                    engine, board, parent_mv, ordered, d, -INF, INF, seen, stats,
+                    ctx, t0, time_ms)
+            except _SearchTimeout:
+                timed_out = True
             if timed_out:
                 if best is None:
                     best = ordered[0]
@@ -617,6 +709,9 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
 
         scored = iter_scored
         best, best_score = iter_best, iter_score
+        if stats is not None:
+            stats["depth"] = d  # deepest COMPLETED iteration
+        ctx.age_history()
         root_pv = iter_best
         prev_score = best_score
         if time_ms is not None and (time.perf_counter() - t0) * 1000.0 > time_ms:
@@ -630,7 +725,7 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
     # not add random-play variance to the game.
     if use_multiverse and best is not None and best_score is not None:
         k1 = jax.random.PRNGKey(multiverse_seed)
-        near = [(m, val) for m, val in scored if abs(val - best_score) <= 1.2]
+        near = [(m, val) for m, val in scored if abs(val - best_score) <= _TIE_EPS]
         near.sort(key=lambda t: -t[1])
         near = near[:4]
         if len(near) > 1:
@@ -648,6 +743,21 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
     return best, best_score
 
 
+def seen_positions(board):
+    """Closed-orbit history of a chess.Board: the set of board identities
+    (pieces/turn/castling/ep — NOT the halfmove clocks, which change every ply)
+    of every position already on the line, current one included. None when the
+    board has no move history."""
+    if not board.move_stack:
+        return None
+    b = board.copy()
+    seen = {" ".join(b.fen().split()[:4])}
+    while b.move_stack:
+        b.pop()
+        seen.add(" ".join(b.fen().split()[:4]))
+    return seen
+
+
 def child_in_seen(child, seen) -> bool:
     """True if the child position is a position seen earlier on the line."""
     try:
@@ -655,35 +765,3 @@ def child_in_seen(child, seen) -> bool:
         return " ".join(fen.split()[:4]) in seen
     except Exception:
         return False
-
-
-def best_move(engine, board: FastBoard, depth: int = 3):
-    """Iterative-deepening search to a fixed depth; returns the best move."""
-    mv, _ = iterative_search(engine, board, max_depth=depth)
-    return mv
-
-
-def best_move_time(engine, board: FastBoard, time_ms: float,
-                   max_depth: int = 8):
-    """Time-budgeted search; returns the best move of the deepest completed
-    iteration within `time_ms`."""
-    mv, _ = iterative_search(engine, board, max_depth=max_depth, time_ms=time_ms)
-    return mv
-
-
-def root_sweep(engine, board: FastBoard):
-    """The headline 218-pad vmap sweep at the root; returns the best move.
-
-    Parent masses are threaded so the move-sensitivity (delta) terms are active
-    at the root too — each child is scored against the root position."""
-    moves = board.legal_moves()
-    if not moves:
-        return None
-    parent_mv = board.mass_vector(float(engine.constants.c))
-    masses = [child_mass_vector(board, m, parent_mv,
-                                c_lorentz=float(engine.constants.c))
-              for m in moves]
-    parents = jnp.stack([parent_mv] * len(masses))
-    turns = [board.turn] * len(masses)
-    scores = batch_score(masses, turns, engine.constants, parents=parents)
-    return moves[int(jnp.argmax(scores))]

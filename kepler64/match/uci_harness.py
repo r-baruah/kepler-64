@@ -91,16 +91,18 @@ def run_match(opp_spec, opp_elo, games=6, depth=2, opp_limit=None,
     opponent = _launch(opp_spec, opp_elo=opp_elo)
     if opp_limit is None:
         opp_limit = chess.engine.Limit(time=0.2)
-    wins = losses = draws = 0
-    for g in range(games):
-        kepler_white = (g % 2 == 0)
-        res = play_game(ke, opponent, kepler_white, depth, opp_limit)
-        wins += res == 1
-        losses += res == -1
-        draws += res == 0
-        print(f"  game {g + 1}/{games} (Kepler {'W' if kepler_white else 'B'}): "
-              f"{'win' if res==1 else ('loss' if res==-1 else 'draw')}", flush=True)
-    opponent.quit()
+    try:
+        wins = losses = draws = 0
+        for g in range(games):
+            kepler_white = (g % 2 == 0)
+            res = play_game(ke, opponent, kepler_white, depth, opp_limit)
+            wins += res == 1
+            losses += res == -1
+            draws += res == 0
+            print(f"  game {g + 1}/{games} (Kepler {'W' if kepler_white else 'B'}): "
+                  f"{'win' if res==1 else ('loss' if res==-1 else 'draw')}", flush=True)
+    finally:
+        opponent.quit()
     est = elo_estimate(opp_elo, wins, losses, draws)
     print(f"\nKepler-64 vs {opp_elo}-Elo opponent: W {wins} / L {losses} / D {draws}")
     if est is not None:
