@@ -16,7 +16,7 @@ import numpy as np
 
 import jax.numpy as jnp
 
-from .constants import PIECE_MASSES
+from .constants import Constants
 
 # Direction tables (dx, dy).
 _DIRS = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
@@ -87,9 +87,23 @@ _MASS_LUT = np.array([0.0, 1.0, 3.0, 3.0, 5.0, 9.0, 1000.0], dtype=np.float32)
 
 # Fallback speed of light for the motion (Lorentz) boost, used only when a
 # caller does not supply the universe's actual learned `c`. Search and eval
-# always pass Constants.c; this keeps standalone/ad-hoc boards consistent
-# with the historical behavior instead of inventing a second default.
-LORENTZ_C_DEFAULT = 6.0
+# always pass Constants.c; the fallback is the Constants default so there is
+# a single notion of "the" default light speed.
+LORENTZ_C_DEFAULT = float(Constants().c)
+
+
+def lorentz_gamma(velocity, pieces, c: float):
+    """Per-square Lorentz factor gamma = 1/sqrt(1-u^2), u = v/(v+c).
+
+    Kings are excluded (gamma = 1): the eval's king detection relies on the
+    king mass being exactly 1000. Single source of truth for FastBoard.
+    mass_vector and transitions.child_mass_vector.
+    """
+    v = np.asarray(velocity, dtype=np.float32)
+    u = v / (v + c)
+    gamma = 1.0 / np.sqrt(1.0 - u * u)
+    gamma[np.abs(np.asarray(pieces)) == 6] = 1.0
+    return gamma
 
 # Per-ply relaxation of the velocity accumulator: a piece that stops moving
 # sheds its relativistic mass with a ~46-ply half-life (0.985^46 ≈ 0.5).
@@ -471,10 +485,7 @@ class FastBoard:
         m = np.sign(self.pieces) * lut[np.abs(self.pieces.astype(np.int8))]
         v = self.velocity
         if np.any(v > 0.0):
-            u = v / (v + c_eff)
-            gamma = 1.0 / np.sqrt(1.0 - u * u)
-            gamma[np.abs(self.pieces) == 6] = 1.0  # kings excluded
-            m = m * gamma
+            m = m * lorentz_gamma(v, self.pieces, c_eff)
         return jnp.asarray(m)
 
     def is_game_over(self) -> bool:

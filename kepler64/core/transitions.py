@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from .fastboard import _MASS_LUT, LORENTZ_C_DEFAULT
+from .fastboard import _MASS_LUT, LORENTZ_C_DEFAULT, lorentz_gamma
 
 _ACCRETION = 0.8
 
@@ -38,11 +38,7 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
     # multiplicatively across plies (double-Lorentz). The king is excluded from
     # the boost in both directions, so its factor is 1 here as well.
     if np.any(board.velocity > 0.0):
-        vp = np.asarray(board.velocity, dtype=np.float32)
-        up = vp / (vp + c_lor)
-        gp = 1.0 / np.sqrt(1.0 - up * up)
-        gp[np.abs(np.asarray(board.pieces)) == 6] = 1.0
-        masses = masses / gp
+        masses = masses / lorentz_gamma(board.velocity, board.pieces, c_lor)
     moving = masses[from_sq]
     sign = 1.0 if moving >= 0.0 else -1.0
 
@@ -78,9 +74,6 @@ def child_mass_vector(board, move, parent_masses, accretion: float = _ACCRETION,
         child[rook_from] = 0.0
 
     if child_board is not None and np.any(child_board.velocity > 0.0):
-        v = np.asarray(child_board.velocity, dtype=np.float32)
-        u = v / (v + c_lor)
-        gamma = 1.0 / np.sqrt(1.0 - u * u)
-        gamma[np.abs(np.asarray(child_board.pieces)) == 6] = 1.0
-        child = child * gamma
+        child = child * lorentz_gamma(child_board.velocity, child_board.pieces,
+                                      c_lor)
     return child
