@@ -10,15 +10,16 @@ chess:  two supervisory signals, both derived from REAL games — either externa
                        own expert target) is the same pipeline with an internal
                        expert instead of an external one.
 physics: backpropagate through the ENTIRE physics engine (Plummer -> tidal ->
-         eta -> sigmoid) into the 15 trainable leaves (see TRAINABLE_LEAVES in
+         eta -> sigmoid) into the 17 trainable leaves (see TRAINABLE_LEAVES in
          core/constants.py). Those are the "weights" — real, physical knobs,
          not a faked evaluation. The parameter array and its physical bounds
          come from ONE place (core/constants.py), so the loss and the trainer
          can never disagree about the layout.
 
-`params` layout (17 leaves): TRAINABLE_LEAVES order. mat_gain has a minimum of
-1.0 inside the loss (see below) so no training run can rediscover the scale at
-which a captured rook stopped registering.
+`params` layout (17 leaves): TRAINABLE_LEAVES order. Every leaf is projected
+into LEAF_LO/LEAF_HI (core/constants.py) before use — including the mat_gain
+floor of 1.5 — so no training run can rediscover the scale at which a captured
+rook stopped registering.
 """
 
 import jax
@@ -51,11 +52,11 @@ def _unpack(p):
     kgain = jnp.clip(p[5], lo[5], hi[5])
     gamma = jnp.clip(p[6], lo[6], hi[6])
     Rg = jnp.clip(p[7], lo[7], hi[7])
-    # mat_gain floor of 1.0 (not the leaf lower bound 0.0): at mat_gain<1 a
+    # mat_gain floor lives in LEAF_LO (1.5, the "Mass Law"): below ~1 a
     # captured rook stops outranking positional swings — the exact scale that
     # produced the measured free-rook/piece sacrifice behaviour. Training is
     # free to raise it, never to rediscover that failure.
-    mat_gain = jnp.clip(p[8], 1.0, hi[8])
+    mat_gain = jnp.clip(p[8], lo[8], hi[8])
     lambda_delta = jnp.clip(p[9], lo[9], hi[9])
     com_gain = jnp.clip(p[10], lo[10], hi[10])
     inertia_gain = jnp.clip(p[11], lo[11], hi[11])

@@ -12,6 +12,7 @@ import chess.pgn
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from kepler64 import Constants, RocheEngine
+from kepler64.core.constants import load_constants
 from kepler64.analysis import record_game, record_selfplay
 from kepler64.viz.replay import generate_replay_assets
 
@@ -28,10 +29,9 @@ def main():
     parser.add_argument("--constants", default="kepler64/training/trained_constants.json")
     args = parser.parse_args()
 
-    constants = Constants()
-    constants_path = Path(args.constants)
-    if constants_path.exists():
-        constants = Constants(**json.loads(constants_path.read_text(encoding="utf-8")))
+    # load_constants ignores the "_meta" provenance block and fills leaves an
+    # older artifact predates; Constants(**json) crashed on both.
+    constants = load_constants(args.constants) or Constants()
     engine = RocheEngine(constants)
     if args.pgn:
         with Path(args.pgn).open(encoding="utf-8", errors="replace") as fh:

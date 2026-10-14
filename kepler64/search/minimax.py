@@ -306,7 +306,8 @@ def negamax(engine, board: FastBoard, depth: int, alpha: float, beta: float,
     first = True
     for mi, m in enumerate(ordered):
         child = board.apply(m)
-        mv = child_mass_vector(board, m, current_mv, child_board=child)
+        mv = child_mass_vector(board, m, current_mv, child_board=child,
+                               c_lorentz=float(consts.c))
         is_capture = board.is_capture(m)
         gives_check = child.in_check(child.turn == 0)
         if first:
@@ -534,7 +535,7 @@ def _search_root_iteration(engine, board, parent_mv, ordered, d, alpha, beta,
 def iterative_search(engine, board: FastBoard, max_depth: int = 4,
                      time_ms: float | None = None, stats=None,
                      seen=None, use_multiverse: bool = False,
-                     multiverse_seed: int = 20260808):
+                     multiverse_seed: int = 20260808, root_masses=None):
     """Iterative-deepening search with PVS at the root.
 
     Returns (best_move, best_score) or (None, None) when no legal move exists.
@@ -554,12 +555,17 @@ def iterative_search(engine, board: FastBoard, max_depth: int = 4,
     under the K-realization mean when the ordinary search cannot separate
     them (they lie within `_TIE_EPS`). This is deliberately root-only —
     K× scoring on every leaf would cost 8× per node for no tactical win.
+
+    `root_masses` is the game's carried mass vector (accretion + Lorentz from
+    the real line, see core/universe.GameState). Without it the root is
+    rebuilt from piece identities and earlier captures are forgotten.
     """
     moves = board.legal_moves()
     if not moves:
         return None, None
     ctx = _SearchCtx()
-    parent_mv = board.mass_vector(float(engine.constants.c))
+    parent_mv = (board.mass_vector(float(engine.constants.c)) if root_masses is None
+                 else jnp.asarray(root_masses, dtype=jnp.float32))
     root_pv = None
     ordered = None
     best, best_score = None, None
