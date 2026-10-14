@@ -69,6 +69,9 @@ def distill(base, pairs, lo_factor=0.8, hi_factor=1.25):
     for leaf in TRAINABLE_LEAVES:
         deltas = []
         for factor in (lo_factor, hi_factor):
+            # NOTE: multiplicative perturbation is blind to leaves whose value is
+            # exactly 0 (e.g. lambda_gw, lambda_sch, gamma): 0 * factor == 0, so
+            # they always read as 'unconstrained'. Known limitation, not fixed.
             pert = replace(base, **{leaf: float(getattr(base, leaf)) * factor})
             for (m, p), s0 in zip(pairs, base_scores):
                 deltas.append(abs(float(score_white(m, pert, parent=p)) - s0))
@@ -106,7 +109,7 @@ def main() -> int:
                   "(expected for the zero-init gains `lambda_gw` / `lambda_sch` — they are",
                   "behavior-neutral until training or a hand raise switches them on.)"]
     out = Path(args.out)
-    out.parent.mkdir(exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines[:12]))
     print(f"... -> {out}")
