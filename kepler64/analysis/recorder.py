@@ -88,14 +88,9 @@ def analyze_position(engine, board, depth: int = 2,
     candidates.sort(key=lambda row: row["search_score_mover"], reverse=True)
     for rank, row in enumerate(candidates, 1):
         row["rank"] = rank
-    shown = candidates if candidate_limit is None else candidates[:candidate_limit]
-    if include_move_uci and not any(row["move_uci"] == include_move_uci for row in shown):
-        played = next((row for row in candidates if row["move_uci"] == include_move_uci), None)
-        if played is not None:
-            shown = [*shown, played]
-    return {
+    full = {
         "best_move_uci": candidates[0]["move_uci"] if candidates else None,
-        "candidates": shown,
+        "candidates": candidates,
         "legal_move_count": len(candidates),
         "elapsed_ms": (time.perf_counter() - started) * 1000.0,
         "depth": depth,
@@ -103,6 +98,18 @@ def analyze_position(engine, board, depth: int = 2,
         "qnodes": sum(row["qnodes"] for row in candidates),
         "cutoffs": sum(row["cutoffs"] for row in candidates),
     }
+    return _trim_analysis(full, candidate_limit, include_move_uci)
+
+
+def _trim_analysis(analysis, candidate_limit, include_move_uci=None):
+    """Keep the top `candidate_limit` rows, plus the played move if it ranked lower."""
+    candidates = analysis["candidates"]
+    shown = candidates if candidate_limit is None else candidates[:candidate_limit]
+    if include_move_uci and not any(row["move_uci"] == include_move_uci for row in shown):
+        played = next((row for row in candidates if row["move_uci"] == include_move_uci), None)
+        if played is not None:
+            shown = [*shown, played]
+    return {**analysis, "candidates": shown}
 
 
 def _capture_event(board: chess.Board, move: chess.Move, parent, child):
@@ -150,11 +157,14 @@ def _highlights(plies):
 
 
 def record_game(game: chess.pgn.Game, engine, depth: int = 2,
-                candidate_limit: int | None = 8, max_plies: int | None = None):
+                candidate_limit: int | None = 8, max_plies: int | None = None,
+                analyses=None):
     """Record a PGN game and Kepler's decision surface before every move.
 
     The game is replayed through a GameState, so accretion and Lorentz mass
-    carry forward exactly as they do when the engine plays.
+    carry forward exactly as they do when the engine plays. `analyses` (one
+    full, untrimmed analysis per ply) skips re-searching plies already
+    analyzed — self-play passes the analyses it chose its moves from.
     """
     state = GameState(game.board(), c=float(engine.constants.c))
     board = state.board
@@ -168,8 +178,12 @@ def record_game(game: chess.pgn.Game, engine, depth: int = 2,
         fen_before = board.fen()
         parent = state.masses.copy()
         before = _position_eval(parent, engine.constants, board.turn)
-        analysis = analyze_position(engine, state, depth, candidate_limit,
-                                    include_move_uci=played.uci())
+        if analyses is not None and ply - 1 < len(analyses):
+            analysis = _trim_analysis(analyses[ply - 1], candidate_limit,
+                                      include_move_uci=played.uci())
+        else:
+            analysis = analyze_position(engine, state, depth, candidate_limit,
+                                        include_move_uci=played.uci())
         san = board.san(played)
         flags = {
             "is_capture": board.is_capture(played),
@@ -237,12 +251,18 @@ def record_selfplay(engine, depth: int = 2, max_plies: int = 40,
     game.headers.update({"Event": "Kepler-64 self-play", "White": "Kepler-64",
                          "Black": "Kepler-64", "Result": "*"})
     node = game
+    analyses = []
     for _ in range(max_plies):
         if board.is_game_over():
             break
         analysis = analyze_position(engine, state, depth, candidate_limit=None)
-        move = chess.Move.from_uci(analysis["best_move_uci"])
+        analyses.append(analysis)
+        # The move is the real engine's choice (closed-orbit rule, multiverse
+        # tie-break), not just the top analysis row.
+        move = engine.play(state, depth=depth) or chess.Move.from_uci(
+            analysis["best_move_uci"])
         node = node.add_variation(move)
         state.push(move)
     game.headers["Result"] = board.result()
-    return record_game(game, engine, depth, candidate_limit, max_plies)
+    return record_game(game, engine, depth, candidate_limit, max_plies,
+                       analyses=analyses)

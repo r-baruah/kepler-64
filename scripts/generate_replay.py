@@ -1,4 +1,13 @@
-"""Generate a self-contained Kepler-64 stakeholder replay."""
+"""Generate a Kepler-64 replay: replay.json (+ HTML, GIF, PNG frames).
+
+The game is replayed through the real engine and the trained constants, with
+accretion and velocity carried across the game line. `--json-only` skips the
+rendered assets and writes just the web-ready JSON (schema:
+kepler64/analysis/REPLAY_SCHEMA.md).
+
+    python scripts/generate_replay.py game.pgn --json-only --output out/
+    python scripts/generate_replay.py --max-plies 60 --json-only   # self-play
+"""
 
 from __future__ import annotations
 
@@ -27,6 +36,8 @@ def main():
     parser.add_argument("--duration", type=float, default=0.8)
     parser.add_argument("--output", default="replay-output")
     parser.add_argument("--constants", default="kepler64/training/trained_constants.json")
+    parser.add_argument("--json-only", action="store_true",
+                        help="write replay.json only (no HTML/GIF/PNG rendering)")
     args = parser.parse_args()
 
     # load_constants ignores the "_meta" provenance block and fills leaves an
@@ -43,6 +54,14 @@ def main():
         replay = record_game(game, engine, args.depth, args.candidates, args.max_plies)
     else:
         replay = record_selfplay(engine, args.depth, args.max_plies, args.candidates)
+    if args.json_only:
+        out = Path(args.output)
+        out.mkdir(parents=True, exist_ok=True)
+        path = out / "replay.json"
+        path.write_text(json.dumps(replay, separators=(",", ":")), encoding="utf-8")
+        print(json.dumps({"json": str(path), "plies": len(replay["plies"]),
+                          "highlights": replay["highlights"]}, indent=2))
+        return
     assets = generate_replay_assets(replay, constants, args.output, args.duration)
     print(json.dumps(assets, indent=2))
 

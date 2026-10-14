@@ -471,9 +471,12 @@ def score_white(masses: "jnp.ndarray", constants, parent=None) -> float:
 _score_core = _score_body
 
 
+_score_terms_jit = jax.jit(_score_terms_body)
+
+
 def score_white_terms(masses: "jnp.ndarray", constants, parent=None) -> EvalTerms:
     """Return weighted contributions that sum exactly to ``score_white``."""
-    return _score_terms_body(
+    return _score_terms_jit(
         masses, constants.G, constants.eps, constants.c, constants.roche,
         constants.bonus, constants.kgain, constants.gamma, constants.Rg,
         constants.mref, constants.mat_gain, constants.lambda_delta,
