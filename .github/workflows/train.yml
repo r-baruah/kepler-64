@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       steps:
-        description: "Gradient steps per phase"
+        description: "Gradient steps per round"
         required: false
         default: "80"
-      phase:
-        description: "Which phase to run (1=outcome-only, 2=policy, both)"
+      rounds:
+        description: "Self-play training rounds (each is MRR-gated)"
         required: false
-        default: "both"
+        default: "1"
   # Uncomment to also train automatically on every push to main:
   # push:
   #   branches: [main]
@@ -42,8 +42,10 @@ jobs:
           XLA_FLAGS: "--xla_force_host_platform_device_count=4"
           OMP_NUM_THREADS: "4"
         run: |
-          python scripts/train.py --phase "${{ github.event.inputs.phase || 'both' }}" \
-            --data data --steps "${{ github.event.inputs.steps || '80' }}"
+          # Self-play path: a round only updates trained_constants.json if the
+          # held-out MRR gate passes (--source data would bypass that gate).
+          python scripts/train.py --rounds "${{ github.event.inputs.rounds || '1' }}" \
+            --steps "${{ github.event.inputs.steps || '80' }}"
 
       - name: Commit trained constants
         run: |

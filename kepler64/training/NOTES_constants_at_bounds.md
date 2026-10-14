@@ -24,8 +24,21 @@ MRR moved from 0.451 to 0.460. About 3 is roughly ln(number of legal moves),
 the cross-entropy of a uniform guess.
 
 The shipped `kepler64/training/trained_constants.json` (round 3, Aug 20) is
-**not** this degenerate set; all of its leaves are interior. The degenerate
-set exists only in that run's output.
+**not** this degenerate set: none of the 14 leaves it stores is pinned at the
+bound that collapsed the gauge (roche, kgain, Rg, eps, entropy_gain are all
+interior). Two caveats, though:
+
+- `gamma` is stored as 0.0, which **is** its lower bound (`LEAF_LO` gamma =
+  0.0), so it is pinned, not interior. It has never left its starting value
+  of 0.0 in that run.
+- The JSON predates three leaves and omits `lambda_gw`, `lambda_sch` and
+  `dt_drift`. `load_constants` fills them from the defaults (0.0, 0.0 and
+  0.1). `lambda_gw` and `lambda_sch` default to 0.0, which is also their lower
+  bound, so those two terms are simply switched off in the shipped artifact;
+  `dt_drift` was never trained there. The shipped set is therefore a 14-leaf
+  result, not a 17-leaf one.
+
+The degenerate set above exists only in the Kaggle run's output.
 
 ## Gradient probe
 

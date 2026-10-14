@@ -51,19 +51,17 @@ import os
 import sys
 import time
 
-# JAX CPU tuning for GPU-less laptops: all logical threads as XLA devices.
-# Skipped when a GPU is present or KEPLER64_NO_XLA_TUNE is set — the
-# device-count flag would pin JAX to CPU and strangle cloud-GPU runs.
-import shutil
-_n_logical = os.cpu_count() or 4
-if ("XLA_FLAGS" not in os.environ
-        and not os.environ.get("KEPLER64_NO_XLA_TUNE")
-        and shutil.which("nvidia-smi") is None):
-    os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={_n_logical}"
-os.environ.setdefault("OMP_NUM_THREADS", str(_n_logical))
-
 # Make the repo root importable whether run as a script or from elsewhere.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
+
+# JAX CPU tuning (stdlib-only helper, loaded by path so it runs before jax).
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location(
+    "_xla_env", os.path.join(_ROOT, "kepler64", "training", "xla_env.py"))
+_xla_env = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_xla_env)
+_xla_env.tune_xla()
 
 from kepler64.core.constants import (
     Constants, TRAINED_CONSTANTS_PATH, load_constants, save_constants,
@@ -170,9 +168,16 @@ def main():
                     help="selfplay (default) or external Lichess/PGN data")
     ap.add_argument("--data", default=None,
                     help="dir with puzzles_50k.csv and games/Ripu01.pgn (--source data)")
-    ap.add_argument("--out", default=str(TRAINED_CONSTANTS_PATH))
+    ap.add_argument("--out", default=None,
+                    help="output constants JSON (default: trained_constants.json "
+                         "for selfplay; trained_constants_data.json for --source "
+                         "data, which bypasses the MRR gate and must not silently "
+                         "replace the champion)")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
+    if args.out is None:
+        args.out = str(TRAINED_CONSTANTS_PATH if args.source == "selfplay" else
+                       TRAINED_CONSTANTS_PATH.with_name("trained_constants_data.json"))
 
     champion = load_constants()
     provenance = "loaded persisted champion" if champion else "pristine universe"
@@ -189,11 +194,11 @@ def main():
                               limit_games=30, limit_positions=8000)
         examples = puz + games
         print(f"[train] external data: {len(examples)} examples")
-        print(f"[train] outcome-only phase ...")
+        print("[train] outcome-only phase ...")
         champion = trainmod.train_examples(champion, examples, steps=args.steps,
                                            lr=args.lr, fix_G=args.fix_G,
                                            verbose=True, policy=False)
-        print(f"[train] policy phase ...")
+        print("[train] policy phase ...")
         champion = trainmod.train_examples(champion, examples, steps=args.steps,
                                            lr=args.lr, fix_G=args.fix_G,
                                            verbose=True, policy=True)
@@ -218,7 +223,7 @@ def main():
             })
             print(f"[round] ACCEPTED — champion persisted -> {args.out}")
         else:
-            print(f"[round] rejected — champion unchanged")
+            print("[round] rejected — champion unchanged")
 
     print(f"\n[train] done: {accepted_rounds}/{args.rounds} rounds accepted")
     print(f"[train] final constants: {champion}")

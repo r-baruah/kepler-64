@@ -16,12 +16,10 @@ a hand-written evaluation: the match is pure search physics vs search physics.
 
 from __future__ import annotations
 
-import math
-
 import chess
-import numpy as np
 
 from ..core.constants import Constants
+from .elo import elo_from_record
 
 
 def play_match(candidate: Constants, baseline: Constants, *,
@@ -35,7 +33,6 @@ def play_match(candidate: Constants, baseline: Constants, *,
     """
     from .. import RocheEngine
 
-    rng = __import__("numpy").random.default_rng(seed)
     cand = RocheEngine(candidate)
     base = RocheEngine(baseline)
     wins = losses = draws = 0
@@ -61,19 +58,6 @@ def play_match(candidate: Constants, baseline: Constants, *,
                 wins += 1
             else:
                 losses += 1
-    elo, score = _elo_from_score(wins, losses, draws)
+    elo, score = elo_from_record(wins, losses, draws)
     return {"wins": wins, "losses": losses, "draws": draws, "games": games,
             "score": score, "elo": elo}
-
-
-def _elo_from_score(wins: int, losses: int, draws: int):
-    """Elo from a (w, l, d) record. Returns (elo, score) or (0.0, 0.5) if empty."""
-    n = wins + losses + draws
-    if n == 0:
-        return 0.0, 0.5
-    score = (wins + 0.5 * draws) / n
-    if score <= 0.0:
-        return -600.0, score
-    if score >= 1.0:
-        return 600.0, score
-    return -400.0 * math.log2(1.0 / score - 1.0), score

@@ -403,8 +403,6 @@ def render_position(
     """
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.patches as mpatches
-    import matplotlib.patheffects as pe
     import matplotlib.pyplot as plt
 
     cb        = getattr(board, "_chess", None)
@@ -437,8 +435,9 @@ def render_position(
     try:
         score = float(evaluate(board, constants))
         eval_str = f"    eval {score:+.3f}"
-    except Exception:
-        pass
+    except Exception as exc:  # header eval is cosmetic; never kill the render
+        warnings.warn(f"render_position: eval header skipped ({exc!r})",
+                      stacklevel=2)
 
     c = constants
     phys = (f"G = {c.G:.3f}    ε = {c.eps:.3f}    "
@@ -511,19 +510,3 @@ def game_gif(
         warnings.warn(f"GIF assembly failed ({exc}); PNG frames retained.",
                       stacklevel=2)
     return out_path
-
-
-# ---------------------------------------------------------------------------
-# Backward-compatibility shims
-# ---------------------------------------------------------------------------
-
-def render_sheet(ax, board, constants):
-    """Deprecated — delegates to render_field."""
-    warnings.warn("render_sheet() is deprecated; use render_field() instead.",
-                  DeprecationWarning, stacklevel=2)
-    return render_field(ax, board, constants)
-
-
-def render_eta_timeline(ax, eta_history, roche: float) -> None:
-    """Deprecated — timeline strip removed; this is now a no-op."""
-    ax.axis("off")

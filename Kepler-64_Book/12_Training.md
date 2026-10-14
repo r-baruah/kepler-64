@@ -53,7 +53,7 @@ This is the most important honesty check in the whole project (`Kepler-64 Audit`
 
 > Train two engines — one with **learned $G$ (and other constants)**, one with **$G=1$ fixed (no learning)** — and show the **Elo delta**. If the delta is < 50 Elo, the gravity isn't doing meaningful work and the thesis collapses.
 
-`training/ablation.py` is the script for this. The README/abstract should publish the table: `G=1 fixed` vs `G learned`. **Without it, the central thesis is unverified.**
+`scripts/credibility_gate.py` is the script for this (the earlier `training/ablation.py` stub was removed). The README/abstract should publish the table: `G=1 fixed` vs `G learned`. **Without it, the central thesis is unverified.**
 
 > **⚠ [ISSUE: ABLATION-MISSING-FROM-ARTIFACTS] (P0 for credibility, Audit):** The ablation table is described as a "first-class README artifact" but is not yet present in the README. Shipping the engine without it leaves the headline claim ("gravity learned via gradient descent improves play") unsubstantiated. **This is the single most important deliverable for a skeptic.** Produce it and put it in the README.
 

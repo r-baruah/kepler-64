@@ -28,7 +28,6 @@ import chess
 
 from ..core.fastboard import FastBoard
 from ..core.constants import Constants
-from ..core.transitions import child_mass_vector
 from . import data as _data
 
 
@@ -54,7 +53,6 @@ def play_training_games(constants: Constants,
     import shutil
     import chess.engine
     from .. import RocheEngine
-    from ..search.minimax import iterative_search
 
     rng = np.random.default_rng(seed)
     explorer = RocheEngine(constants)   # explorer: multiverse tie-break w/ random seed
@@ -87,7 +85,6 @@ def play_training_games(constants: Constants,
 
     def _board_to_examples(board: chess.Board, g: int = 0):
         """Build one example dict from a python-chess board (teacher-labeled)."""
-        fb = FastBoard.from_chess(board)
         parent, child_m, mask, legal = _data._children(board)
         # teacher verdict: external master (e.g. Stockfish 1600) or deeper internal search
         if external_teacher is not None:

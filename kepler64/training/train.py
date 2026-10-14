@@ -1,20 +1,27 @@
 """Training loop - gradient descent through the physics engine.
 
-physics: optimize G, eps, c, roche, bonus, kgain, gamma, Rg with Adam so the
-         gravitational "weights" are genuinely learned from real play, not
-         hand-picked.  Adam adapts the LR per-parameter, which is critical here
-         because the 8 physics params span very different scales (bonus≈50 vs
-         eps≈0.5).  Gradient clipping (max_norm=1.0) prevents noisy mini-batches
-         from causing destructive updates to roche or eps.
-         G is frozen (fix_G=True) because it cancels out of the tidal index and
-         training otherwise collapses it toward 0, killing the force terms.
-chess:  the result is an engine whose evaluation mimics real, structurally sound
-        positions / expert moves without ever being told a chess rule.  Training
-        data is REAL (puzzles + your own games) - no invented heuristics.
+physics: optimize the 17 trainable leaves (TRAINABLE_LEAVES in
+         kepler64/core/constants.py: G, eps, c, roche, bonus, kgain, gamma, Rg,
+         mat_gain, lambda_delta, com_gain, inertia_gain, entropy_gain,
+         lambda_drift, lambda_gw, lambda_sch, dt_drift) with Adam so the
+         gravitational "weights" are learned from play, not hand-picked.  Adam
+         adapts the LR per-parameter, which matters because the leaves span very
+         different scales (bonus=300 vs eps~0.5).  Gradient clipping
+         (max_norm=1.0) prevents noisy mini-batches from causing destructive
+         updates.  Every step is projected into the physical bounds LEAF_LO /
+         LEAF_HI.
+         G is frozen by default (fix_G=True) because it cancels out of the tidal
+         index and training otherwise collapses it toward 0, killing the force
+         terms.
+chess:  the result is an engine whose evaluation mimics the deeper search's
+        choices and real game outcomes without ever being told a chess rule.
+        Data is self-play (scripts/train.py, scripts/credibility_gate.py) or,
+        optionally, external puzzles / PGN games (training/data.py).  No
+        invented heuristics.
 
 Hardware notes (Ryzen 5 5500U, 8 GB RAM, Radeon iGPU, no CUDA):
   * JAX runs CPU-only here.  We force XLA to use all 12 logical threads via
-    --xla_force_host_platform_device_count (set in _configure_jax below) — by
+    --xla_force_host_platform_device_count (set by xla_env.tune_xla at import) — by
     default it only uses the physical core count, leaving half the laptop idle.
   * 8 GB is the hard limit.  The biggest tensor is moves_m (N,K,64) float32:
     5000 puzzles * 64 * 64 * 4 bytes ~= 85 MB, plus the per-step vmap over 64
@@ -26,7 +33,6 @@ Hardware notes (Ryzen 5 5500U, 8 GB RAM, Radeon iGPU, no CUDA):
 
 import json
 import os
-import shutil
 import time
 from pathlib import Path
 
@@ -34,17 +40,10 @@ import jax.random as jrandom
 
 import numpy as np
 
-# ── JAX CPU tuning (laptops without a GPU) ─────────────────────────────────
-# Force XLA to see all logical threads. Skipped when a GPU is present
-# (nvidia-smi) or KEPLER64_NO_XLA_TUNE is set: the device-count flag would
-# pin JAX to CPU and strangle cloud-GPU runs.
-_n_logical = os.cpu_count() or 4
-if ("XLA_FLAGS" not in os.environ
-        and not os.environ.get("KEPLER64_NO_XLA_TUNE")
-        and shutil.which("nvidia-smi") is None):
-    os.environ["XLA_FLAGS"] = f"--xla_force_host_platform_device_count={_n_logical}"
-# Keep JAX from hoarding threads for its own BLAS fork and starving the trainer.
-os.environ.setdefault("OMP_NUM_THREADS", str(_n_logical))
+# JAX CPU tuning for GPU-less laptops (see xla_env.py).
+from .xla_env import tune_xla
+
+tune_xla()
 
 # Persistent XLA compilation cache: avoid recompiling kernels on process restarts.
 # Opt out via KEPLER64_NO_CACHE=1; custom path via JAX_COMPILATION_CACHE_DIR.
@@ -401,31 +400,3 @@ def train_examples(base: Constants, examples, steps: int = 200, lr: float = 3e-3
     if return_metrics:
         return trained, metrics
     return trained
-
-
-def train_from_data(base: Constants, data_dir: str, steps: int = 200,
-                    lr: float = 3e-3, fix_G: bool = True,
-                    puzzle_limit: int = 5000, game_limit: int = 30,
-                    game_positions: int = 8000, seed: int = 0, verbose: bool = True):
-    """One-call pipeline for this laptop: load real data, train, report.
-
-    Defaults chosen for the Ryzen 5 5500U / 8 GB machine:
-      * puzzle_limit=5000 (the stale 200-puzzle run was too small to learn)
-      * game_limit=30, game_positions=8000 (your own games as behavioural clone)
-      * fix_G=True (G is non-identifiable in the tidal index)
-    """
-    from .data import puzzle_examples, game_examples
-    puz = puzzle_examples(os.path.join(data_dir, "puzzles_50k.csv"),
-                          limit=puzzle_limit)
-    if verbose:
-        print(f"[train] loaded {len(puz)} puzzle examples")
-    games = game_examples(os.path.join(data_dir, "games", "Ripu01.pgn"),
-                          limit_games=game_limit, limit_positions=game_positions)
-    if verbose:
-        print(f"[train] loaded {len(games)} game-position examples")
-    examples = puz + games
-    if not examples:
-        raise ValueError("No training examples loaded — check data_dir path.")
-    return train_examples(base, examples, steps, lr, fix_G,
-                          batch_size=128, seed=seed, verbose=verbose)
-

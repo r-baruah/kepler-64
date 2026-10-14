@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 import sys
@@ -38,6 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import chess
 
 from kepler64.core.constants import Constants, save_constants, load_constants, TRAINABLE_LEAVES
+from kepler64.bench.elo import elo_proxy
 from kepler64.training.selfplay import play_training_games, _terminal_mass_edge
 
 
@@ -134,7 +134,6 @@ def head_to_head(constants_a: Constants, constants_b: Constants, *,
                  on_game_end=None, workers: int = 1):
     """A vs B, colors balanced. Returns dict with wins/draws/losses for A."""
     from kepler64 import RocheEngine
-    import numpy as np
 
     history = list(initial_history) if initial_history else []
     w = sum(1 for r in history if r["res"] == "win")
@@ -215,13 +214,6 @@ def head_to_head(constants_a: Constants, constants_b: Constants, *,
             "adjudicated": adjudicated, "history": history}
 
 
-def elo_proxy(w: int, d: int, l: int) -> float:
-    """Score-based Elo difference of A vs B (draws count half), clamped."""
-    n = max(1, w + d + l)
-    s = min(max((w + 0.5 * d) / n, 0.01), 0.99)
-    return 400.0 * math.log10(s / (1.0 - s))
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--games", type=int, default=6)
@@ -231,6 +223,8 @@ def main() -> int:
     ap.add_argument("--steps", type=int, default=300)
     ap.add_argument("--lr", type=float, default=3e-3)
     ap.add_argument("--match-games", type=int, default=8)
+    ap.add_argument("--match-max-plies", type=int, default=60,
+                    help="ply cap per head-to-head game (--max-plies only caps harvest games)")
     ap.add_argument("--match-move-ms", type=float, default=150.0)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--only", choices=["all", "harvest", "train", "match", "report"],
@@ -391,7 +385,8 @@ def main() -> int:
             _save_state(args.state, state)
 
         match = head_to_head(trained, base, games=args.match_games,
-                             move_ms=args.match_move_ms, seed=args.seed + 1,
+                             move_ms=args.match_move_ms, max_plies=args.match_max_plies,
+                             seed=args.seed + 1,
                              initial_history=initial_history,
                              on_game_end=_on_game_end,
                              workers=args.workers)
