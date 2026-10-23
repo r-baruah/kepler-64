@@ -4,6 +4,7 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 
 | date | decision | why | affects |
 |---|---|---|---|
+| 2026-10-24 | Gen 0 calibration: keep `lambda_bind` 0.01, `lambda_space` 0.05, `beta` 2.0. Calibration uses 300 seeded random-play positions instead of a fixed EPD file | They are the strongest values tested that keep the worst sibling-move deviation under 2.5 ku (`engine/results/calibration-gen000.md`). Seeded generation is reproducible without shipping a file | 02 §8, gen-000.json |
 | 2026-10-23 | The v1 movegen library is `cozy-chess` (MIT). `shakmaty` is excluded (GPL-3). | Permissive licence, fast, verified to build for wasm32 | 03 §1 |
 | 2026-10-23 | Development happens on branch `v1`; `main` stays stable until v1.0 | The public repo stays usable while the rewrite is in progress | 05 |
 | 2026-10-23 | No throwaway prototype: Rust milestone 1 is the go/no-go spike | Scaffolding (movegen, search, UCI, harness) is reused either way | 04 §7, 05 M1 |

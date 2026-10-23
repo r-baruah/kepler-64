@@ -150,10 +150,10 @@ Measure with `cargo bench`, and record each milestone's numbers in `engine/resul
   |---|---|---|
   | start | 5 | 4,865,609 |
   | Kiwipete | 4 | 4,085,603 |
-  | pos 3 | 5 | 674,624 |
+  | pos 3 `8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1` | 5 | 674,624 |
   | pos 4 | 4 | 422,333 |
   | pos 5 | 4 | 2,103,487 |
-  | pos 6 | 4 | 3,894,594 |
+  | pos 6 `r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10` | 4 | 3,894,594 |
 
 - Law invariants 1–8 from `02_LAWS_SPEC.md` §11.
 - **Search sanity:**

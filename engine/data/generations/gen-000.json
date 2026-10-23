@@ -1,0 +1,16 @@
+{
+  "generation": 0,
+  "parent": null,
+  "spec": "v1.0-spec-1",
+  "created": "2026-10-24",
+  "constants": {
+    "m_n": 3.0, "m_b": 3.0, "m_r": 5.0, "m_q": 9.0,
+    "kappa": 1.0, "alpha": 0.35, "sigma": 0.5, "c": 2,
+    "lambda_bind": 0.01, "lambda_space": 0.05,
+    "rho": 1.5, "k_roche": 3.0, "beta": 2.0,
+    "f_acc": 0.8
+  },
+  "pinned": [],
+  "training": { "note": "hand-set universe; no training" },
+  "acceptance": { "calibration": "results/calibration-gen000.md" }
+}

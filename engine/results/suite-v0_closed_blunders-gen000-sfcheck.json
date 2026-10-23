@@ -1,0 +1,134 @@
+{
+ "depth3": {
+  "under_1_pawn": 12,
+  "of": 12,
+  "moves": [
+   {
+    "id": "french-w-qxc4",
+    "move": "Qd2",
+    "loss_cp_sf19_d18": 48
+   },
+   {
+    "id": "french-w-qa6",
+    "move": "Na5",
+    "loss_cp_sf19_d18": 31
+   },
+   {
+    "id": "french-b-ng5",
+    "move": "Be2",
+    "loss_cp_sf19_d18": 64
+   },
+   {
+    "id": "french-b-qxd4",
+    "move": "cxd3",
+    "loss_cp_sf19_d18": 19
+   },
+   {
+    "id": "french-b-oo",
+    "move": "cxd4",
+    "loss_cp_sf19_d18": 15
+   },
+   {
+    "id": "french-b-qh4",
+    "move": "Qxd3",
+    "loss_cp_sf19_d18": 2
+   },
+   {
+    "id": "french-b-nxf7",
+    "move": "g3",
+    "loss_cp_sf19_d18": 10
+   },
+   {
+    "id": "kid-w-nf5",
+    "move": "Bxe2",
+    "loss_cp_sf19_d18": 12
+   },
+   {
+    "id": "kid-b-bf5",
+    "move": "Qd7",
+    "loss_cp_sf19_d18": 42
+   },
+   {
+    "id": "kid-b-bg5",
+    "move": "exf5",
+    "loss_cp_sf19_d18": -5
+   },
+   {
+    "id": "kid-b-nxd5",
+    "move": "Nxg5",
+    "loss_cp_sf19_d18": 30
+   },
+   {
+    "id": "kid-b-qxd5",
+    "move": "Bxd8",
+    "loss_cp_sf19_d18": -4
+   }
+  ]
+ },
+ "depth6": {
+  "under_1_pawn": 11,
+  "of": 12,
+  "moves": [
+   {
+    "id": "french-w-qxc4",
+    "move": "Qc2",
+    "loss_cp_sf19_d18": 11
+   },
+   {
+    "id": "french-w-qa6",
+    "move": "Nce7",
+    "loss_cp_sf19_d18": 52
+   },
+   {
+    "id": "french-b-ng5",
+    "move": "Be2",
+    "loss_cp_sf19_d18": 72
+   },
+   {
+    "id": "french-b-qxd4",
+    "move": "cxd3",
+    "loss_cp_sf19_d18": 17
+   },
+   {
+    "id": "french-b-oo",
+    "move": "cxd4",
+    "loss_cp_sf19_d18": 1
+   },
+   {
+    "id": "french-b-qh4",
+    "move": "Qxd3",
+    "loss_cp_sf19_d18": -8
+   },
+   {
+    "id": "french-b-nxf7",
+    "move": "g3",
+    "loss_cp_sf19_d18": -41
+   },
+   {
+    "id": "kid-w-nf5",
+    "move": "h6",
+    "loss_cp_sf19_d18": 129
+   },
+   {
+    "id": "kid-b-bf5",
+    "move": "b6",
+    "loss_cp_sf19_d18": 0
+   },
+   {
+    "id": "kid-b-bg5",
+    "move": "exf5",
+    "loss_cp_sf19_d18": -22
+   },
+   {
+    "id": "kid-b-nxd5",
+    "move": "Nxg5",
+    "loss_cp_sf19_d18": 18
+   },
+   {
+    "id": "kid-b-qxd5",
+    "move": "Bxd8",
+    "loss_cp_sf19_d18": 15
+   }
+  ]
+ }
+}
