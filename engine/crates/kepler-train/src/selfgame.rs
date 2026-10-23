@@ -208,6 +208,8 @@ pub fn gen_hash(p: &Params) -> String {
 pub struct Leaf {
     pub v: f32,
     pub grad: [f32; NGRAD],
+    /// dv/dT, the derivative with respect to the temperature (same view as `v`).
+    pub grad_t: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -220,8 +222,11 @@ pub struct GameCfg {
     pub explore_margin: f32,
     /// Record the PV leaf of every ply (TDLeaf).
     pub record: bool,
-    /// Tanh scale `s` (ku) for leaf values.
-    pub scale: f32,
+    /// Measure the recorded leaf at the end of the quiescence line from the PV leaf
+    /// (`Searcher::quiet_leaf`, T5) instead of at the PV leaf itself.
+    pub quiet_leaf: bool,
+    /// Temperature `T` (ku) in `v = tanh(eval / T)` for leaf values.
+    pub temperature: f32,
     pub adj: Adjudication,
 }
 
@@ -235,6 +240,8 @@ pub struct GameOut {
     pub adjudicated: bool,
     pub start_white: bool,
     pub leaves: Vec<Leaf>,
+    /// Root search score (ku, the last recorded mover's view) of the last recorded ply.
+    pub last_score_ku: Option<f32>,
 }
 
 impl GameOut {
@@ -271,18 +278,24 @@ pub fn pv_leaf(root: &Position, pv: &[Move], params: &Params) -> Position {
     cur
 }
 
-/// `v = tanh(eval_white(leaf) / s)` converted to the root mover's view, with the
-/// gradient from a single `Dual` evaluation: `dv/dtheta = sign * (1 - t^2) / s * deval/dtheta`.
-pub fn leaf_value(leaf: &Position, root_white: bool, params: &Params, s: f32) -> Leaf {
+/// `v = tanh(eval_white(leaf) / T)` converted to the root mover's view, with the
+/// gradient from a single `Dual` evaluation: `dv/dtheta = sign * (1 - t^2) / T * deval/dtheta`
+/// and `dv/dT = -sign * (1 - t^2) * eval / T^2`.
+pub fn leaf_value(leaf: &Position, root_white: bool, params: &Params, temp: f32) -> Leaf {
     let sc = evaluate::<Dual>(leaf, params).score_white;
-    let t = (sc.v / s).tanh();
+    let t = (sc.v / temp).tanh();
     let sign = if root_white { 1.0 } else { -1.0 };
-    let k = sign * (1.0 - t * t) / s;
+    let one_m = 1.0 - t * t;
+    let k = sign * one_m / temp;
     let mut grad = [0.0; NGRAD];
     for (g, d) in grad.iter_mut().zip(sc.d) {
         *g = d * k;
     }
-    Leaf { v: sign * t, grad }
+    Leaf {
+        v: sign * t,
+        grad,
+        grad_t: -sign * one_m * sc.v / (temp * temp),
+    }
 }
 
 /// Play one game. `engines[c]` / `params[c]` play colour `c` (0 = White, 1 = Black).
@@ -323,6 +336,7 @@ pub fn play_game(
         adjudicated: false,
         start_white,
         leaves: Vec::new(),
+        last_score_ku: None,
     };
     let mut judge = Adjudicator::new(cfg.adj);
     let no_info = &mut |_: &kepler_core::search::SearchResult| {};
@@ -371,18 +385,23 @@ pub fn play_game(
                 break;
             }
             if cfg.record {
+                out.last_score_ku = Some(res.score_ku);
                 out.leaves.push(if mate {
                     Leaf {
                         v: res.score_ku.signum(),
                         grad: [0.0; NGRAD],
+                        grad_t: 0.0,
                     }
                 } else {
-                    let leaf = pv_leaf(pos, &res.pv, params[ci]);
+                    let mut leaf = pv_leaf(pos, &res.pv, params[ci]);
+                    if cfg.quiet_leaf {
+                        leaf = engines[ci].quiet_leaf(&leaf, params[ci]);
+                    }
                     leaf_value(
                         &leaf,
                         b.side_to_move() == Color::White,
                         params[ci],
-                        cfg.scale,
+                        cfg.temperature,
                     )
                 });
             }
@@ -616,7 +635,8 @@ mod tests {
             explore_plies: 4,
             explore_margin: 0.15,
             record: true,
-            scale: 4.0,
+            quiet_leaf: true,
+            temperature: 4.0,
             adj: Adjudication::default(),
         };
         let o = Opening {

@@ -1,10 +1,13 @@
 //! `kepler-train tdleaf`: TDLeaf(lambda) rounds (`docs/v1/04_TRAINING_AND_GATES.md` §1).
 //!
 //! Conventions
-//! * `v_t = tanh(eval_white(leaf_t) / s)` in the view of the side that moved at ply `t`;
-//!   a mate score gives `v_t = +-1` with zero gradient.
+//! * `v_t = tanh(eval_white(leaf_t) / T)` in the view of the side that moved at ply `t`;
+//!   a mate score gives `v_t = +-1` with zero gradient. `leaf_t` is the quiet leaf (T5):
+//!   the end of the quiescence line from the PV leaf. `T` is the learned temperature (T1).
 //! * `d_t = -v_{t+1} - v_t` (next value negated into the same view); the last ply uses the
-//!   game result for its mover (+1 / 0 / -1; the max-plies cap counts as 0).
+//!   game result for its mover (+1 / 0 / -1). Games stopped by the max-plies cap follow
+//!   `--capped-target` (T6): `drop` (default) gives them no gradient at all, `score` uses
+//!   `tanh(final root search score / T)` as the last target, `draw` is the old behaviour.
 //! * Update direction `sum_t grad v_t * e_t`, `e_t = d_t - lambda * e_{t+1}`. The spec's
 //!   `sum_{j>=t} lambda^{j-t} d_j` is written with every `d_j` in one common view; with
 //!   `d_j` in its own mover's view, ply `j`'s error enters ply `t`'s sum with sign
@@ -14,6 +17,13 @@
 //!   "about 1% of a constant's allowed range per round" for all 12 constants alike. The
 //!   result is projected onto the bounds.
 //! * `c` and `f_acc` are left unchanged (outer-loop constants).
+//! * Temperature (T1): `T` is parameterised as `log T` (bounds `T` in [0.5, 50]) and
+//!   learned by the same Adam (same relative learning rate, relative to the `log T` bound
+//!   range) from `dv/dlogT = T * dv/dT = -(1 - v^2) * eval / T`, summed with the same `e_t`
+//!   weights as the constants (`grad_logT_sum`). `--no-learn-temperature` keeps it fixed.
+//!   `T` is not a law constant: it lives in the checkpoint and `training.temperature`.
+//! * `--conserve-mass` (T2): after each step the four masses are rescaled by one common
+//!   factor so `8 + 2 m_n + 2 m_b + 2 m_r + m_q` equals its value at the start of the run.
 //!
 //! Work units
 //! * A round is "N shards, then reduce". `play_shard` plays games and returns the
@@ -32,7 +42,7 @@ use crate::selfgame::{
     self, AdjArgs, GameCfg, Leaf, constants_json, gen_hash, load_generation, load_openings, par_run,
 };
 use crate::util::{self, XorShift};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use kepler_core::params::{Generation, SPEC_ID};
 use kepler_core::search::{Limits, Searcher};
 use kepler_core::{NGRAD, Params};
@@ -50,9 +60,14 @@ pub struct PlayOpts {
     threads: usize,
     #[arg(long, default_value_t = 0.7)]
     lambda: f32,
-    /// The s in tanh(eval / s), ku
-    #[arg(long, default_value_t = 4.0)]
-    scale: f32,
+    /// Temperature T (ku) in tanh(eval / T), bounds [0.5, 50]. Default: the generation
+    /// file's `training.temperature` if present, else 4.0 (a checkpoint overrides it)
+    #[arg(long)]
+    temperature: Option<f32>,
+    /// What a game stopped by --max-plies teaches: drop (no gradient), score
+    /// (tanh(final root score / T) as the final target), draw (the result 0)
+    #[arg(long = "capped-target", value_enum, default_value_t = CappedTarget::Drop)]
+    capped_target: CappedTarget,
     #[arg(long = "max-plies", default_value_t = 300)]
     max_plies: usize,
     #[arg(long = "explore-plies", default_value_t = 8)]
@@ -62,6 +77,73 @@ pub struct PlayOpts {
     hash: usize,
     #[command(flatten)]
     adj: AdjArgs,
+}
+
+/// T6: how games stopped at the ply cap enter the TD targets.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CappedTarget {
+    Drop,
+    Score,
+    Draw,
+}
+
+impl CappedTarget {
+    pub fn name(self) -> &'static str {
+        match self {
+            CappedTarget::Drop => "drop",
+            CappedTarget::Score => "score",
+            CappedTarget::Draw => "draw",
+        }
+    }
+}
+
+/// Temperature bounds (ku) and its Adam range on the log scale (T1).
+pub const T_BOUNDS: (f32, f32) = (0.5, 50.0);
+pub const DEFAULT_T: f32 = 4.0;
+
+fn logt_range() -> f64 {
+    (T_BOUNDS.1 as f64).ln() - (T_BOUNDS.0 as f64).ln()
+}
+
+/// Initial temperature: the explicit flag, else the generation's `training.temperature`,
+/// else 4.0.
+pub fn initial_temperature(explicit: Option<f32>, gen_: &Generation) -> Result<f32, String> {
+    let t = explicit
+        .or_else(|| {
+            gen_.training
+                .get("temperature")
+                .and_then(|x| x.as_f64())
+                .map(|x| x as f32)
+        })
+        .unwrap_or(DEFAULT_T);
+    if !(T_BOUNDS.0..=T_BOUNDS.1).contains(&t) {
+        return Err(format!(
+            "temperature {t} is outside [{}, {}]",
+            T_BOUNDS.0, T_BOUNDS.1
+        ));
+    }
+    Ok(t)
+}
+
+/// Update options shared by `tdleaf` and `tdleaf-reduce`.
+#[derive(Args, Debug, Clone)]
+pub struct UpdateOpts {
+    /// Learn the temperature T alongside the constants (the default)
+    #[arg(long = "learn-temperature", num_args = 0..=1, default_missing_value = "true", default_value_t = true)]
+    learn_temperature: bool,
+    /// Keep the temperature fixed (same as --learn-temperature false)
+    #[arg(long = "no-learn-temperature")]
+    no_learn_temperature: bool,
+    /// After every step rescale the four masses so 8 + 2 m_n + 2 m_b + 2 m_r + m_q stays
+    /// at its starting value
+    #[arg(long = "conserve-mass")]
+    conserve_mass: bool,
+}
+
+impl UpdateOpts {
+    fn learn_t(&self) -> bool {
+        self.learn_temperature && !self.no_learn_temperature
+    }
 }
 
 #[derive(Args, Debug)]
@@ -93,6 +175,8 @@ pub struct TdleafArgs {
     seed: u64,
     #[command(flatten)]
     play: PlayOpts,
+    #[command(flatten)]
+    upd: UpdateOpts,
 }
 
 #[derive(Args, Debug)]
@@ -133,6 +217,12 @@ pub struct ReduceArgs {
     shard_dir: Option<PathBuf>,
     #[arg(long, default_value_t = 0.01)]
     lr: f32,
+    /// Initial temperature when --state is "none" (default: --gen's
+    /// training.temperature, else 4.0)
+    #[arg(long)]
+    temperature: Option<f32>,
+    #[command(flatten)]
+    upd: UpdateOpts,
     #[arg(long = "out-dir")]
     out_dir: PathBuf,
 }
@@ -158,6 +248,12 @@ pub struct Shard {
     pub plies: usize,
     /// Un-normalised sum over all plies of grad(v_t) * e_t.
     pub grad_sum: Vec<f64>,
+    /// Un-normalised sum over all plies of dv/dlogT * e_t (T = temperature).
+    #[serde(rename = "grad_logT_sum", default)]
+    pub grad_logt_sum: f64,
+    /// Plies of capped games that contributed no gradient (`--capped-target drop`).
+    #[serde(default)]
+    pub dropped_plies: usize,
     pub abs_d_sum: f64,
     pub d_sum: f64,
     pub results: ShardResults,
@@ -176,6 +272,7 @@ pub fn play_shard(
     games: usize,
     seed: u64,
     o: &PlayOpts,
+    temperature: f32,
 ) -> Result<Shard, String> {
     let cfg = GameCfg {
         limits: Limits {
@@ -187,7 +284,8 @@ pub fn play_shard(
         explore_plies: o.explore_plies,
         explore_margin: 0.15,
         record: true,
-        scale: o.scale,
+        quiet_leaf: true,
+        temperature,
         adj: o.adj.cfg(),
     };
     let first = XorShift::new(seed).below(openings.len());
@@ -212,8 +310,20 @@ pub fn play_shard(
                 return Ok(None);
             }
             let last = g.moves.len() - 1;
-            let td = game_td(&g.leaves, g.result_for_mover(last), o.lambda);
-            Ok::<_, String>(Some((td, g.result, g.capped, g.adjudicated)))
+            let result_last = match (g.capped, o.capped_target) {
+                (false, _) | (true, CappedTarget::Draw) => Some(g.result_for_mover(last)),
+                (true, CappedTarget::Score) => {
+                    Some((g.last_score_ku.unwrap_or(0.0) / temperature).tanh())
+                }
+                (true, CappedTarget::Drop) => None,
+            };
+            let dropped = if result_last.is_none() {
+                g.leaves.len()
+            } else {
+                0
+            };
+            let td = result_last.map(|r| game_td(&g.leaves, r, o.lambda, temperature));
+            Ok::<_, String>(Some((td, dropped, g.result, g.capped, g.adjudicated)))
         },
     );
     let mut grad = vec![0.0f64; NGRAD];
@@ -226,6 +336,8 @@ pub fn play_shard(
         games: 0,
         plies: 0,
         grad_sum: Vec::new(),
+        grad_logt_sum: 0.0,
+        dropped_plies: 0,
         abs_d_sum: 0.0,
         d_sum: 0.0,
         results: ShardResults::default(),
@@ -233,7 +345,7 @@ pub fn play_shard(
         config: serde_json::Value::Null,
     };
     for g in played {
-        let Some((td, res, cap, adj)) = g? else {
+        let Some((td, dropped, res, cap, adj)) = g? else {
             continue;
         };
         sh.games += 1;
@@ -244,9 +356,14 @@ pub fn play_shard(
         }
         sh.results.capped += cap as usize;
         sh.results.adjudicated += adj as usize;
+        sh.dropped_plies += dropped;
+        let Some(td) = td else {
+            continue;
+        };
         sh.plies += td.plies;
         sh.abs_d_sum += td.sum_abs_d;
         sh.d_sum += td.sum_d;
+        sh.grad_logt_sum += td.grad_logt_sum;
         for i in 0..NGRAD {
             grad[i] += td.grad_sum[i] as f64;
         }
@@ -255,7 +372,8 @@ pub fn play_shard(
     sh.elapsed_ms = t0.elapsed().as_millis() as u64;
     sh.config = json!({
         "depth": o.depth, "threads": o.threads, "hash_mb": o.hash,
-        "lambda": o.lambda, "scale": o.scale,
+        "lambda": o.lambda, "temperature": temperature,
+        "capped_target": o.capped_target.name(), "quiet_leaf": true,
         "max_plies": o.max_plies, "explore_plies": o.explore_plies, "explore_margin": 0.15,
         "games_requested": games,
         "adjudication": o.adj.cfg(),
@@ -287,22 +405,28 @@ pub fn td_errors(vs: &[f32], result_last: f32, lambda: f32) -> (Vec<f32>, Vec<f3
 /// Per-game contribution to a round.
 pub struct GameTd {
     pub grad_sum: [f32; NGRAD],
+    /// sum_t dv_t/dlogT * e_t
+    pub grad_logt_sum: f64,
     pub plies: usize,
     pub sum_abs_d: f64,
     pub sum_d: f64,
 }
 
-pub fn game_td(leaves: &[Leaf], result_last: f32, lambda: f32) -> GameTd {
+pub fn game_td(leaves: &[Leaf], result_last: f32, lambda: f32, temperature: f32) -> GameTd {
     let vs: Vec<f32> = leaves.iter().map(|l| l.v).collect();
     let (d, e) = td_errors(&vs, result_last, lambda);
     let mut grad_sum = [0.0f32; NGRAD];
+    let mut grad_logt_sum = 0.0f64;
     for (l, et) in leaves.iter().zip(&e) {
         for i in 0..NGRAD {
             grad_sum[i] += l.grad[i] * et;
         }
+        // dv/dlogT = T dv/dT
+        grad_logt_sum += (l.grad_t * temperature * et) as f64;
     }
     GameTd {
         grad_sum,
+        grad_logt_sum,
         plies: leaves.len(),
         sum_abs_d: d.iter().map(|x| x.abs() as f64).sum(),
         sum_d: d.iter().map(|&x| x as f64).sum(),
@@ -352,6 +476,56 @@ impl Adam {
     }
 }
 
+/// Adam for the single `log T` parameter (same hyper-parameters as `Adam`).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AdamT {
+    pub m: f64,
+    pub v: f64,
+    pub t: u64,
+}
+
+impl AdamT {
+    /// One ascent step on `T`. `grad` is the ascent direction in `log T` units; Adam works
+    /// on the range-normalised `log T` (`grad * range`) with the relative rate `lr`, and
+    /// the result is projected onto the bounds. Returns the new `T`.
+    pub fn step(&mut self, temperature: f32, grad: f64, lr: f32) -> f32 {
+        self.t += 1;
+        let (b1t, b2t) = (
+            1.0 - BETA1.powi(self.t as i32),
+            1.0 - BETA2.powi(self.t as i32),
+        );
+        let range = logt_range();
+        let g = grad * range;
+        self.m = BETA1 * self.m + (1.0 - BETA1) * g;
+        self.v = BETA2 * self.v + (1.0 - BETA2) * g * g;
+        let step = lr as f64 * (self.m / b1t) / ((self.v / b2t).sqrt() + EPS);
+        let lt = (temperature as f64).ln() + step * range;
+        (lt.clamp((T_BOUNDS.0 as f64).ln(), (T_BOUNDS.1 as f64).ln()))
+            .exp()
+            .clamp(T_BOUNDS.0 as f64, T_BOUNDS.1 as f64) as f32
+    }
+}
+
+/// `8 + 2 m_n + 2 m_b + 2 m_r + m_q`: the rest mass of a full army (eight pawns of mass 1).
+pub fn total_mass(p: &Params) -> f64 {
+    8.0 + 2.0 * (p.m_n + p.m_b + p.m_r) as f64 + p.m_q as f64
+}
+
+/// T2: rescale the four piece masses by one common factor so `total_mass == target`, then
+/// clamp to the bounds (a clamp can leave the total off target).
+pub fn conserve_mass(p: &mut Params, target: f64) {
+    let have = total_mass(p) - 8.0;
+    if have <= 0.0 || target <= 8.0 {
+        return;
+    }
+    let f = ((target - 8.0) / have) as f32;
+    let b = Params::GRAD_BOUNDS;
+    p.m_n = (p.m_n * f).clamp(b[0].0, b[0].1);
+    p.m_b = (p.m_b * f).clamp(b[1].0, b[1].1);
+    p.m_r = (p.m_r * f).clamp(b[2].0, b[2].1);
+    p.m_q = (p.m_q * f).clamp(b[3].0, b[3].1);
+}
+
 /// Constants sitting on a bound.
 pub fn at_bound(p: &Params) -> Vec<String> {
     let mut v = Vec::new();
@@ -387,6 +561,18 @@ pub struct Checkpoint {
     pub adam: Adam,
     pub rng_state: u64,
     pub bound_history: Vec<Vec<String>>,
+    /// Temperature T (ku), learned alongside the constants (not a law constant).
+    #[serde(default = "default_t")]
+    pub temperature: f32,
+    #[serde(default)]
+    pub adam_t: AdamT,
+    /// `total_mass` of the run's starting generation (0 = not yet recorded).
+    #[serde(default)]
+    pub mass_total: f64,
+}
+
+fn default_t() -> f32 {
+    DEFAULT_T
 }
 
 fn latest_checkpoint(dir: &Path) -> Option<PathBuf> {
@@ -413,8 +599,17 @@ pub struct RoundSummary {
     pub finite: bool,
 }
 
-fn num(v: &serde_json::Value, k: &str) -> Option<f64> {
-    v.get("config")?.get(k)?.as_f64()
+/// A numeric entry of a shard's `config` object.
+fn num(config: &serde_json::Value, k: &str) -> Option<f64> {
+    config.get(k)?.as_f64()
+}
+
+/// Options of one reduce step.
+#[derive(Clone, Copy, Debug)]
+pub struct StepOpts {
+    pub lr: f32,
+    pub learn_t: bool,
+    pub conserve_mass: bool,
 }
 
 /// Validate `shards`, sum them, and take one Adam step on `ck` (which is advanced).
@@ -423,9 +618,10 @@ fn num(v: &serde_json::Value, k: &str) -> Option<f64> {
 pub fn reduce_round(
     ck: &mut Checkpoint,
     shards: &[Shard],
-    lr: f32,
+    step: StepOpts,
     spec: &str,
 ) -> Result<RoundSummary, String> {
+    let lr = step.lr;
     let first = shards.first().ok_or("no shards to reduce")?;
     let want = gen_hash(&ck.params);
     for (i, s) in shards.iter().enumerate() {
@@ -456,13 +652,30 @@ pub fn reduce_round(
                 s.grad_sum.len()
             ));
         }
-        for k in ["lambda", "scale"] {
-            if num(&s.config, k) != num(&first.config, k) {
-                return Err(format!("shard {i}: config {k} differs from shard 0"));
+        for k in ["lambda", "temperature"] {
+            if num(&s.config, k).is_none() || num(&s.config, k) != num(&first.config, k) {
+                return Err(format!(
+                    "shard {i}: config {k} is missing or differs from shard 0"
+                ));
             }
+        }
+        if s.config.get("capped_target") != first.config.get("capped_target")
+            || s.config.get("capped_target").is_none()
+        {
+            return Err(format!(
+                "shard {i}: config capped_target is missing or differs from shard 0"
+            ));
+        }
+        if num(&s.config, "temperature").map(|t| t as f32) != Some(ck.temperature) {
+            return Err(format!(
+                "shard {i}: temperature {:?} does not match the current temperature {}",
+                num(&s.config, "temperature"),
+                ck.temperature
+            ));
         }
     }
     let mut grad = [0.0f64; NGRAD];
+    let (mut grad_logt, mut dropped) = (0.0f64, 0usize);
     let (mut plies, mut games, mut sum_abs_d, mut sum_d, mut ms) = (0usize, 0usize, 0.0, 0.0, 0u64);
     let mut res = ShardResults::default();
     for s in shards {
@@ -471,6 +684,8 @@ pub fn reduce_round(
         sum_abs_d += s.abs_d_sum;
         sum_d += s.d_sum;
         ms += s.elapsed_ms;
+        grad_logt += s.grad_logt_sum;
+        dropped += s.dropped_plies;
         res.w += s.results.w;
         res.d += s.results.d;
         res.l += s.results.l;
@@ -486,10 +701,21 @@ pub fn reduce_round(
         g32[i] = (grad[i] / np) as f32;
     }
     let before = ck.params.grad_values();
+    if ck.mass_total <= 0.0 {
+        ck.mass_total = total_mass(&ck.params);
+    }
     let proposed = ck.adam.step(before, g32, lr);
     let mut next = ck.params;
     next.set_grad_values(proposed);
+    if step.conserve_mass {
+        conserve_mass(&mut next, ck.mass_total);
+    }
     let after = next.grad_values();
+    let g_logt = grad_logt / np;
+    let t_before = ck.temperature;
+    if step.learn_t {
+        ck.temperature = ck.adam_t.step(ck.temperature, g_logt, lr);
+    }
     let delta: Vec<f32> = (0..NGRAD).map(|i| after[i] - before[i]).collect();
     ck.params = next;
     ck.round += 1;
@@ -497,13 +723,20 @@ pub fn reduce_round(
     let bound = at_bound(&ck.params);
     ck.bound_history.push(bound.clone());
     let pin = pinned(&ck.bound_history);
-    let finite = g32.iter().all(|x| x.is_finite()) && after.iter().all(|x| x.is_finite());
+    let finite = g32.iter().all(|x| x.is_finite())
+        && after.iter().all(|x| x.is_finite())
+        && g_logt.is_finite()
+        && ck.temperature.is_finite();
     let secs = ms as f64 / 1000.0;
-    let (depth, lambda, scale) = (
+    let (depth, lambda) = (
         first.config.get("depth").cloned().unwrap_or_default(),
         first.config.get("lambda").cloned().unwrap_or_default(),
-        first.config.get("scale").cloned().unwrap_or_default(),
     );
+    let capped_target = first
+        .config
+        .get("capped_target")
+        .cloned()
+        .unwrap_or_default();
     let mut names_delta = serde_json::Map::new();
     let mut names_grad = serde_json::Map::new();
     for i in 0..NGRAD {
@@ -524,7 +757,11 @@ pub fn reduce_round(
         "grad_avg": names_grad, "delta": names_delta,
         "constants": constants_json(&ck.params),
         "at_bound": bound, "pinned": pin,
-        "depth": depth, "lambda": lambda, "scale": scale, "lr": lr,
+        "depth": depth, "lambda": lambda, "lr": lr,
+        "temperature": { "before": t_before, "after": ck.temperature,
+                         "grad_logT": g_logt, "learned": step.learn_t },
+        "capped_target": capped_target, "dropped_plies": dropped,
+        "conserve_mass": step.conserve_mass, "mass_total": ck.mass_total,
         "adjudication": first.config.get("adjudication").cloned().unwrap_or_default(),
         "finite": finite,
     });
@@ -537,14 +774,16 @@ pub fn reduce_round(
         pinned: pin.clone(),
         training: json!({
             "rounds": ck.round, "games": ck.games, "depth": depth,
-            "lambda": lambda, "scale": scale, "lr": lr,
+            "lambda": lambda, "lr": lr,
+            "temperature": ck.temperature, "learn_temperature": step.learn_t,
+            "capped_target": capped_target, "conserve_mass": step.conserve_mass,
             "lr_units": "relative to bound range (hi - lo)", "optimizer": "adam",
             "games_per_round": games, "shards_per_round": shards.len(),
         }),
         acceptance: serde_json::Value::Null,
     };
     let mut text = format!(
-        "round {} | {} games from {} shards ({:.2}/s, {:.0}s of shard time) | W{} D{} L{} cap{} adj{} | mean plies {:.1} | mean|d| {:.4} mean d {:+.4} | finite {}\n",
+        "round {} | {} games from {} shards ({:.2}/s, {:.0}s of shard time) | W{} D{} L{} cap{} adj{} | mean plies {:.1} | mean|d| {:.4} mean d {:+.4} | dropped plies {} | finite {}\n",
         ck.round,
         games,
         shards.len(),
@@ -558,7 +797,15 @@ pub fn reduce_round(
         plies as f64 / games.max(1) as f64,
         sum_abs_d / np,
         sum_d / np,
+        dropped,
         finite
+    );
+    text += &format!(
+        "  temperature   {:>9.5} -> {:>9.5}  grad_logT {:+.3e}{}\n",
+        t_before,
+        ck.temperature,
+        g_logt,
+        if step.learn_t { "" } else { " (fixed)" }
     );
     for i in 0..NGRAD {
         text += &format!(
@@ -581,7 +828,7 @@ pub fn reduce_round(
     })
 }
 
-fn write_json(path: PathBuf, v: &serde_json::Value) -> Result<(), String> {
+pub(crate) fn write_json(path: PathBuf, v: &serde_json::Value) -> Result<(), String> {
     std::fs::write(&path, serde_json::to_string_pretty(v).unwrap() + "\n")
         .map_err(|e| format!("{}: {e}", path.display()))
 }
@@ -602,7 +849,7 @@ fn write_round(dir: &Path, ck: &Checkpoint, s: &RoundSummary) -> Result<(), Stri
     )
 }
 
-fn fresh_checkpoint(parent: &Generation, seed: u64) -> Checkpoint {
+fn fresh_checkpoint(parent: &Generation, seed: u64, temperature: f32) -> Checkpoint {
     Checkpoint {
         round: 0,
         games: 0,
@@ -611,6 +858,9 @@ fn fresh_checkpoint(parent: &Generation, seed: u64) -> Checkpoint {
         adam: Adam::new(),
         rng_state: XorShift::new(seed).state(),
         bound_history: Vec::new(),
+        temperature,
+        adam_t: AdamT::default(),
+        mass_total: total_mass(&parent.constants),
     }
 }
 
@@ -621,7 +871,8 @@ pub fn run(a: TdleafArgs) -> Result<(), String> {
     if a.shards == 0 || a.games_per_round < a.shards {
         return Err("--shards must be >= 1 and <= --games-per-round".into());
     }
-    let mut ck = fresh_checkpoint(&parent, a.seed);
+    let t_init = initial_temperature(a.play.temperature, &parent)?;
+    let mut ck = fresh_checkpoint(&parent, a.seed, t_init);
     if a.resume {
         let p = latest_checkpoint(&a.out_dir).ok_or("--resume: no checkpoint in out-dir")?;
         let s = std::fs::read_to_string(&p).map_err(|e| e.to_string())?;
@@ -642,12 +893,18 @@ pub fn run(a: TdleafArgs) -> Result<(), String> {
                 n,
                 shard_seed(round_seed, k as u64),
                 &a.play,
+                ck.temperature,
             )?;
             sh.config["round_seed"] = json!(round_seed);
             sh.config["shard_index"] = json!(k);
             shards.push(sh);
         }
-        let sum = reduce_round(&mut ck, &shards, a.lr, &parent.spec)?;
+        let step = StepOpts {
+            lr: a.lr,
+            learn_t: a.upd.learn_t(),
+            conserve_mass: a.upd.conserve_mass,
+        };
+        let sum = reduce_round(&mut ck, &shards, step, &parent.spec)?;
         ck.rng_state = rng.state();
         write_round(&a.out_dir, &ck, &sum)?;
         print!("{}", sum.text);
@@ -671,7 +928,15 @@ pub fn run_shard(a: ShardArgs) -> Result<(), String> {
         Some(k) => shard_seed(a.seed, k),
         None => a.seed,
     };
-    let mut sh = play_shard(&gen_.constants, &openings, a.games, seed, &a.play)?;
+    let temperature = initial_temperature(a.play.temperature, &gen_)?;
+    let mut sh = play_shard(
+        &gen_.constants,
+        &openings,
+        a.games,
+        seed,
+        &a.play,
+        temperature,
+    )?;
     sh.config["generation"] = json!(gen_.generation);
     sh.config["gen_file"] = json!(a.gen_file);
     sh.config["openings"] = json!(a.openings);
@@ -726,7 +991,7 @@ pub fn run_reduce(a: ReduceArgs) -> Result<(), String> {
     let gen_ = load_generation(&a.gen_file)?;
     let shards = read_shards(&a)?;
     let mut ck = if a.state == "none" {
-        fresh_checkpoint(&gen_, 0)
+        fresh_checkpoint(&gen_, 0, initial_temperature(a.temperature, &gen_)?)
     } else {
         let s = std::fs::read_to_string(&a.state).map_err(|e| format!("{}: {e}", a.state))?;
         serde_json::from_str(&s).map_err(|e| format!("{}: {e}", a.state))?
@@ -739,7 +1004,12 @@ pub fn run_reduce(a: ReduceArgs) -> Result<(), String> {
         ));
     }
     std::fs::create_dir_all(&a.out_dir).map_err(|e| e.to_string())?;
-    let sum = reduce_round(&mut ck, &shards, a.lr, &gen_.spec)?;
+    let step = StepOpts {
+        lr: a.lr,
+        learn_t: a.upd.learn_t(),
+        conserve_mass: a.upd.conserve_mass,
+    };
+    let sum = reduce_round(&mut ck, &shards, step, &gen_.spec)?;
     write_round(&a.out_dir, &ck, &sum)?;
     print!("{}", sum.text);
     if !sum.finite {
@@ -752,6 +1022,7 @@ pub fn run_reduce(a: ReduceArgs) -> Result<(), String> {
 mod tests {
     use super::*;
     use clap::Parser;
+    use kepler_core::Position;
 
     #[derive(Parser)]
     struct W {
@@ -799,7 +1070,7 @@ mod tests {
             .collect()
     }
 
-    const PLAY: [&str; 10] = [
+    const PLAY: [&str; 12] = [
         "--depth",
         "2",
         "--threads",
@@ -810,6 +1081,9 @@ mod tests {
         "2",
         "--lambda",
         "0.7",
+        // keep the capped games in the gradient (the pre-T6 behaviour) for the round trip
+        "--capped-target",
+        "draw",
     ];
 
     #[test]
@@ -885,6 +1159,8 @@ mod tests {
         );
         assert_eq!(ca["constants"], cb["constants"]);
         assert_eq!(ca["parent"], cb["parent"]);
+        assert_eq!(ca["training"]["temperature"], cb["training"]["temperature"]);
+        assert_ne!(ca["training"]["temperature"], json!(4.0), "T is learned");
         let moved = read(&a_dir, "round-001.json");
         assert_eq!(moved["games"], 6);
         assert_eq!(moved["games"], read(&out_dir, "round-001.json")["games"]);
@@ -900,26 +1176,229 @@ mod tests {
         let _ = std::fs::remove_dir_all(b_dir);
     }
 
+    fn step() -> StepOpts {
+        StepOpts {
+            lr: 0.01,
+            learn_t: true,
+            conserve_mass: false,
+        }
+    }
+
+    /// A hand-made shard (no games): `grad_logt` and `plies` as given.
+    fn synth_shard(p: &Params, t: f32, grad_logt: f64, plies: usize) -> Shard {
+        Shard {
+            kind: "tdleaf-shard".into(),
+            version: 1,
+            spec: SPEC_ID.into(),
+            gen_hash: gen_hash(p),
+            seed: 1,
+            games: 1,
+            plies,
+            grad_sum: vec![0.0; NGRAD],
+            grad_logt_sum: grad_logt,
+            dropped_plies: 0,
+            abs_d_sum: 0.0,
+            d_sum: 0.0,
+            results: ShardResults::default(),
+            elapsed_ms: 1,
+            config: json!({"lambda": 0.7, "temperature": t, "capped_target": "drop", "depth": 2}),
+        }
+    }
+
+    #[test]
+    fn temperature_derivative_matches_finite_difference() {
+        // v = tanh(e / T) for a leaf; compare dv/dT with a central difference
+        let p = Params::default();
+        let pos = Position::from_fen("4k3/8/8/8/8/8/PPP5/RNB1K3 w - - 0 1").unwrap();
+        for root_white in [true, false] {
+            for t in [1.5f32, 4.0, 12.0] {
+                let l = selfgame::leaf_value(&pos, root_white, &p, t);
+                let h = 1e-2f32 * t;
+                let up = selfgame::leaf_value(&pos, root_white, &p, t + h).v;
+                let dn = selfgame::leaf_value(&pos, root_white, &p, t - h).v;
+                let fd = (up - dn) / (2.0 * h);
+                assert!(
+                    (l.grad_t - fd).abs() < 2e-3 * (1.0 + fd.abs()),
+                    "T {t}: analytic {} vs finite difference {fd}",
+                    l.grad_t
+                );
+                assert!(l.grad_t.is_finite());
+            }
+        }
+    }
+
+    #[test]
+    fn overconfident_predictions_raise_the_temperature() {
+        // eval 8 ku at T = 4: v = tanh(2) = 0.964, but the mover then only draws (0):
+        // every prediction is overconfident, so ascent on log T must raise T.
+        let t = 4.0f32;
+        let e = 8.0f32;
+        let v = (e / t).tanh();
+        let grad_t = -(1.0 - v * v) * e / (t * t);
+        let leaves = vec![
+            Leaf {
+                v,
+                grad: [0.0; NGRAD],
+                grad_t
+            };
+            3
+        ];
+        let td = game_td(&leaves, 0.0, 0.0, t);
+        assert!(td.grad_logt_sum > 0.0, "{}", td.grad_logt_sum);
+        let mut adam = AdamT::default();
+        let t1 = adam.step(t, td.grad_logt_sum / td.plies as f64, 0.01);
+        assert!(t1 > t, "{t1}");
+        // underconfident (eval 1 ku, then a win): T must fall
+        let v = (1.0f32 / t).tanh();
+        let grad_t = -(1.0 - v * v) / (t * t);
+        let leaves = vec![Leaf {
+            v,
+            grad: [0.0; NGRAD],
+            grad_t,
+        }];
+        let td = game_td(&leaves, 1.0, 0.0, t);
+        assert!(td.grad_logt_sum < 0.0);
+        let mut adam = AdamT::default();
+        assert!(adam.step(t, td.grad_logt_sum, 0.01) < t);
+        // bounds: a persistent push stays inside [0.5, 50]
+        let mut adam = AdamT::default();
+        let mut x = 49.9f32;
+        for _ in 0..50 {
+            x = adam.step(x, 1.0, 0.5);
+        }
+        assert!((x - 50.0).abs() < 1e-3, "{x}");
+        let mut adam = AdamT::default();
+        for _ in 0..50 {
+            x = adam.step(x, -1.0, 0.5);
+        }
+        assert!((x - 0.5).abs() < 1e-3, "{x}");
+    }
+
+    #[test]
+    fn reduce_learns_or_fixes_temperature_and_checks_it() {
+        let gen_ = load_generation(Path::new(&data("generations/gen-000.json"))).unwrap();
+        let sh = synth_shard(&gen_.constants, 4.0, 5.0, 10);
+        let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
+        let s = reduce_round(&mut ck, std::slice::from_ref(&sh), step(), SPEC_ID).unwrap();
+        assert!(ck.temperature > 4.0);
+        assert_eq!(s.candidate.training["temperature"], json!(ck.temperature));
+        assert_eq!(s.round_json["temperature"]["before"], json!(4.0));
+        // fixed temperature
+        let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
+        let fixed = StepOpts {
+            learn_t: false,
+            ..step()
+        };
+        reduce_round(&mut ck, std::slice::from_ref(&sh), fixed, SPEC_ID).unwrap();
+        assert_eq!(ck.temperature, 4.0);
+        // shards played at a different temperature are refused
+        let mut ck = fresh_checkpoint(&gen_, 1, 5.0);
+        let e = reduce_round(&mut ck, std::slice::from_ref(&sh), step(), SPEC_ID).unwrap_err();
+        assert!(e.contains("temperature"), "{e}");
+        // differing capped_target between shards is refused
+        let mut other = sh.clone();
+        other.config["capped_target"] = json!("draw");
+        let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
+        let e = reduce_round(&mut ck, &[sh, other], step(), SPEC_ID).unwrap_err();
+        assert!(e.contains("capped_target"), "{e}");
+    }
+
+    #[test]
+    fn conserve_mass_keeps_the_total_and_the_ratios() {
+        let mut p = Params::default();
+        let target = total_mass(&p);
+        assert_eq!(target, 39.0);
+        // a step inflated every mass
+        p.m_n = 3.6;
+        p.m_b = 3.9;
+        p.m_r = 6.1;
+        p.m_q = 11.0;
+        assert!(total_mass(&p) > target + 1.0);
+        let ratio = |p: &Params| [p.m_b / p.m_n, p.m_r / p.m_n, p.m_q / p.m_n];
+        let r0 = ratio(&p);
+        conserve_mass(&mut p, target);
+        assert!((total_mass(&p) - target).abs() < 1e-4, "{}", total_mass(&p));
+        for (a, b) in r0.iter().zip(ratio(&p)) {
+            assert!((a - b).abs() < 1e-5, "{a} vs {b}");
+        }
+        // clamped masses may break the total, but never the bounds
+        let mut q = Params {
+            m_n: 1.0,
+            ..Default::default()
+        };
+        conserve_mass(&mut q, 80.0);
+        assert!(q.m_q <= 20.0 && q.m_r <= 12.0 && q.m_n <= 8.0 && q.m_b <= 8.0);
+        // through the reduce step
+        let gen_ = load_generation(Path::new(&data("generations/gen-000.json"))).unwrap();
+        let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
+        let t0 = total_mass(&ck.params);
+        let mut sh = synth_shard(&gen_.constants, 4.0, 0.0, 10);
+        sh.grad_sum[3] = 50.0; // push m_q up hard
+        let on = StepOpts {
+            conserve_mass: true,
+            ..step()
+        };
+        reduce_round(&mut ck, &[sh], on, SPEC_ID).unwrap();
+        assert!((total_mass(&ck.params) - t0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn capped_target_flag_parses_and_drop_removes_the_gradient() {
+        let o = PlayOpts::try_parse_from_args();
+        assert_eq!(o.capped_target, CappedTarget::Draw);
+        #[derive(Parser)]
+        struct P {
+            #[command(flatten)]
+            p: PlayOpts,
+        }
+        let d = P::try_parse_from(argv(&[])).unwrap().p;
+        assert_eq!(d.capped_target, CappedTarget::Drop);
+        assert_eq!(d.temperature, None);
+        let s = P::try_parse_from(argv(&["--capped-target", "score"]))
+            .unwrap()
+            .p;
+        assert_eq!(s.capped_target, CappedTarget::Score);
+        // tiny games that all hit a 6-ply cap
+        let gen_ = load_generation(Path::new(&data("generations/gen-000.json"))).unwrap();
+        let ops = load_openings(Path::new(&data("openings/balanced-200.epd"))).unwrap();
+        let mut o = o;
+        o.depth = 1;
+        o.max_plies = 6;
+        o.explore_plies = 2;
+        o.capped_target = CappedTarget::Drop;
+        let sh = play_shard(&gen_.constants, &ops, 2, 3, &o, 4.0).unwrap();
+        assert_eq!(sh.games, 2);
+        assert_eq!(sh.results.capped, 2);
+        assert_eq!(sh.plies, 0, "dropped games add no plies");
+        assert_eq!(sh.dropped_plies, 12);
+        assert!(sh.grad_sum.iter().all(|&g| g == 0.0) && sh.grad_logt_sum == 0.0);
+        assert_eq!(sh.config["capped_target"], "drop");
+        o.capped_target = CappedTarget::Score;
+        let sh = play_shard(&gen_.constants, &ops, 2, 3, &o, 4.0).unwrap();
+        assert_eq!((sh.plies, sh.dropped_plies), (12, 0));
+        assert_eq!(sh.config["temperature"], json!(4.0));
+    }
+
     #[test]
     fn reduce_refuses_mismatched_gen_hash() {
         let gen_ = load_generation(Path::new(&data("generations/gen-000.json"))).unwrap();
         let ops = load_openings(Path::new(&data("openings/balanced-200.epd"))).unwrap();
         let o = PlayOpts::try_parse_from_args();
-        let s1 = play_shard(&gen_.constants, &ops, 1, 1, &o).unwrap();
+        let s1 = play_shard(&gen_.constants, &ops, 1, 1, &o, 4.0).unwrap();
         let mut other = gen_.constants;
         other.alpha -= 0.05;
-        let s2 = play_shard(&other, &ops, 1, 2, &o).unwrap();
+        let s2 = play_shard(&other, &ops, 1, 2, &o, 4.0).unwrap();
         assert_ne!(s1.gen_hash, s2.gen_hash);
-        let mut ck = fresh_checkpoint(&gen_, 1);
-        let e = reduce_round(&mut ck, &[s1.clone(), s2.clone()], 0.01, SPEC_ID).unwrap_err();
+        let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
+        let e = reduce_round(&mut ck, &[s1.clone(), s2.clone()], step(), SPEC_ID).unwrap_err();
         assert!(e.contains("gen_hash"), "{e}");
         // all shards agree with each other but not with the current constants
-        let mut ck = fresh_checkpoint(&gen_, 1);
-        let e = reduce_round(&mut ck, &[s2], 0.01, SPEC_ID).unwrap_err();
+        let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
+        let e = reduce_round(&mut ck, &[s2], step(), SPEC_ID).unwrap_err();
         assert!(e.contains("gen_hash"), "{e}");
         assert_eq!(ck.round, 0);
         // matching shards are accepted
-        assert!(reduce_round(&mut ck, &[s1], 0.01, SPEC_ID).is_ok());
+        assert!(reduce_round(&mut ck, &[s1], step(), SPEC_ID).is_ok());
     }
 
     #[test]
@@ -951,7 +1430,16 @@ mod tests {
         let v = theta.tanh();
         let mut grad = [0.0f32; NGRAD];
         grad[5] = 1.0 - v * v; // slot 5 = alpha, range 1
-        let td = game_td(&[Leaf { v, grad }], 1.0, 0.7);
+        let td = game_td(
+            &[Leaf {
+                v,
+                grad,
+                grad_t: 0.0,
+            }],
+            1.0,
+            0.7,
+            4.0,
+        );
         assert!(td.grad_sum[5] > 0.0);
         let mut p = Params::default();
         let mut adam = Adam::new();
@@ -961,7 +1449,16 @@ mod tests {
         p.set_grad_values(adam.step(p.grad_values(), g, 0.01));
         assert!(p.alpha > a0, "alpha {} -> {}", a0, p.alpha);
         // and the other way when the mover loses
-        let td = game_td(&[Leaf { v, grad }], -1.0, 0.7);
+        let td = game_td(
+            &[Leaf {
+                v,
+                grad,
+                grad_t: 0.0,
+            }],
+            -1.0,
+            0.7,
+            4.0,
+        );
         let mut p = Params::default();
         let mut adam = Adam::new();
         p.set_grad_values(adam.step(p.grad_values(), td.grad_sum, 0.01));

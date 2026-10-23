@@ -21,33 +21,33 @@ Status: `idea` → `coded` (behind a flag, default off) → `tested` (with a res
 - **Mechanism:** TDLeaf predicts `v = tanh(eval / T)`. `T` is the **temperature of the universe**, a training-only quantity (not a law, not one of the 14 constants). It's learned alongside the constants, so overconfidence is paid by heating the universe, not by shrinking every mass.
 - **Fixes:** F11's scale mismatch (fixed `s = 4` vs a best fit of about 6), which drove the collapse in F10.
 - **Test:** TDLeaf round with T learned vs the rejected run; SPRT of the candidate against Gen 0.
-- **Status:** coded (`--learn-temperature`, default on).
+- **Status:** coded (`--temperature <T0>`, `--learn-temperature` (default on), `--no-learn-temperature`; `tdleaf`, `tdleaf-shard`, `tdleaf-reduce`). `T` is stored in the checkpoint and in `candidate.json` under `training.temperature`.
 
 ### T2 · Conservation of mass during learning
 - **Source:** conservation laws (Noether). A closed universe doesn't create or destroy its total mass.
 - **Mechanism:** optionally, after every training step, rescale the four learned masses so the total rest mass of a full army (8 + 2·m_n + 2·m_b + 2·m_r + m_q) stays constant. Ratios can change freely; the total cannot drift.
 - **Fixes:** uniform shrinking or inflation of all masses, and the scale degeneracy between masses and temperature.
 - **Test:** with vs without, same seeds, SPRT.
-- **Status:** coded (`--conserve-mass`, default off).
+- **Status:** coded (`--conserve-mass`, default off; `tdleaf` and `tdleaf-reduce`).
 
 ### T3 · Cosmological natural selection: universes compete
 - **Source:** Smolin's cosmological natural selection (1992). Universes whose constants make them reproduce more come to dominate.
 - **Mechanism:** around the current constants θ, spawn twin universes `θ + δ` and `θ − δ` with a random perturbation δ, and let them play each other. The universe that wins more pulls θ toward itself: `θ ← θ + a · (score₊ − score₋) · δ / |δ|²`. Mathematically this is SPSA, the method used to tune Stockfish's parameters. It optimises **playing strength directly**, not prediction, so F10's failure mode (fitting outcomes ≠ playing better) can't occur. It's naturally a work unit: one twin pair, one mini-match.
 - **Also tunes** `f_acc` and the other non-differentiable or outer-loop constants.
 - **Test:** an evolved candidate vs Gen 0, SPRT.
-- **Status:** coded (`evolve-shard` / `evolve-reduce`).
+- **Status:** coded (`evolve-shard`, `evolve-reduce`, and the local loop `evolve`; `evolve-shard --iter K --seed S --shard-index k --pairs N`, `evolve-reduce --a0 --A --c0`).
 
 ### T4 · A cooling universe (annealing)
 - **Source:** the early universe cools as it expands. Annealing in metallurgy, formalised as simulated annealing (Kirkpatrick 1983, from Metropolis 1953).
 - **Mechanism:** in T3, both the perturbation size `c_k = c₀ / (k+1)^0.101` and the step `a_k = a₀ / (k+1+A)^0.602` cool with the iteration k. These are the standard SPSA gain schedules, read as a cooling curve. Self-play exploration noise cools the same way across rounds.
 - **Fixes:** big early moves that never settle, or a search that freezes too early.
-- **Status:** coded (schedules in `evolve-reduce`).
+- **Status:** coded (`c_K` in `evolve-shard`, `a_K` in `evolve-reduce`, both from `--c0`, `--a0`, `--A`).
 
 ### T5 · Measure at equilibrium (quiet leaves)
 - **Source:** you measure a system's energy when it's in equilibrium, not in the middle of a collision.
 - **Mechanism:** TDLeaf records the position at the end of the quiescence line (all captures resolved), not the end of the main-line PV.
 - **Fixes:** F11's 11% of mid-exchange training positions.
-- **Status:** coded (`Searcher::quiet_leaf`).
+- **Status:** coded (`Searcher::quiet_leaf`, always used by `tdleaf` and `tdleaf-shard`; no flag).
 
 ### T6 · Unfinished histories don't count as outcomes
 - **Source:** a measurement needs a finished process. A system cut off mid-evolution has no outcome yet.

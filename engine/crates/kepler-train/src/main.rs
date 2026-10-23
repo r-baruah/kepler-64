@@ -2,6 +2,7 @@
 
 mod chess;
 mod epd;
+mod evolve;
 mod matchcmd;
 mod openings;
 mod selfgame;
@@ -35,6 +36,12 @@ enum Cmd {
     TdleafShard(tdleaf::ShardArgs),
     /// Sum TDLeaf shards and take one Adam step
     TdleafReduce(tdleaf::ReduceArgs),
+    /// Cosmological natural selection (SPSA): twin universes play, constants follow the winner
+    Evolve(evolve::EvolveArgs),
+    /// One work unit of an evolve iteration: theta+ vs theta- mini-match
+    EvolveShard(evolve::ShardArgs),
+    /// Average evolve shards' SPSA gradients and take one step
+    EvolveReduce(evolve::ReduceArgs),
     /// SPRT between two generation files (in-process self-play)
     Sprt(sprt::SprtArgs),
     /// One fixed-size batch of SPRT pairs
@@ -64,6 +71,9 @@ fn main() {
         Cmd::Tdleaf(a) => tdleaf::run(a),
         Cmd::TdleafShard(a) => tdleaf::run_shard(a),
         Cmd::TdleafReduce(a) => tdleaf::run_reduce(a),
+        Cmd::Evolve(a) => evolve::run(a),
+        Cmd::EvolveShard(a) => evolve::run_shard(a),
+        Cmd::EvolveReduce(a) => evolve::run_reduce(a),
         Cmd::Sprt(a) => sprt::run(a),
         Cmd::SprtShard(a) => sprt::run_shard(a),
         Cmd::SprtReduce(a) => sprt::run_reduce(a),

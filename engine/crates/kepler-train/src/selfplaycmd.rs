@@ -55,7 +55,8 @@ pub fn run(a: SelfplayArgs) -> Result<(), String> {
         explore_plies: a.explore_plies,
         explore_margin: 0.15,
         record: false,
-        scale: 4.0,
+        quiet_leaf: false,
+        temperature: 4.0,
         adj: a.adj.cfg(),
     };
     let off = XorShift::new(a.seed).below(openings.len());

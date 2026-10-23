@@ -57,7 +57,22 @@ kepler-train tdleaf-reduce --state checkpoint-NNN.json --gen gen.json --shard-di
 # SPRT in batches
 kepler-train sprt-shard --a new.json --b old.json --openings balanced-200.epd --pairs 50 --seed <S_k> --depth 4 --threads 4 --out s-k.json
 kepler-train sprt-reduce --shards s-*.json --elo0 0 --elo1 10 --alpha 0.05 --beta 0.05 --out sprt.json
+# cosmological natural selection (SPSA): theta+ vs theta- mini-match, then one step
+kepler-train evolve-shard --gen centre.json --state none --openings balanced-200.epd --iter 0 --seed <S> --shard-index <k> --pairs 50 --depth 4 --threads 4 --out e-k.json
+kepler-train evolve-reduce --state evolve-checkpoint-NNN.json --gen centre.json --shard-dir shards/ --a0 0.1 --A 10 --c0 0.05 --out-dir run/
 ```
+
+TDLeaf flags added by the universe methods (`10_UNIVERSE_METHODS.md`), on `tdleaf`, `tdleaf-shard` and `tdleaf-reduce` unless noted:
+- `--temperature <T0>`: starting temperature T in `tanh(eval / T)` (default: `training.temperature` of `--gen`, else 4.0; a checkpoint overrides it). It replaces the old `--scale`. Shards record it and `tdleaf-reduce` refuses shards played at another T. Shards output `grad_logT_sum`.
+- `--learn-temperature` (default on) / `--no-learn-temperature` (`tdleaf`, `tdleaf-reduce`): learn T with Adam on `log T`, bounds [0.5, 50], or keep it fixed. T is written to the checkpoint and `candidate.json` (`training.temperature`); feed `candidate.json` back as `--gen` for the next round.
+- `--capped-target drop|score|draw` (default `drop`; `tdleaf`, `tdleaf-shard`): what a game stopped by `--max-plies` teaches. Recorded in the shard config; the shard JSON counts `dropped_plies`. Shards in one reduce must agree.
+- `--conserve-mass` (`tdleaf`, `tdleaf-reduce`, default off): rescale the four masses after each step so `8 + 2·m_n + 2·m_b + 2·m_r + m_q` keeps its value from the start of the run (stored in the checkpoint).
+- The TD leaf is now the quiet leaf (end of the quiescence line from the PV leaf); there is no flag.
+
+Evolve units:
+- `evolve-shard`: `--gen`, `--state <checkpoint|none>`, `--openings`, `--iter K`, `--seed S`, `--shard-index k`, `--pairs N`, `--c0` (default: the state's, else 0.05), `--depth D` or `--movetime ms`, `--threads`, `--max-plies`, `--explore-plies`, `--hash`, the adjudication flags of `sprt-shard`, `--out`. The shard draws its ±1 vector Δ (13 parameters: the 12 constants and `f_acc`) from `mix(mix(S, K), k)`, so the seed and index alone reproduce it. Output (version 1): `kind`, `spec`, `centre_hash`, `iter`, `seed`, `shard_index`, `c_k`, `delta[13]`, `score_plus`, `pentanomial[5]`, `wdl`, `elapsed_ms`, `config`.
+- `evolve-reduce`: `--state`, `--gen` (the centre; its hash must equal the shards' `centre_hash`), `--shards ...` or `--shard-dir`, `--a0` (0.1), `--A` (10), `--c0` (0.05) (state values are used unless a flag is given), `--out-dir`. It refuses shards with a different `centre_hash`, `iter`, seed, `c_k` or Δ, duplicate shard indexes, and an `iter` that differs from the checkpoint's. It writes `evolve-checkpoint-KKK.json`, `evolve-iter-KKK.json` and `candidate.json` (training method `cosmological-natural-selection-spsa`). Iteration K needs the checkpoint of iteration K-1 as `--state` and its `candidate.json` as `--gen`.
+- Local loop: `kepler-train evolve --gen gen.json --openings balanced-200.epd --out-dir run/ --iters 20 --shards 4 --pairs 50 --depth 4 [--a0 --A --c0 --seed --max-minutes --resume]` runs the same shard and reduce code in-process.
 
 The local `tdleaf` command runs the same shard and reduce code in-process. A local round and a distributed round with the same seeds give identical constants (this is tested).
 

@@ -156,6 +156,10 @@ pub struct Searcher {
     node_limit: Option<u64>,
     aborted: bool,
     can_abort: bool,
+    /// Quiescence principal lines per ply; only filled while `track_qpv` is set
+    /// (`quiet_leaf`), so ordinary searches are untouched.
+    qpv: Vec<Vec<Move>>,
+    track_qpv: bool,
 }
 
 impl Searcher {
@@ -174,7 +178,31 @@ impl Searcher {
             node_limit: None,
             aborted: false,
             can_abort: false,
+            qpv: vec![Vec::new(); MAX_PLY + 2],
+            track_qpv: false,
         }
+    }
+
+    /// The quiet leaf of `pos`: run the quiescence search with a full window and return
+    /// the position at the end of its best line (captures and promotions resolved, the
+    /// side that stands pat having stopped). Used as the TDLeaf leaf, which should be
+    /// measured at equilibrium. Accreted mass is carried by `Position::play`.
+    pub fn quiet_leaf(&mut self, pos: &Position, params: &Params) -> Position {
+        self.nodes = 0;
+        self.aborted = false;
+        self.can_abort = false;
+        self.node_limit = None;
+        self.track_qpv = true;
+        self.qsearch(pos, params, -INF, INF, 0);
+        self.track_qpv = false;
+        let mut cur = pos.clone();
+        for &mv in &self.qpv[0] {
+            if !cur.board.is_legal(mv) {
+                break;
+            }
+            cur = cur.play(mv, params);
+        }
+        cur
     }
 
     /// Reallocate the transposition table with a new size.
@@ -606,6 +634,9 @@ impl Searcher {
         if self.check_abort() {
             return 0.0;
         }
+        if self.track_qpv {
+            self.qpv[ply].clear();
+        }
         self.seldepth = self.seldepth.max(ply as u32);
         let board = &pos.board;
         if insufficient_material(board) {
@@ -666,6 +697,12 @@ impl Searcher {
                 best = score;
                 if score > alpha {
                     alpha = score;
+                    if self.track_qpv {
+                        let mut line = Vec::with_capacity(self.qpv[ply + 1].len() + 1);
+                        line.push(mv);
+                        line.extend_from_slice(&self.qpv[ply + 1]);
+                        self.qpv[ply] = line;
+                    }
                     if alpha >= beta {
                         break;
                     }
@@ -683,5 +720,76 @@ fn mate_in(score: f32) -> Option<i32> {
         Some(-(((MATE + score) / 2.0) as i32))
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const FENS: [&str; 3] = [
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "4k3/8/8/3p4/8/8/3Q4/4K3 w - - 0 1",
+    ];
+
+    /// Score bits, best move and node count at depth 3, recorded before the QS-PV
+    /// tracking was added: the tracking must not change any search result.
+    const EXPECTED: [(u32, &str, u64); 3] = [
+        (1054774989, "e2e3", 952),
+        (3198856731, "e2a6", 18745),
+        (1095962941, "d2d5", 1148),
+    ];
+
+    #[test]
+    fn search_results_unchanged_by_qs_pv_tracking() {
+        let p = Params::default();
+        for (fen, (bits, mv, nodes)) in FENS.iter().zip(EXPECTED) {
+            let pos = Position::from_fen(fen).unwrap();
+            let mut s = Searcher::new(4);
+            let lim = Limits {
+                depth: Some(3),
+                ..Default::default()
+            };
+            let r = s.search(&pos, &[], &p, &lim, &mut |_| {});
+            assert_eq!(r.score_ku.to_bits(), bits, "{fen}");
+            assert_eq!(move_to_uci(&pos.board, r.best.unwrap()), mv, "{fen}");
+            assert_eq!(r.nodes, nodes, "{fen}");
+            // quiet_leaf in between must not disturb a following search either
+            let _ = s.quiet_leaf(&pos, &p);
+            let mut s2 = Searcher::new(4);
+            let _ = s2.quiet_leaf(&pos, &p);
+            let r2 = s2.search(&pos, &[], &p, &lim, &mut |_| {});
+            assert_eq!(r2.score_ku.to_bits(), bits, "{fen} after quiet_leaf");
+            assert_eq!(r2.nodes, nodes, "{fen} after quiet_leaf");
+        }
+    }
+
+    #[test]
+    fn quiet_leaf_resolves_the_recapture() {
+        let p = Params::default();
+        // Black's queen has just captured on d5 and the white pawn on e4 can retake:
+        // the quiet leaf is the position after the recapture.
+        let pos = Position::from_fen("4k3/8/8/3q4/4P3/8/8/4K3 w - - 0 1").unwrap();
+        let mut s = Searcher::new(1);
+        let leaf = s.quiet_leaf(&pos, &p);
+        let expect = pos.play(move_from_uci(&pos.board, "e4d5").unwrap(), &p);
+        assert_eq!(leaf.board.hash(), expect.board.hash());
+        assert_eq!(leaf, expect);
+        // a quiet position is its own leaf
+        let q = Position::startpos();
+        assert_eq!(s.quiet_leaf(&q, &p), q);
+    }
+
+    #[test]
+    fn quiet_leaf_follows_a_whole_exchange() {
+        let p = Params::default();
+        // Rxd5 exd5 Qxd5+: white to move wins a pawn through a three-ply exchange
+        let pos = Position::from_fen("4k3/8/4p3/3p4/8/3R4/3Q4/4K3 w - - 0 1").unwrap();
+        let mut s = Searcher::new(1);
+        let leaf = s.quiet_leaf(&pos, &p);
+        // the leaf is the end of a quiescence line, so a second pass is a fixed point
+        let again = s.quiet_leaf(&leaf, &p);
+        assert_eq!(again.board.hash(), leaf.board.hash());
     }
 }

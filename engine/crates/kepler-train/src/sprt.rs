@@ -96,7 +96,7 @@ fn points(e: End, a_white: bool) -> f64 {
 /// the W/D/L counts for A. Game seeds are `mix(seed, 2k + a_white)`: with a shared seed,
 /// identical engines would replay the same game with colours swapped and every pair
 /// would tie 1.0.
-fn play_pair(
+pub(crate) fn play_pair(
     cfg: &GameCfg,
     o: &Opening,
     seed: u64,
@@ -130,7 +130,7 @@ fn play_pair(
     Ok((pts, wdl))
 }
 
-fn limits_from(depth: Option<u32>, movetime: Option<u64>) -> Result<Limits, String> {
+pub(crate) fn limits_from(depth: Option<u32>, movetime: Option<u64>) -> Result<Limits, String> {
     match (depth, movetime) {
         (Some(d), None) => Ok(Limits {
             depth: Some(d),
@@ -219,7 +219,8 @@ pub fn run_shard(a: ShardArgs) -> Result<(), String> {
         explore_plies: a.explore_plies,
         explore_margin: 0.15,
         record: false,
-        scale: 4.0,
+        quiet_leaf: false,
+        temperature: 4.0,
         adj: a.adj.cfg(),
     };
     let mut order: Vec<usize> = (0..openings.len()).collect();
@@ -413,7 +414,8 @@ pub fn run(a: SprtArgs) -> Result<(), String> {
         explore_plies: a.explore_plies,
         explore_margin: 0.15,
         record: false,
-        scale: 4.0,
+        quiet_leaf: false,
+        temperature: 4.0,
         adj: a.adj.cfg(),
     };
     let upper = ((1.0 - a.beta) / a.alpha).ln();
