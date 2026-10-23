@@ -44,6 +44,8 @@ Whenever you start a subagent (the Agent tool or a workflow), set its `model` on
 - When a decision is genuinely the maintainer's, ask. Otherwise recommend one option and proceed.
 - Website design goes in stages with a check-in after each: understand, plan, low-fi wireframes, visual build. No UI code before the wireframes are approved.
 - Record decisions in `docs/v1/07_DECISION_LOG.md` and tick `docs/v1/05_ROADMAP.md` as work lands.
+- **Record every finding** (a result, a surprise, a learned value, a law cut) in `docs/v1/09_FINDINGS.md` with its evidence and status, the same day. The maintainer also keeps a private story bank in `Planning/05_STORY_BANK.md`; add a row there when a finding has a hook.
+- **Never start a training run without the maintainer's explicit go for that run.**
 
 ## Repo layout
 ```text

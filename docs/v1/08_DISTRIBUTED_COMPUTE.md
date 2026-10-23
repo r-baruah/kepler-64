@@ -63,7 +63,7 @@ The local `tdleaf` command runs the same shard and reduce code in-process. A loc
 
 ## 5. Backend 1: GitHub Actions in a compute repository
 
-- **A separate public repository** (proposed name `kepler-64-compute`) holds a copy of `engine/` and the workflows. It's separate so compute runs don't clutter this repo's Actions history, and so it never needs this repo's git history. Public repositories get standard runners at no cost; private ones have a monthly minute cap.
+- **A separate public repository**, [`r-baruah/kepler-64-compute`](https://github.com/r-baruah/kepler-64-compute) (created 2026-10-24), holds a copy of `engine/` and the workflows. It's separate so compute runs don't clutter this repo's Actions history, and so it never needs this repo's git history. Public repositories get standard runners at no cost; private ones have a monthly minute cap.
 - **Runner:** 4 vCPU and 16 GB RAM, 6 h per job, up to 20 concurrent jobs on the free plan.
 - **One workflow run = one round:**
   1. `build`: compile `kepler-train` once, upload it as an artifact.
