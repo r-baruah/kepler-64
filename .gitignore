@@ -29,8 +29,12 @@ Thumbs.db
 # Internal design & planning scratch
 DESIGN.md
 PRODUCT.md
-# Private docs & research artifacts (local only)
-docs/
+
+# Rust build output
+/engine/target/
+# Private docs & research artifacts (local only); docs/v1 is the public v1 spec
+docs/*
+!docs/v1/
 # Kepler-64_Book/ is tracked: the public textbook, synced with code
 
 
@@ -59,6 +63,14 @@ data/
 # Debug / scratch scripts
 /_*.py
 /play_vs_sf.py
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/worktrees/
+
+# Engine test suites and opening books are tracked
+!engine/data/
+!engine/data/**
 
 # benchmark outputs
 bench-results/

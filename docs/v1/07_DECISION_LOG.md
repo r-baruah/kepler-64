@@ -1,0 +1,15 @@
+# 07 · Decision log
+
+Newest first. Each entry: date, decision, why, and what it affects. Product and strategy decisions that aren't public are logged in the maintainer's private notes, and only their technical consequence appears here.
+
+| date | decision | why | affects |
+|---|---|---|---|
+| 2026-10-23 | The v1 movegen library is `cozy-chess` (MIT). `shakmaty` is excluded (GPL-3). | Permissive licence, fast, verified to build for wasm32 | 03 §1 |
+| 2026-10-23 | Development happens on branch `v1`; `main` stays stable until v1.0 | The public repo stays usable while the rewrite is in progress | 05 |
+| 2026-10-23 | No throwaway prototype: Rust milestone 1 is the go/no-go spike | Scaffolding (movegen, search, UCI, harness) is reused either way | 04 §7, 05 M1 |
+| 2026-10-23 | All of v1 is in Rust (core, UCI, trainer, WASM). JAX is dropped, and gradients are forward-mode duals in Rust. C++ was considered and rejected. | One codebase runs everywhere, including the browser; it runs on the local CPU (no GPU); WASM is trivial | 03 |
+| 2026-10-23 | Accretion fraction `f_acc` is learnable in [0, 1]; material counts rest mass only | v0's material was laundered through capture chains (01 §3) | 02 §2, §7 |
+| 2026-10-23 | Piece masses are learned (pawn = 1 unit) | Fixed 1/3/3/5/9 are human chess values | 02 §2 |
+| 2026-10-23 | v1 laws: rule-shaped field (L2), light speed in moves (L3), binding energy and space (L4), Roche limit on the king's body (L5), accretion (L6). Dropped: Euclidean Plummer field, tidal-tensor η, Lorentz mass, GW, Schwarzschild, Verlet drift, CoM/inertia/entropy deltas, binding γ, image seed, Observer (from the core) | Measured: the dropped terms changed 0–3% of moves, and the decisive ones were the cause of the blunders (01) | 02 |
+| 2026-10-23 | v0 (`kepler64/`, Python + JAX) is frozen and used only as a baseline; moved to `legacy/` at release | v1 replaces it; the comparison must stay reproducible | 03, 05 M6 |
+| 2026-10-23 | The old web frontend `viz-web/` is retired. The website is rebuilt in `web/` on the v1 engine. | Comprehension problems, and its browser engine wasn't the real engine | 06 |
