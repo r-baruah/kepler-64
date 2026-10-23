@@ -212,7 +212,10 @@ impl Generation {
     pub fn from_json(s: &str) -> Result<Self, String> {
         let g: Generation = serde_json::from_str(s).map_err(|e| e.to_string())?;
         if g.spec != SPEC_ID {
-            return Err(format!("generation spec {} does not match engine spec {SPEC_ID}", g.spec));
+            return Err(format!(
+                "generation spec {} does not match engine spec {SPEC_ID}",
+                g.spec
+            ));
         }
         g.constants.validate()?;
         Ok(g)
