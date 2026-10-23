@@ -4,10 +4,13 @@
 use crate::chess::{self, End, legal_moves};
 use crate::epd;
 use crate::util::XorShift;
+use clap::Args;
 use cozy_chess::{Board, Color, Move};
 use kepler_core::params::Generation;
 use kepler_core::search::{Limits, Searcher};
 use kepler_core::{Dual, NGRAD, Params, Position, evaluate};
+use serde::Serialize;
+use serde_json::json;
 use std::path::Path;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -42,6 +45,164 @@ pub fn load_generation(path: &Path) -> Result<Generation, String> {
     Generation::from_json(&s).map_err(|e| format!("{}: {e}", path.display()))
 }
 
+/// Game adjudication, identical for both sides (see `Adjudicator`).
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct Adjudication {
+    pub enabled: bool,
+    pub resign_ku: f32,
+    pub resign_plies: usize,
+    pub draw_ku: f32,
+    pub draw_plies: usize,
+    pub draw_after: usize,
+}
+
+impl Default for Adjudication {
+    fn default() -> Self {
+        Adjudication {
+            enabled: true,
+            resign_ku: 8.0,
+            resign_plies: 6,
+            draw_ku: 0.15,
+            draw_plies: 20,
+            draw_after: 80,
+        }
+    }
+}
+
+/// Command-line flags for `Adjudication`, flattened into each self-play subcommand.
+#[derive(Args, Debug, Clone)]
+pub struct AdjArgs {
+    /// Resign threshold (ku): the side to move scores <= -this for --resign-plies plies in a
+    /// row while the previous mover scored >= +this
+    #[arg(long = "resign-ku", default_value_t = 8.0)]
+    pub resign_ku: f32,
+    #[arg(long = "resign-plies", default_value_t = 6)]
+    pub resign_plies: usize,
+    /// Draw threshold (ku): |score| <= this for --draw-plies plies in a row
+    #[arg(long = "draw-ku", default_value_t = 0.15)]
+    pub draw_ku: f32,
+    #[arg(long = "draw-plies", default_value_t = 20)]
+    pub draw_plies: usize,
+    /// Only plies at or after this ply count towards a draw adjudication
+    #[arg(long = "draw-after", default_value_t = 80)]
+    pub draw_after: usize,
+    /// Play every game to a real end (or the ply cap)
+    #[arg(long = "no-adjudicate")]
+    pub no_adjudicate: bool,
+}
+
+impl AdjArgs {
+    pub fn cfg(&self) -> Adjudication {
+        Adjudication {
+            enabled: !self.no_adjudicate,
+            resign_ku: self.resign_ku,
+            resign_plies: self.resign_plies,
+            draw_ku: self.draw_ku,
+            draw_plies: self.draw_plies,
+            draw_after: self.draw_after,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Verdict {
+    /// The side to move is lost.
+    MoverLoses,
+    /// The side to move is winning.
+    MoverWins,
+    Draw,
+}
+
+/// Tracks root search scores (ku, side to move's view), one per ply, and decides when to
+/// end a game early. A ply without a root search (`None`) resets both streaks.
+pub struct Adjudicator {
+    adj: Adjudication,
+    prev: Option<f32>,
+    resign_run: usize,
+    draw_run: usize,
+}
+
+impl Adjudicator {
+    pub fn new(adj: Adjudication) -> Self {
+        Adjudicator {
+            adj,
+            prev: None,
+            resign_run: 0,
+            draw_run: 0,
+        }
+    }
+
+    /// `ply` is the index of the ply about to be played, `score` its root search score.
+    /// Resign: both this ply's mover and the previous ply's mover see the same side ahead
+    /// by at least `resign_ku` (scores are in each mover's own view, so they have opposite
+    /// signs: e.g. this mover <= -resign_ku and the previous mover >= +resign_ku), for
+    /// `resign_plies` consecutive plies. Plies strictly alternate sides, so "the side to
+    /// move scores <= -K and the previous mover >= +K" can only hold on every other ply;
+    /// this form is its symmetric extension (the side ahead may be to move too). Draw: ply >= draw_after and |score| <= draw_ku for
+    /// `draw_plies` consecutive plies. Mate scores (about +-30000) exceed any threshold.
+    pub fn update(&mut self, ply: usize, score: Option<f32>) -> Option<Verdict> {
+        if !self.adj.enabled {
+            return None;
+        }
+        let prev = std::mem::replace(&mut self.prev, score);
+        let Some(s) = score else {
+            self.resign_run = 0;
+            self.draw_run = 0;
+            return None;
+        };
+        let k = self.adj.resign_ku;
+        if s.abs() >= k && prev.is_some_and(|p| p.abs() >= k && (p > 0.0) != (s > 0.0)) {
+            self.resign_run += 1;
+        } else {
+            self.resign_run = 0;
+        }
+        if ply >= self.adj.draw_after && s.abs() <= self.adj.draw_ku {
+            self.draw_run += 1;
+        } else {
+            self.draw_run = 0;
+        }
+        if self.adj.resign_plies > 0 && self.resign_run >= self.adj.resign_plies {
+            Some(if s < 0.0 {
+                Verdict::MoverLoses
+            } else {
+                Verdict::MoverWins
+            })
+        } else if self.adj.draw_plies > 0 && self.draw_run >= self.adj.draw_plies {
+            Some(Verdict::Draw)
+        } else {
+            None
+        }
+    }
+}
+
+/// FNV-1a 64-bit hash.
+pub fn fnv1a64(bytes: &[u8]) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in bytes {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+/// All 14 constants as a JSON object (GRAD_NAMES, then `c`, `f_acc`).
+pub fn constants_json(p: &Params) -> serde_json::Value {
+    let mut m = serde_json::Map::new();
+    for (n, v) in Params::GRAD_NAMES.iter().zip(p.grad_values()) {
+        m.insert(n.to_string(), json!(v));
+    }
+    m.insert("c".into(), json!(p.c));
+    m.insert("f_acc".into(), json!(p.f_acc));
+    m.into()
+}
+
+/// `gen_hash`: FNV-1a 64 of the compact JSON text of `constants_json(p)` (object keys in
+/// serde_json's sorted order, f32 values in shortest round-trip form), as 16 lowercase
+/// hex digits. Depends only on the constants, not on generation number or file layout.
+pub fn gen_hash(p: &Params) -> String {
+    format!("{:016x}", fnv1a64(constants_json(p).to_string().as_bytes()))
+}
+
 /// The value of a PV leaf and its exact gradient, from the root mover's point of view.
 #[derive(Clone, Copy, Debug)]
 pub struct Leaf {
@@ -61,6 +222,7 @@ pub struct GameCfg {
     pub record: bool,
     /// Tanh scale `s` (ku) for leaf values.
     pub scale: f32,
+    pub adj: Adjudication,
 }
 
 pub struct GameOut {
@@ -69,6 +231,8 @@ pub struct GameOut {
     pub reason: &'static str,
     /// Ended by the max-plies cap (counted as a draw).
     pub capped: bool,
+    /// Ended by `Adjudicator` (resign or draw).
+    pub adjudicated: bool,
     pub start_white: bool,
     pub leaves: Vec<Leaf>,
 }
@@ -156,9 +320,11 @@ pub fn play_game(
         result: End::Draw,
         reason: "",
         capped: false,
+        adjudicated: false,
         start_white,
         leaves: Vec::new(),
     };
+    let mut judge = Adjudicator::new(cfg.adj);
     let no_info = &mut |_: &kepler_core::search::SearchResult| {};
     loop {
         let b = boards.last().unwrap().clone();
@@ -184,6 +350,26 @@ pub fn play_game(
             let best = res.best.ok_or("search returned no move")?;
             chosen = Some(best);
             mate = res.score_ku.abs() > MATE_THRESHOLD;
+            // before the leaf is recorded, so leaves.len() == moves.len() at the end
+            if let Some(v) = judge.update(ply, Some(res.score_ku)) {
+                let mover_white = b.side_to_move() == Color::White;
+                out.adjudicated = true;
+                match v {
+                    Verdict::Draw => {
+                        out.result = End::Draw;
+                        out.reason = "adjudicated_draw";
+                    }
+                    Verdict::MoverLoses | Verdict::MoverWins => {
+                        out.result = if (v == Verdict::MoverWins) == mover_white {
+                            End::WhiteWins
+                        } else {
+                            End::BlackWins
+                        };
+                        out.reason = "adjudicated_resign";
+                    }
+                }
+                break;
+            }
             if cfg.record {
                 out.leaves.push(if mate {
                     Leaf {
@@ -200,6 +386,9 @@ pub fn play_game(
                     )
                 });
             }
+        }
+        if chosen.is_none() {
+            judge.update(ply, None);
         }
         let mut mv = chosen;
         if exploring && !mate {
@@ -320,6 +509,101 @@ mod tests {
     }
 
     #[test]
+    fn adjudication_on_synthetic_scores() {
+        let adj = Adjudication::default();
+        // resign: movers alternate +9 / -9 (both see the same side ahead). The first ply has
+        // no predecessor, so the 6th qualifying ply is the 7th score.
+        let mut j = Adjudicator::new(adj);
+        for ply in 0..10 {
+            assert_eq!(j.update(ply, Some(0.5)), None);
+        }
+        let mut fired = None;
+        for i in 0..8 {
+            let s = if i % 2 == 0 { -9.0 } else { 9.0 };
+            if let Some(v) = j.update(10 + i, Some(s)) {
+                fired = Some((i, v));
+                break;
+            }
+        }
+        // i=0 has previous 0.5 (no), i=1..=6 qualify; ply 16 (i=6) is the 6th, mover (even i) -9
+        assert_eq!(fired, Some((6, Verdict::MoverLoses)));
+        // the side ahead may be to move
+        let mut j = Adjudicator::new(adj);
+        let mut fired = None;
+        for i in 0..8 {
+            let s = if i % 2 == 0 { 9.0 } else { -9.0 };
+            if let Some(v) = j.update(i, Some(s)) {
+                fired = Some((i, v));
+                break;
+            }
+        }
+        assert_eq!(fired, Some((6, Verdict::MoverWins)));
+        // a quiet ply, or one side disagreeing, resets the run
+        let mut j = Adjudicator::new(adj);
+        for i in 0..40 {
+            let s = match i % 7 {
+                6 => 0.0,
+                x if x % 2 == 0 => -9.0,
+                _ => 9.0,
+            };
+            assert_eq!(j.update(i, Some(s)), None, "ply {i}");
+        }
+        let mut j = Adjudicator::new(adj);
+        for i in 0..40 {
+            // both movers say -9: they disagree about who is ahead
+            assert_eq!(j.update(i, Some(-9.0)), None);
+        }
+        // a ply without a search (None) resets
+        let mut j = Adjudicator::new(adj);
+        for i in 0..5 {
+            j.update(i, Some(if i % 2 == 0 { -9.0 } else { 9.0 }));
+        }
+        j.update(5, None);
+        assert_eq!(j.update(6, Some(-9.0)), None);
+        // mate scores count as beyond the threshold
+        let mut cfg = adj;
+        cfg.resign_plies = 1;
+        let mut j = Adjudicator::new(cfg);
+        assert_eq!(j.update(0, Some(30000.0)), None);
+        assert_eq!(j.update(1, Some(-30000.0)), Some(Verdict::MoverLoses));
+        // draw: only after ply 80, 20 consecutive small scores
+        let mut j = Adjudicator::new(adj);
+        for ply in 0..80 {
+            assert_eq!(j.update(ply, Some(0.0)), None);
+        }
+        for ply in 80..99 {
+            assert_eq!(j.update(ply, Some(0.1)), None, "ply {ply}");
+        }
+        assert_eq!(j.update(99, Some(-0.15)), Some(Verdict::Draw));
+        // one larger score resets the draw streak
+        let mut j = Adjudicator::new(adj);
+        for ply in 80..99 {
+            j.update(ply, Some(0.0));
+        }
+        assert_eq!(j.update(99, Some(0.3)), None);
+        assert_eq!(j.update(100, Some(0.0)), None);
+        // disabled never fires
+        let mut off = adj;
+        off.enabled = false;
+        let mut j = Adjudicator::new(off);
+        for ply in 80..200 {
+            assert_eq!(j.update(ply, Some(0.0)), None);
+        }
+    }
+
+    #[test]
+    fn gen_hash_is_stable_and_sensitive() {
+        let p = Params::default();
+        assert_eq!(gen_hash(&p), gen_hash(&p));
+        assert_eq!(gen_hash(&p).len(), 16);
+        let mut q = p;
+        q.alpha -= 0.01;
+        assert_ne!(gen_hash(&p), gen_hash(&q));
+        assert_eq!(fnv1a64(b""), 0xcbf2_9ce4_8422_2325);
+        assert_eq!(fnv1a64(b"a"), 0xaf63_dc4c_8601_ec8c);
+    }
+
+    #[test]
     fn game_plays_to_a_result() {
         let p = Params::default();
         let cfg = GameCfg {
@@ -333,6 +617,7 @@ mod tests {
             explore_margin: 0.15,
             record: true,
             scale: 4.0,
+            adj: Adjudication::default(),
         };
         let o = Opening {
             id: "x".into(),

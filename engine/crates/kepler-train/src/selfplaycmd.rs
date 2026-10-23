@@ -1,7 +1,9 @@
 //! `kepler-train selfplay`: N games of one generation against itself, as JSONL.
 
 use crate::chess::End;
-use crate::selfgame::{self, GameCfg, load_generation, load_openings, par_run, result_str};
+use crate::selfgame::{
+    self, AdjArgs, GameCfg, load_generation, load_openings, par_run, result_str,
+};
 use crate::util::{self, XorShift};
 use clap::Args;
 use kepler_core::search::{Limits, Searcher};
@@ -33,6 +35,8 @@ pub struct SelfplayArgs {
     hash: usize,
     #[arg(long, default_value_t = 1)]
     seed: u64,
+    #[command(flatten)]
+    adj: AdjArgs,
     #[arg(long)]
     out: PathBuf,
 }
@@ -52,6 +56,7 @@ pub fn run(a: SelfplayArgs) -> Result<(), String> {
         explore_margin: 0.15,
         record: false,
         scale: 4.0,
+        adj: a.adj.cfg(),
     };
     let off = XorShift::new(a.seed).below(openings.len());
     let done = AtomicUsize::new(0);
@@ -83,7 +88,7 @@ pub fn run(a: SelfplayArgs) -> Result<(), String> {
     let mut f = std::io::BufWriter::new(
         std::fs::File::create(&a.out).map_err(|e| format!("{}: {e}", a.out.display()))?,
     );
-    let (mut w, mut d, mut l, mut capped, mut plies) = (0, 0, 0, 0, 0usize);
+    let (mut w, mut d, mut l, mut capped, mut adjud, mut plies) = (0, 0, 0, 0, 0, 0usize);
     for (i, (o, g)) in games.into_iter().enumerate() {
         let g = g?;
         match g.result {
@@ -92,16 +97,17 @@ pub fn run(a: SelfplayArgs) -> Result<(), String> {
             End::BlackWins => l += 1,
         }
         capped += g.capped as usize;
+        adjud += g.adjudicated as usize;
         plies += g.moves.len();
         let line = json!({
             "game": i, "opening": o.id, "fen": o.fen4, "moves": g.moves,
             "result": result_str(g.result), "reason": g.reason,
-            "capped": g.capped, "plies": g.moves.len(),
+            "capped": g.capped, "adjudicated": g.adjudicated, "plies": g.moves.len(),
         });
         writeln!(f, "{line}").map_err(|e| e.to_string())?;
     }
     println!(
-        "{} games in {:.1}s = {:.2} games/s; white {w} draw {d} black {l} (of the draws, {capped} hit the {}-ply cap); mean {:.1} plies",
+        "{} games in {:.1}s = {:.2} games/s; white {w} draw {d} black {l} ({adjud} adjudicated; of the draws, {capped} hit the {}-ply cap); mean {:.1} plies",
         a.games,
         secs,
         a.games as f64 / secs,
