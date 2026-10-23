@@ -75,7 +75,23 @@ Rules:
 - **Evidence:** `engine/results/calibration-gen000.md`.
 - **Caveat:** random play is not real play. Measure again on ladder games.
 
-### F9 · Early training pushes binding energy to zero (2026-10-24) · observed
+### F9 · Early training pushes binding energy to zero (2026-10-24) · observed, then **confounded** (see F10–F11)
 - **What:** in two short smoke runs (2 × 200 games and 2 × 100 games, depth 3), TDLeaf drove `lambda_bind` (binding energy, law L4a) to its lower bound, 0, with a consistently negative gradient.
 - **Evidence:** smoke-run outputs (not committed; too small). The light Gen 1 run will confirm or refute this.
 - **Caveat:** tiny samples. The Law Ledger is the real test of whether L4a earns its place.
+- **Update (2026-10-24):** the same runs shrank every physics weight and every piece mass together (F10), so this is not evidence about binding energy. Only the Law Ledger can say a law should go.
+
+### F10 · The first training attempt made the engine weaker, and the gate caught it (2026-10-24) · confirmed
+- **What:**
+  - 27 TDLeaf rounds (13,500 self-play games, depth 3) moved every piece mass down together: N/B/R/Q 3/3/5/9 went to 1.38/1.75/2.46/5.53. Space and Roche weights went to 0.
+  - The candidate lost the acceptance test against Gen 0: **W122 D39 L205 over 366 games, Elo −80 [−116, −46]**. It was rejected; Gen 0 stays.
+- **Evidence:** `engine/results/gen001-light.md`, `gen001-light-trajectory.csv`, `sprt-gen001light-vs-gen000-d3.json`.
+- **Caveat:** **the learned masses are an artefact (F11), not piece values.** They must never be quoted as "what the universe thinks a knight is worth".
+
+### F11 · Why that training failed: a scale mismatch plus a feedback loop (2026-10-24) · confirmed (diagnosis)
+- **What:** measured on 200 Gen 0 self-play games (depth 3):
+  - **Outcome scale:** the best-fitting `s` in tanh(eval/s) is about 5.5–6, but training fixed it at 4. That's constant pressure to shrink every term.
+  - **Capped games:** games stopped at the move cap are scored as draws even when one side is clearly ahead (2 of 4 had a 2–3 pawn imbalance), which teaches that material doesn't predict results. As the evaluation softened, games got longer (mean 123 to 157 plies) and capped more often (2% to 8%), reinforcing the shrinking.
+  - **Leaf fidelity:** the replayed PV leaf's static eval differs from the root search score by more than 0.5 ku in 11% of plies (mean 0.25 ku). Those are mid-exchange positions, a further source of noise.
+- **Evidence:** `engine/crates/kepler-core/examples/tdleaf_diag.rs` on `selfplay --seed 99 --games 200 --depth 3`.
+- **Consequence:** fixes before any rerun: a fitted or learned scale, capped games excluded from TD targets, and a quiet (quiescence) leaf.
