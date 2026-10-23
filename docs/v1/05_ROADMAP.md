@@ -31,7 +31,7 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [x] UCI binary with the smoke test
 - [x] `kepler-train match` (UCI client for any engine) and `suite`
 - [x] Opening suite `balanced-200.epd` built (505 tried, 200 kept, SF19 d14 within ±50 cp)
-- [~] Gate results: closed suite **passed** (0/12 avoid-moves at d3 and d6; 12/12 moves lose < 1 pawn at d3); vs material-only at d3 **+259 =49 −92 (70.9%)**; vs v0 at d3 running
+- [x] Gate results: **GO** (`engine/results/m1-gate.md`). Closed suite 0/12 avoid-moves; vs v0 +100 =0 -0 at d3; vs material-only 70.9% at d3 and 68.8% at equal time
 
 **Accept when:** every check in `04_TRAINING_AND_GATES.md` §7 passes and the result files are in `engine/results/`. **No-go** means revising the laws and repeating M1's gate (log it).
 

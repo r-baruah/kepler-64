@@ -23,7 +23,7 @@ If your tool can start helper agents, give each one the cheapest model that does
 From `engine/`, with `export PATH=$HOME/.cargo/bin:$PATH`: `cargo build --release -j6`, `cargo test --release -j6`, `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`. Matches need `KEPLER_STOCKFISH` and, for v0 comparisons, `KEPLER_V0_UCI`.
 
 ## Machine limits
-One laptop: 6 cores / 12 threads, about 4 GB of free RAM, no GPU. Build with `-j6`, and run one heavy job at a time.
+One laptop: 6 cores / 12 threads, about 4 GB of free RAM, no GPU. Build with `-j6`, and run one heavy job at a time. Local high-CPU sessions are capped at about 1 hour (6 threads or fewer, `--max-minutes`). Heavy runs go to remote compute as work units (`docs/v1/08_DISTRIBUTED_COMPUTE.md`).
 
 ## Git
 - Work on `v1` or a branch from it, never on `main`.

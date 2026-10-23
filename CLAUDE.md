@@ -76,7 +76,8 @@ v0 (baseline only): `python -m kepler64.uci` and `pytest kepler64/tests` inside 
 ## Compute (one laptop)
 - Ryzen 5 5500U (6 cores, 12 threads), about 7 GB RAM with about 4 GB usually free, no GPU, limited free disk.
 - Build with `-j6`. Run at most one release build or one match/training job at a time.
-- Long jobs: use `--threads 10 --max-minutes N` and checkpoints so they can stop and resume, and run them in the background.
+- **The maintainer allows at most about 1 hour of high CPU per local session.** Default to 6 threads or fewer, always pass `--max-minutes`, and rely on checkpoints to stop and resume. Never start multi-hour local runs.
+- Heavy runs (full generations, the Law Ledger, the Stockfish ladder) go to remote compute as work units: `docs/v1/08_DISTRIBUTED_COMPUTE.md`.
 
 ## Git
 - Work on the `v1` branch (or a branch from it), never directly on `main`. `main` is the public, stable branch until v1.0.
