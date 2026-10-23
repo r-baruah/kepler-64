@@ -4,6 +4,7 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 
 | date | decision | why | affects |
 |---|---|---|---|
+| 2026-10-24 | Training is redesigned around universe-inspired mechanisms: learned temperature, quiet leaves, capped games excluded, optional mass conservation, plus SPSA as "cosmological natural selection" for direct strength tuning. Spec-2 law candidates (promotion in the light cone, running couplings, Hawking evaporation, dark matter) are recorded as ideas only | The first TDLeaf run collapsed for diagnosable reasons (F10–F11); the maintainer asked for creative, physics-inspired solutions over standard ML recipes | 04, 10 |
 | 2026-10-24 | Milestone 1 verdict: **GO**. The spec-1 laws stay; continue to M2/M3 | All §7 gates passed (`engine/results/m1-gate.md`) | 05 |
 | 2026-10-24 | Heavy compute runs remotely as work units (GitHub Actions in a separate public compute repo first, the maintainer's mesh orchestrator later). Local runs are capped at about 1 hour of high CPU | The maintainer doesn't want multi-hour hot sessions on the laptop; every expensive job is a sum of independent games | 08, 04 |
 | 2026-10-24 | Gen 0 calibration: keep `lambda_bind` 0.01, `lambda_space` 0.05, `beta` 2.0. Calibration uses 300 seeded random-play positions instead of a fixed EPD file | They are the strongest values tested that keep the worst sibling-move deviation under 2.5 ku (`engine/results/calibration-gen000.md`). Seeded generation is reproducible without shipping a file | 02 §8, gen-000.json |
