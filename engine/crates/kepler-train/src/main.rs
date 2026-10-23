@@ -4,8 +4,12 @@ mod chess;
 mod epd;
 mod matchcmd;
 mod openings;
+mod selfgame;
+mod selfplaycmd;
+mod sprt;
 mod stats;
 mod suite;
+mod tdleaf;
 mod uci;
 mod util;
 
@@ -23,6 +27,12 @@ struct Cli {
 enum Cmd {
     /// Play games between two UCI engines
     Match(matchcmd::MatchArgs),
+    /// Self-play games of one generation as JSONL
+    Selfplay(selfplaycmd::SelfplayArgs),
+    /// TDLeaf(lambda) training rounds
+    Tdleaf(tdleaf::TdleafArgs),
+    /// SPRT between two generation files (in-process self-play)
+    Sprt(sprt::SprtArgs),
     /// Run an EPD suite through one UCI engine
     Suite(suite::SuiteArgs),
     /// Opening suite tools
@@ -42,6 +52,9 @@ fn main() {
     let cli = Cli::parse();
     let r = match cli.cmd {
         Cmd::Match(a) => matchcmd::run(a),
+        Cmd::Selfplay(a) => selfplaycmd::run(a),
+        Cmd::Tdleaf(a) => tdleaf::run(a),
+        Cmd::Sprt(a) => sprt::run(a),
         Cmd::Suite(a) => suite::run(a),
         Cmd::Openings {
             cmd: OpeningsCmd::Build(a),

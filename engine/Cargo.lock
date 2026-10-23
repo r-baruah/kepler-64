@@ -146,6 +146,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "cozy-chess",
+ "kepler-core",
  "serde",
  "serde_json",
 ]

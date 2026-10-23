@@ -47,6 +47,16 @@ impl XorShift {
         XorShift(if z == 0 { 0x1234_5678_9ABC_DEF1 } else { z })
     }
 
+    /// Raw state, for checkpoints.
+    pub fn state(&self) -> u64 {
+        self.0
+    }
+
+    /// Rebuild from a raw state saved with `state` (not a seed).
+    pub fn from_state(s: u64) -> Self {
+        XorShift(if s == 0 { 0x1234_5678_9ABC_DEF1 } else { s })
+    }
+
     pub fn next_u64(&mut self) -> u64 {
         let mut x = self.0;
         x ^= x >> 12;
@@ -60,6 +70,16 @@ impl XorShift {
     pub fn below(&mut self, n: usize) -> usize {
         (self.next_u64() % n as u64) as usize
     }
+}
+
+/// splitmix64 finaliser: derive an independent seed from two words.
+pub fn mix(a: u64, b: u64) -> u64 {
+    let mut z = a ^ b
+        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        .wrapping_add(0xD1B5_4A32_D192_ED03);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
 }
 
 #[cfg(test)]

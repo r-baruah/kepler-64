@@ -12,26 +12,26 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [x] Rust toolchain (user-level rustup, `wasm32-unknown-unknown`, clippy, rustfmt)
 - [x] Stockfish 19 available locally (`KEPLER_STOCKFISH`)
 - [x] Docs: `CLAUDE.md`, `AGENTS.md`, `docs/v1/` 01–07
-- [ ] Merge `backend/improvements` into main (fast-forward)
-- [ ] History cleanup per the maintainer's private runbook, with the force-push confirmed by the maintainer at that moment
+- [x] Merge `backend/improvements` into main (fast-forward, local only; nothing pushed)
+- [ ] History cleanup per the maintainer's private runbook, with the force-push confirmed by the maintainer at that moment (blocked 2026-10-24: the rewrite step needs the maintainer to allow or run it)
 - [ ] Old Pages site replaced by a redirect stub. `deploy-pages.yml` updated in the same push
-- [ ] `v1` branch created from the cleaned main
+- [~] `v1` branch created (from local main; it gets replayed onto the cleaned main after the rewrite; it never touches `viz-web/`)
 
 **Accept when:** main is clean, the `v1` branch exists, and the v0 baseline still runs (`KEPLER_V0_UCI` answers `uciok`).
 
 ## M1 · Core + laws spike (go/no-go)
-- [ ] Workspace skeleton (`03_ENGINE_ARCHITECTURE.md` §1), CI for fmt, clippy and test
-- [ ] `GameState` with accretion state, make/unmake, repetition, 50-move rule
-- [ ] perft suite passes (§9 numbers)
-- [ ] Laws L1–L6 exactly per `02_LAWS_SPEC.md`, with the breakdown struct
-- [ ] Invariant tests 1–8 pass (`02_LAWS_SPEC.md` §11), including the French accretion regression
-- [ ] `Dual<12>` scalar, and the gradient check passes
-- [ ] Gen 0 calibration done and recorded (`gen-000.json`, decision log)
-- [ ] Search: iterative deepening, alpha-beta, quiescence, TT, mate scoring, basic ordering
-- [ ] UCI binary with the smoke test
-- [ ] `kepler-train match` (UCI client for any engine) and `suite`
-- [ ] Opening suite `balanced-200.epd` built
-- [ ] Gate results committed: closed suite, vs v0 at depth 3, vs material-only, perf numbers
+- [x] Workspace skeleton, CI for fmt, clippy, test and the wasm32 build (`.github/workflows/engine.yml`)
+- [x] `Position` with accretion state (copy-make), repetition, 50-move rule, insufficient material
+- [x] perft suite passes (§9 numbers); perft(5) from the start position takes 23 ms
+- [x] Laws L1–L6 per spec-1, with the breakdown struct (independent Opus review: no deviation from the spec; per-piece §10 fields still missing, moved to M2)
+- [x] Invariant tests pass (`tests/laws.rs`, `tests/review.rs`), including the French accretion regression
+- [x] `Dual` scalar (12 slots), and the per-position gradient check passes
+- [x] Gen 0 calibration done and recorded (`gen-000.json`, `results/calibration-gen000.md`)
+- [x] Search: ID, PVS, quiescence, TT, mate scoring, null move, LMR, killers, history (about 510k nps)
+- [x] UCI binary with the smoke test
+- [x] `kepler-train match` (UCI client for any engine) and `suite`
+- [x] Opening suite `balanced-200.epd` built (505 tried, 200 kept, SF19 d14 within ±50 cp)
+- [~] Gate results: closed suite **passed** (0/12 avoid-moves at d3 and d6; 12/12 moves lose < 1 pawn at d3); vs material-only at d3 **+259 =49 −92 (70.9%)**; vs v0 at d3 running
 
 **Accept when:** every check in `04_TRAINING_AND_GATES.md` §7 passes and the result files are in `engine/results/`. **No-go** means revising the laws and repeating M1's gate (log it).
 

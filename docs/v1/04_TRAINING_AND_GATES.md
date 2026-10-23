@@ -18,8 +18,9 @@ TDLeaf(λ) is the method used for KnightCap (Baxter, Tridgell & Weaver, 1998) to
 3. **Temporal differences.** With `v_t = tanh(eval(l_t) / s)` from the mover's view (`s = 4 ku`, fixed), `d_t = v_{t+1}' − v_t`, where the prime means sign-adjusted to the same side. Game end replaces `v` with the result: +1 / 0 / −1.
 4. **Update** for each A-tuned constant `θ`:
    ```
-   Δθ = η · Σ_t ∂v_t/∂θ · Σ_{j≥t} λ^{j−t} d_j
+   Δθ = η · Σ_t ∂v_t/∂θ · e_t,     e_t = d_t − λ · e_{t+1}     (e beyond the last ply = 0)
    ```
+   Each `d_j` is measured from the side to move at ply j, so it enters ply t with sign `(−1)^{j−t}`. The recurrence is `Σ_{j≥t} (−λ)^{j−t} d_j`, the colour-consistent form of the λ-return. (Corrected 2026-10-24; the earlier text omitted the alternating sign.)
    with `λ = 0.7`, an Adam optimiser on the averaged update, and projection onto the bounds of `02_LAWS_SPEC.md` §1.
 5. **Report pinned constants.** Any constant pinned at a bound for more than 50% of the last 10 updates is logged as pinned.
 
@@ -38,8 +39,8 @@ TDLeaf(λ) is the method used for KnightCap (Baxter, Tridgell & Weaver, 1998) to
 ```
 
 **Compute budget (one laptop, 10 of 12 threads):**
-- A self-play game at depth 4 should take ~1–2 s.
-- A round of 2,000 games is about 5 minutes.
+- Measured 2026-10-24 (machine under load): about 1 game/s at depth 4 on 10 threads, including exploration. An idle machine is estimated at 2–3× faster.
+- A round of 2,000 games is therefore about 12–35 minutes, depending on load.
 - A generation (20 rounds plus SPRT) fits overnight.
 - `kepler-train` takes `--threads` (default 10) and `--max-minutes`, and checkpoints every round, so a run can stop and resume.
 
