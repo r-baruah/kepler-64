@@ -104,6 +104,7 @@ Rules:
 ### F13 · Learning by playing itself made the engine stronger: Gen 1 (2026-10-24) · confirmed
 - **What:** 11 TDLeaf rounds (5,500 self-play games, depth 3, 35 minutes on the laptop) with the universe-inspired fixes (learned temperature, quiet leaves, capped games dropped) produced Gen 1. Against Gen 0 over 400 fixed games: **+181 Elo [+146, +219] at depth 3 and +132 [+98, +168] at depth 4.**
 - **Contrast with F10:** the same method with a fixed temperature collapsed and lost 80 Elo. The learned temperature started at 6 and cooled to 3.7: the universe grew more confident as it learned.
+- **Corrected by F32:** the controlled test shows the difference from F10 came from quiet leaves and dropped capped games, not from learning the temperature. A fixed temperature of 4 with those fixes does better than learning it from 6.
 - **Evidence:** `engine/results/gen001.md`, `engine/data/generations/gen-001.json`.
 - **Caveat:** engine vs engine at fixed depth. Not a rating. The ladder (M4) measures strength against calibrated opponents.
 
@@ -257,8 +258,8 @@ Rules:
 - **Meaning:** this is a better explanation for F14 than the guesses listed there. The weight decides first, while the shape is still close to the Gen 0 guess, and then the shape is frozen. The weight itself can still come back (its own gradient is `g_B − g_W`, not 0), as it did in Gen 3 (F25), but only with the old shape, and at Gen 3 that still didn't help (F27).
 - **Consequence for any law redesign:** the shape constants of a new law need either a signal at weight 0 or tuning without gradients (natural selection, T3).
 
-### Pre-registered: the temperature attribution test (2026-10-24) · running
-Written before any result exists.
+### Pre-registered: the temperature attribution test (2026-10-24) · done, see F32
+Written before any result existed; left unchanged below.
 - **Question:** did Gen 1's jump (F13) come from learning the temperature (T1), or from the other fixes (quiet leaves T5, capped games dropped T6)?
 - **Runs** (`r-baruah/kepler-64-compute`, all from `engine/data/ablations/gen-000-T6.json`, identical seed 7, 11 rounds × 500 games, depth 3, lr 0.01, quiet leaves and capped-drop in all three):
   - `attrib-T-learned`: temperature starts at 6 and is learned (the Gen 1 recipe).
@@ -275,3 +276,30 @@ Written before any result exists.
 - **Evidence:** `engine/results/roche-probe-gen003.md`, scripts in `scripts/research/roche/`.
 - **Meaning:** "a king is in danger when enemy pull lands on its body" is right. Dividing by the king's own support and passing the result through a sigmoid threshold (spec-1) dilutes it and gives it shape constants that freeze at weight 0 (F30).
 - **Caveat:** prediction is not strength (F10). This motivates law candidate L11 (`10_UNIVERSE_METHODS.md`); only its Ledger SPRT decides.
+
+### F32 · Gen 1's jump came from the training fixes, not from learning the temperature (2026-10-24) · confirmed
+- **What:** the pre-registered attribution test above. Three arms from gen-000 with identical seeds and settings (11 rounds × 500 games, depth 3, quiet leaves and capped games dropped in all three), each judged by SPRT (4,000 games, depth 4):
+
+  | comparison | Elo [95%] | SPRT |
+  |---|---|---|
+  | learned vs fixed 6 (the pre-registered deciding test) | +47 [+37, +57] | H1 |
+  | learned vs fixed 4 (added after the first results) | -34 [-44, -24] | H0 |
+  | fixed 6 vs fixed 4 | -70 [-80, -60] | H0 |
+  | learned vs gen-000 | +133 [+122, +144] | H1 |
+  | fixed 6 vs gen-000 | +97 [+86, +107] | H1 |
+  | fixed 4 vs gen-000 | **+156 [+144, +167]** | H1 |
+
+- **Evidence:** `engine/results/attrib/` (the three runs' round files and candidates, and the six SPRT files).
+- **Reading:**
+  - The pre-registered test passed, but its comparator turned out to be a poor fixed value: 6 was F11's best *predictive* fit, and it plays 70 Elo worse than 4.
+  - A fixed temperature of 4, the same scale as the failed F10 run, gives the strongest Gen 1 of the three once quiet leaves (T5) and dropped capped games (T6) are in. So **F10's failure came from mid-exchange training positions and capped-game "draws", not from the temperature.**
+  - The learned temperature fell steadily from 6 to 3.66 over 11 rounds and was still falling. It finds the right region but slowly, so it spends most of a short run too hot.
+- **What may not be claimed:** "the universe needed a temperature" or "learning the temperature made Gen 1 work". What may be claimed: the temperature's value matters (70 Elo between 4 and 6), and learning it lands near the good value without being told.
+- **Consequence:** F13's description of why Gen 1 worked is corrected by this entry. For future runs, starting the temperature near 4 (or near the parent's learned value, as gen-002 and gen-003 did) is better than starting at 6.
+
+### F33 · Tidal load at the outcome-fit weight is far too strong (2026-10-24) · confirmed
+- **What:** gen-003 with L5b switched on at `lambda_tide` = 0.34 (the weight from the outcome fit in F31), no other change, lost to gen-003 by **-248 Elo [-262, -235]** (4,000 games, depth 4).
+- **Evidence:** `engine/results/ledger-gen003-tide034.json`.
+- **Why, most likely:** the load counts the attackers' mass, so a heavy piece next to the enemy king adds a lot of it. At 0.34 that's worth more than material, and the engine gives pieces away to get near the king. The fit's weight came from games where the load was high because the attacker was already winning: prediction, not strength (F10 again, and the caveat in F31).
+- **Status of L5b:** not judged yet. Smaller fixed weights (0.05, 0.10) and a training run that starts the weight at 0 (`gen004-tide-a`) are running.
+

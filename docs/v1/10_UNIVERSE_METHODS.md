@@ -22,6 +22,7 @@ Status: `idea` → `coded` (behind a flag, default off) → `tested` (with a res
 - **Fixes:** F11's scale mismatch (fixed `s = 4` vs a best fit of about 6), which drove the collapse in F10.
 - **Test:** TDLeaf round with T learned vs the rejected run; SPRT of the candidate against Gen 0.
 - **Status:** coded (`--temperature <T0>`, `--learn-temperature` (default on), `--no-learn-temperature`; `tdleaf`, `tdleaf-shard`, `tdleaf-reduce`). `T` is stored in the checkpoint and in `candidate.json` under `training.temperature`.
+- **Tested (F32):** learning T from 6 beat a fixed 6 (+47) but lost to a fixed 4 (-34). The fix that mattered for F10 was T5 + T6. T1 stays on as a convenience (it finds the right region without being told), not as a proven strength gain.
 
 ### T2 · Conservation of mass during learning
 - **Source:** conservation laws (Noether). A closed universe doesn't create or destroy its total mass.
@@ -104,7 +105,7 @@ None of these is active. Each needs a spec change, then must earn its place in t
 - **Fixes:** the Roche limit not earning its place (F14, F19, F27), so that "a king is torn apart" can be backed by a working law.
 - **Honesty check (§9):** it uses only the field `Φ` and the L5 body, both already in the spec. It adds no new chess concept. It is the L5 slot's king danger, measured more directly.
 - **Ledger row:** `lambda_tide = 0` (off).
-- **Status:** idea, measured (F31). Coding waits until the attribution runs finish (they rebuild the engine every round); CI runs wait for the maintainer's go.
+- **Status:** coded (spec-2 §6b, `lambda_tide`, default 0). Tested at 0.34: -248 Elo (F33). Smaller weights and a from-zero training run under test.
 
 ### Note: pawn structure may already be in the laws
 Pawns only pull diagonally forward, so pawns defend each other through L4a binding. An isolated pawn gets no friendly pull and is "unbound". Doubled pawns block each other's field. If binding is kept (the F10 run zeroed it through an artefact, not evidence), pawn structure should partly emerge. Check this in ladder game reviews before adding anything.

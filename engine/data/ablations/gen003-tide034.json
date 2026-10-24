@@ -1,0 +1,29 @@
+{
+ "generation": 3,
+ "parent": 2,
+ "spec": "v1.0-spec-2",
+ "created": "2026-10-24",
+ "constants": {
+  "alpha": 0.4598543643951416,
+  "beta": 1.4926611185073853,
+  "c": 2,
+  "f_acc": 0.0,
+  "k_roche": 1.5479880571365356,
+  "kappa": 1.883018970489502,
+  "lambda_bind": 0.014027344062924385,
+  "lambda_space": 0.11772186309099197,
+  "m_b": 3.532851219177246,
+  "m_n": 3.0397088527679443,
+  "m_q": 8.278520584106445,
+  "m_r": 4.8340935707092285,
+  "rho": 1.6743991374969482,
+  "sigma": 0.5355085134506226,
+  "lambda_tide": 0.34
+ },
+ "pinned": [],
+ "training": {
+  "note": "Law Ledger variant of gen-003: L5b tidal load switched on at 0.34 ku per unit (the outcome-fit estimate in results/roche-probe-gen003.md), no training",
+  "temperature": 3.0349416732788086
+ },
+ "acceptance": {}
+}
