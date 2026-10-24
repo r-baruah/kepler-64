@@ -283,7 +283,7 @@ pub fn pv_leaf(root: &Position, pv: &[Move], params: &Params) -> Position {
 /// and `dv/dT = -sign * (1 - t^2) * eval / T^2`.
 pub fn leaf_value(leaf: &Position, root_white: bool, params: &Params, temp: f32) -> Leaf {
     let sc = evaluate::<Dual>(leaf, params).score_white;
-    let t = (sc.v / temp).tanh();
+    let t = libm::tanhf(sc.v / temp);
     let sign = if root_white { 1.0 } else { -1.0 };
     let one_m = 1.0 - t * t;
     let k = sign * one_m / temp;

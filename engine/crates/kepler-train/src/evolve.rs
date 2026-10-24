@@ -85,12 +85,12 @@ pub fn with_theta(base: &Params, th: &[f32; NP]) -> Params {
 
 /// T4: perturbation size `c_K = c0 / (K+1)^0.101`.
 pub fn c_k(c0: f64, k: u64) -> f64 {
-    c0 / (k as f64 + 1.0).powf(C_EXP)
+    c0 / libm::pow(k as f64 + 1.0, C_EXP)
 }
 
 /// T4: step size `a_K = a0 / (K+1+A)^0.602`.
 pub fn a_k(a0: f64, big_a: f64, k: u64) -> f64 {
-    a0 / (k as f64 + 1.0 + big_a).powf(A_EXP)
+    a0 / libm::pow(k as f64 + 1.0 + big_a, A_EXP)
 }
 
 /// Seed of shard `k` of iteration `iter` under round seed `seed`.

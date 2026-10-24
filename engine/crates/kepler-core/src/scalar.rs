@@ -7,6 +7,11 @@
 
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 
+// Transcendental functions come from the pure-Rust `libm` crate, never the
+// platform C library: results must be bit-identical on every machine and in
+// WASM (docs/v1/08_DISTRIBUTED_COMPUTE.md, determinism contract).
+use libm::{expf, logf, powf, tanhf};
+
 /// Number of analytically tuned constants (see `Params::GRAD_NAMES`).
 pub const NGRAD: usize = 12;
 
@@ -40,15 +45,15 @@ impl Scalar for f32 {
     }
     #[inline(always)]
     fn tanh(self) -> Self {
-        f32::tanh(self)
+        tanhf(self)
     }
     #[inline(always)]
     fn sigmoid(self) -> Self {
-        1.0 / (1.0 + (-self).exp())
+        1.0 / (1.0 + expf(-self))
     }
     #[inline(always)]
     fn pow_of(n: f32, e: Self) -> Self {
-        n.powf(e)
+        powf(n, e)
     }
     #[inline(always)]
     fn var(x: f32, _i: usize) -> Self {
@@ -148,18 +153,18 @@ impl Scalar for Dual {
     }
     #[inline(always)]
     fn tanh(self) -> Self {
-        let t = self.v.tanh();
+        let t = tanhf(self.v);
         self.map(t, 1.0 - t * t)
     }
     #[inline(always)]
     fn sigmoid(self) -> Self {
-        let s = 1.0 / (1.0 + (-self.v).exp());
+        let s = 1.0 / (1.0 + expf(-self.v));
         self.map(s, s * (1.0 - s))
     }
     #[inline(always)]
     fn pow_of(n: f32, e: Self) -> Self {
-        let p = n.powf(e.v);
-        e.map(p, p * n.ln())
+        let p = powf(n, e.v);
+        e.map(p, p * logf(n))
     }
     #[inline(always)]
     fn var(x: f32, i: usize) -> Self {

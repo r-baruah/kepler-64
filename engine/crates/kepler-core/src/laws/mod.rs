@@ -92,7 +92,8 @@ pub fn binding<S: Scalar>(pos: &Position, phi: &[[S; 64]; 2], l: &Laws<S>) -> (S
 pub fn space<S: Scalar>(phi: &[[S; 64]; 2], l: &Laws<S>) -> S {
     let mut t = S::cst(0.0);
     for (w, b) in phi[0].iter().zip(phi[1].iter()) {
-        t += (*w - *b).tanh();
+        // Scalar::tanh (libm). A method call would pick the inherent f32::tanh.
+        t += Scalar::tanh(*w - *b);
     }
     l.lambda_space * t
 }

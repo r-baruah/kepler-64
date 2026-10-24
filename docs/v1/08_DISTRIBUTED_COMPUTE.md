@@ -33,9 +33,7 @@ So a unit is: **one binary, one or two JSON inputs, a seed, and a count, writing
 
 Stockfish units also need a Stockfish binary (downloaded by the worker, path in `KEPLER_STOCKFISH`).
 
-**Determinism:**
-- Units are depth- or node-limited, so a unit's output is a pure function of (binary, inputs, seed), whatever the hardware.
-- Time-limited units (`--movetime`, `--tc`) are not deterministic. They're allowed for ladders only, and must be labelled as time-limited.
+**Determinism:** see §3a. Every unit's result is bit-identical on every machine.
 
 **Seeds:** a round seed `R` and the shard index `k` give the shard seed through the documented mix function in `kepler-train` (`util.rs`). The reducer checks that the shard seeds match the expected ones, so a duplicated or missing shard is detected.
 
@@ -46,6 +44,23 @@ Stockfish units also need a Stockfish binary (downloaded by the worker, path in 
 - `sprt-shard`: spec, a_hash, b_hash, seed, pentanomial[5], wdl, elapsed_ms, config
 
 Exact field definitions live next to the code (`kepler-train` source, `tdleaf.rs` and `sprt.rs` docs).
+
+## 3a. Determinism contract (normative)
+
+**Goal:** the same work unit gives the same result, bit for bit, on the laptop, on any GitHub runner, on a friend's machine or inside the mesh orchestrator, whatever the CPU or the thread count. So results from different machines can be merged freely, and a disagreement always means a bug or a bad worker, never noise.
+
+| # | rule | how it's enforced |
+|---|---|---|
+| D1 | **Same compiler, same dependencies.** Binaries are built from the commit in `ENGINE_COMMIT` with the toolchain pinned in `engine/rust-toolchain.toml` (1.99.1) and `cargo build --release --locked`. Default x86-64 target only: never `-C target-cpu=native`, never fast-math. | `rust-toolchain.toml`, `Cargo.lock`, CI flags. In a GitHub run, one build job produces the binary every shard uses. |
+| D2 | **Pure-Rust maths.** Every `tanh`, `exp`, `pow` and `log` in evaluation, search and training comes from the `libm` crate, never the platform C library, which differs between glibc versions and browsers. `sqrt` and `+ − × ÷` are exact by IEEE 754. | Code review rule; `Scalar::tanh` must be called as a trait function (`f32::tanh` would silently use the platform). |
+| D3 | **Limits are depth or nodes, never time,** for any unit whose output feeds training, acceptance tests or the Law Ledger. Time limits (`--movetime`, `--tc`) are allowed only for ladder games against Stockfish, and those outputs say `"deterministic": false`. | Shard commands refuse time limits unless `--allow-nondeterministic` is given. |
+| D4 | **Thread count doesn't matter.** Each game gets freshly cleared searchers. Games are collected and summed in game order, not completion order. | A test runs the same shard with 1 and 3 threads and requires identical results. |
+| D5 | **All randomness is seeded.** Seeds come from the documented `mix` function. No time-based seeds, and no hash-map iteration order in any output. | Code review rule; the openings builder is the only `HashSet` user and only checks membership. |
+| D6 | **Canonical result hash.** Every shard JSON carries `result_hash`: FNV-1a 64 over the canonical JSON of all deterministic fields, excluding `elapsed_ms`, `created`, `threads` and host details. Two honest runs of one unit always have equal `result_hash`. | The reducer recomputes it and refuses a mismatch. The orchestrator can verify a volunteer's work by running a unit twice on different machines and comparing hashes. |
+| D7 | **Combining is order-independent.** Reducers sort shards by `shard_index` (then seed) before summing, so file order or upload order can't change a single bit. | Reducer code plus a test that shuffles the shard order. |
+| D8 | **Checked before every remote campaign.** After each engine sync, the compute repo's `determinism-check` workflow runs the fixed reference units in `engine/data/determinism/` and compares their `result_hash` with the values produced on the maintainer's laptop. A mismatch blocks the campaign. | `determinism-check.yml` in the compute repo. |
+
+**What isn't deterministic, by design:** the Stockfish ladder. Stockfish's limited-strength mode uses its own randomness, and ladder games use clocks. Ladder results are statistics with error bars; they're never mixed into training.
 
 ## 4. Commands
 

@@ -102,7 +102,7 @@ pub const T_BOUNDS: (f32, f32) = (0.5, 50.0);
 pub const DEFAULT_T: f32 = 4.0;
 
 fn logt_range() -> f64 {
-    (T_BOUNDS.1 as f64).ln() - (T_BOUNDS.0 as f64).ln()
+    libm::log(T_BOUNDS.1 as f64) - libm::log(T_BOUNDS.0 as f64)
 }
 
 /// Initial temperature: the explicit flag, else the generation's `training.temperature`,
@@ -313,7 +313,7 @@ pub fn play_shard(
             let result_last = match (g.capped, o.capped_target) {
                 (false, _) | (true, CappedTarget::Draw) => Some(g.result_for_mover(last)),
                 (true, CappedTarget::Score) => {
-                    Some((g.last_score_ku.unwrap_or(0.0) / temperature).tanh())
+                    Some(libm::tanhf(g.last_score_ku.unwrap_or(0.0) / temperature))
                 }
                 (true, CappedTarget::Drop) => None,
             };
@@ -459,8 +459,8 @@ impl Adam {
     pub fn step(&mut self, theta: [f32; NGRAD], grad: [f32; NGRAD], lr: f32) -> [f32; NGRAD] {
         self.t += 1;
         let (b1t, b2t) = (
-            1.0 - BETA1.powi(self.t as i32),
-            1.0 - BETA2.powi(self.t as i32),
+            1.0 - libm::pow(BETA1, (self.t as i32) as f64),
+            1.0 - libm::pow(BETA2, (self.t as i32) as f64),
         );
         let mut out = theta;
         for i in 0..NGRAD {
@@ -491,17 +491,16 @@ impl AdamT {
     pub fn step(&mut self, temperature: f32, grad: f64, lr: f32) -> f32 {
         self.t += 1;
         let (b1t, b2t) = (
-            1.0 - BETA1.powi(self.t as i32),
-            1.0 - BETA2.powi(self.t as i32),
+            1.0 - libm::pow(BETA1, (self.t as i32) as f64),
+            1.0 - libm::pow(BETA2, (self.t as i32) as f64),
         );
         let range = logt_range();
         let g = grad * range;
         self.m = BETA1 * self.m + (1.0 - BETA1) * g;
         self.v = BETA2 * self.v + (1.0 - BETA2) * g * g;
         let step = lr as f64 * (self.m / b1t) / ((self.v / b2t).sqrt() + EPS);
-        let lt = (temperature as f64).ln() + step * range;
-        (lt.clamp((T_BOUNDS.0 as f64).ln(), (T_BOUNDS.1 as f64).ln()))
-            .exp()
+        let lt = libm::log(temperature as f64) + step * range;
+        libm::exp(lt.clamp(libm::log(T_BOUNDS.0 as f64), libm::log(T_BOUNDS.1 as f64)))
             .clamp(T_BOUNDS.0 as f64, T_BOUNDS.1 as f64) as f32
     }
 }
