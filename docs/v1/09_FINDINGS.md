@@ -19,9 +19,9 @@ Rules:
 |---|---|---|
 | Q1 | Does self-play rediscover roughly 3/3/5/9 piece values, starting from those values and from perturbed ones? | M3 training; a perturbed-start control run |
 | Q2 | Does the universe value a bishop above a knight? | learned `m_b` vs `m_n` |
-| Q3 | Does accretion survive (`f_acc` > 0), or is it rejected? | SPSA on `f_acc` + Law Ledger L6 row |
-| Q4 | Which light speed wins: pull that travels 1, 2 or 3 moves? | Law Ledger L3 row |
-| Q5 | Which laws survive the Ledger, and which get cut? | Law Ledger at Gen 1 |
+| Q3 | Does accretion survive (`f_acc` > 0), or is it rejected? | **answered by F17: rejected at Gen 1** |
+| Q4 | Which light speed wins: pull that travels 1, 2 or 3 moves? | **answered by F18: 1 or 2, not 3** |
+| Q5 | Which laws survive the Ledger, and which get cut? | **answered by F16–F19 (Gen 1 ledger)** |
 | Q6 | How strong is it against calibrated opponents? | Stockfish ladder (M4) |
 | Q7 | Where does it lose: pawn races, endgames, closed positions? | ladder game review, tactics suite |
 | Q8 | Is the gauge (king torn apart) a good predictor of the game result several moves later? | replay analysis of ladder games |
@@ -120,3 +120,29 @@ Rules:
 ### F15 · The bishop pulls ahead of the knight (2026-10-24) · observed, not a discovery
 - **What:** in the Gen 1 run, the bishop's mass rose steadily, 3.00 → 3.63, faster than the knight's (3.00 → 3.15). The queen rose 9.00 → 10.58 and the rook 5.00 → 5.29. This matches the common human view that a bishop is worth a little more than a knight.
 - **Caveat:** the run started from human values (3/3/5/9) and the masses were still moving when it stopped. Only the equal-mass control run (Q1) can show whether the universe *discovers* this ordering.
+
+### F16 · The Law Ledger: the universe keeps its field, and two laws do most of the work (2026-10-24) · confirmed
+- **What:** 10 SPRTs of 4,000 games each (depth 4), each comparing gen-001 with one law changed:
+  - The field as a whole is worth **+330 Elo** over plain material counting.
+  - **Spreading** (pull spread thin over the squares it reaches, like conserved flux; sigma) is worth **+129**.
+  - **Held space** is worth **+111**.
+- **Evidence:** `engine/results/ledger-gen001.md`, raw files in `engine/results/ledger-gen001/`.
+- **Caveat:** one law at a time, no re-tuning, engine vs engine.
+
+### F17 · The universe rejected accretion (2026-10-24) · confirmed
+- **What:** switching accretion off (f_acc = 0) makes gen-001 **103 Elo stronger** [93, 113]. Captures making pieces heavier hurts play under real chess rules.
+- **Evidence:** `ledger-gen001/ledger-gen001-acc0.json`.
+- **Caveat:** f_acc was never tuned (it stayed at the hand-set 0.8), and gen-001's other constants were learned with accretion on. A smaller fraction might still help; an SPSA run on f_acc would show that.
+
+### F18 · Pull needs only one or two moves of travel (2026-10-24) · confirmed
+- **What:** light speed c = 2 beats c = 3 by **14 Elo** [4, 24], and c = 1 ties c = 2 (+3 [−7, +13]). Influence that takes three moves to arrive adds noise rather than information.
+- **Evidence:** `ledger-gen001-c3.json`, `ledger-gen001-c1.json`.
+- **Note:** c = 1 is cheaper to compute, so at equal *time* it may be the better choice. Not tested yet.
+
+### F19 · Binding energy and the spec-1 Roche limit both hurt (2026-10-24) · confirmed
+- **What:**
+  - Removing binding energy makes gen-001 **15 Elo stronger** [5, 25].
+  - Switching the Roche limit back on (beta = 2) makes it **71 Elo weaker** [61, 81].
+  - Together with F14 (training drove beta to 0 twice), the Roche limit *as formulated in spec-1* does not help.
+- **Evidence:** `ledger-gen001-bind0.json`, `ledger-gen001-roche-on.json`.
+- **Open:** whether a different Roche formula (smoother, or normalised another way) earns its place. The idea isn't refuted; this formula is.
