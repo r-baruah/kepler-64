@@ -54,7 +54,6 @@ docs/v1/        v1 specs and plans (tracked). Other files in docs/ are private a
 web/            v1 website (SvelteKit), from milestone M5
 kepler64/       v0 engine (Python + JAX), frozen baseline; moves to legacy/ at release
 scripts/audit/  the v0 audit scripts
-Kepler-64_Book/ the Book (describes v0 until it's restructured in M6)
 ```
 
 ## Commands

@@ -75,7 +75,7 @@ Plan and stages are in `06_WEB_PLAN.md`. Design follows the staged check-ins the
 ## M6 · Website complete + docs
 - [ ] Watch, Explore, Lab (laws, Ledger, Generations, the v0→v1 story, cite)
 - [ ] Preview-image route for share links; clip export
-- [ ] README rewritten for v1; Book restructured for v1 (v0 chapters marked as history)
+- [ ] README rewritten for v1; a new Book written from scratch for v1 (the v0 Book was removed from `v1` on 2026-10-24; git history keeps it)
 - [ ] `kepler64/` moved to `legacy/`; Python CI replaced by cargo CI
 
 ## M7 · Release v1.0

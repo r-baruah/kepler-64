@@ -4,6 +4,7 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 
 | date | decision | why | affects |
 |---|---|---|---|
+| 2026-10-24 | The v0 Book (`Kepler-64_Book/`) is removed from the `v1` branch and will be rewritten from scratch for v1 | It describes v0's laws (Plummer field, tidal tensor, Lorentz mass), which v1 dropped; the maintainer prefers a fresh book over patching | 05 M6 |
 | 2026-10-24 | Training is redesigned around universe-inspired mechanisms: learned temperature, quiet leaves, capped games excluded, optional mass conservation, plus SPSA as "cosmological natural selection" for direct strength tuning. Spec-2 law candidates (promotion in the light cone, running couplings, Hawking evaporation, dark matter) are recorded as ideas only | The first TDLeaf run collapsed for diagnosable reasons (F10–F11); the maintainer asked for creative, physics-inspired solutions over standard ML recipes | 04, 10 |
 | 2026-10-24 | Milestone 1 verdict: **GO**. The spec-1 laws stay; continue to M2/M3 | All §7 gates passed (`engine/results/m1-gate.md`) | 05 |
 | 2026-10-24 | Heavy compute runs remotely as work units (GitHub Actions in a separate public compute repo first, the maintainer's mesh orchestrator later). Local runs are capped at about 1 hour of high CPU | The maintainer doesn't want multi-hour hot sessions on the laptop; every expensive job is a sum of independent games | 08, 04 |
