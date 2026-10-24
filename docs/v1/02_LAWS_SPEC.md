@@ -8,9 +8,9 @@ Plain-words version, used everywhere public:
 - Every piece has weight.
 - Its pull travels only along the lines it can legally move, and stops at the first piece in the way.
 - Pull that would need more moves to arrive is weaker, and beyond the light-speed limit it doesn't arrive at all.
-- A king is torn apart when the enemy's pull across its body outweighs what its own side holds there.
-- Whatever captures absorbs some of the victim's weight.
-- How strong all of this is was learned by the engine playing itself.
+- Each square belongs, softly, to whoever pulls on it harder. A piece pulled harder by the enemy than by its own side is exposed.
+- How strong all of this is was learned by the engine playing itself, and each law has to earn its place in a public Law Ledger.
+- Laws the universe rejected stay available as alternate universes: captures that absorb the victim's weight (accretion), and a king torn apart when enemy pull overwhelms its body (two versions of a Roche limit). The current champion plays with them off or at no measurable effect (findings F17, F27, F35).
 
 Honesty note, to repeat in public material: this is a field on the board's move graph, not Newtonian gravity in Euclidean space. The words "weight", "pull", "light speed" and "Roche limit" name exact quantities defined below. None of them is a metaphor without a formula.
 
