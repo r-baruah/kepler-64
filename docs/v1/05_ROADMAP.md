@@ -36,9 +36,9 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 **Accept when:** every check in `04_TRAINING_AND_GATES.md` §7 passes and the result files are in `engine/results/`. **No-go** means revising the laws and repeating M1's gate (log it).
 
 ## M2 · Full search, speed, WASM
-- [ ] PVS, null move, LMR, check extension, aspiration windows, killers and history
-- [ ] Incremental field updates (recompute only affected pieces), equal to the from-scratch result in tests
-- [ ] Time management (§5)
+- [x] PVS, null move, LMR, check extension, killers and history (aspiration windows not added: not needed for the targets)
+- [-] Incremental field updates: superseded by the M2 optimisations (lean path, flood-fill hops, exact cache), which met the speed target with bit-identical results
+- [x] Time management (§5): soft time/30 + inc·0.8, hard min(3× soft, 0.8× remaining)
 - [x] about 1M nps native (985k startpos, 1,015k Kiwipete at depth 6); evaluations bit-identical, proven by golden tests (`results/perf-m2.md`)
 - [x] `kepler-wasm` with the §6.2 interface, built and tested in Node (`crates/kepler-wasm/tests/smoke.mjs`)
 - [ ] Depth 6 in under 1 s in a desktop browser, plus a measured number on one real phone
@@ -47,8 +47,8 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 **Accept when:** the speed budget is met (or the shortfall is recorded with a decision) and the WASM package passes an interface test.
 
 ## M3 · Training, Gen 1+, Law Ledger
-- [ ] `kepler-train selfplay`, `tdleaf` (checkpoint and resume, `--threads`, `--max-minutes`)
-- [ ] SPRT runner (pentanomial)
+- [x] `kepler-train selfplay`, `tdleaf` (checkpoint and resume, `--threads`, `--max-minutes`), plus shard/reduce work units and `evolve`
+- [x] SPRT runner (pentanomial), sequential and batch (`sprt-shard` / `sprt-reduce`)
 - [-] Light Gen 1 via TDLeaf (fixed scale): rejected by SPRT, Elo −80 (`results/gen001-light.md`, findings F10–F11)
 - [~] Training fixes and universe-inspired methods coded (T1 temperature, T2 mass conservation, T3/T4 natural selection with cooling, T5 quiet leaves, T6 capped games; `10_UNIVERSE_METHODS.md`). Runs wait for the maintainer's go
 - [x] Gen 1 accepted by SPRT vs Gen 0: +181 Elo at depth 3, +132 at depth 4 over 400 games each (`results/gen001.md`)
