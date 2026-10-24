@@ -98,32 +98,41 @@ Mate scores are `±(30000 − ply)` internally. Threads = 1 in milestones 1–3.
 ### 6.2 WASM (`kepler-wasm`), the contract the website codes against
 ```ts
 class Engine {
-  constructor(generationJson: string)
-  newGame(fen?: string): void
-  play(uciMove: string): boolean                 // false if illegal
-  legalMoves(): string[]
-  state(): { fen: string; turn: 'w'|'b'; result: '1-0'|'0-1'|'1/2-1/2'|null; reason?: string }
-  breakdown(): Breakdown                          // 02_LAWS_SPEC §10, JSON-serialisable
-  search(limits: { depth?: number; movetimeMs?: number; nodes?: number }): SearchResult
-  setConstants(partialJson: string): void         // "strange universes" and sliders
+  constructor(generationJson: string)             // a gen-XXX.json, or a bare constants object
+  newGame(fen?: string): void                     // throws on a bad FEN; accreted mass starts at 0
+  play(uciMove: string): boolean                  // false if illegal, or if the game is over
+  legalMoves(): string[]                          // UCI, castling as e1g1
+  state(): { fen: string; turn: 'w'|'b'; result: '1-0'|'0-1'|'1/2-1/2'|null; reason: string|null;
+             inCheck: boolean; ply: number; halfmoveClock: number }
+  breakdown(): Report                             // 02_LAWS_SPEC §10, a plain JS object
+  search(limits?: { depth?: number; movetimeMs?: number; nodes?: number; nps?: number }): SearchResult
+  setConstants(partialJson: string): void         // merged into the current constants; throws if out of bounds
+  constantsJson(): string                         // the current constants
+  free(): void
 }
-type SearchResult = { best: string; scoreKu: number; mateIn?: number; depth: number; nodes: number; pv: string[] }
+type SearchResult = { best: string; scoreKu: number /* side to move */; mateIn: number|null;
+                      depth: number; seldepth: number; nodes: number; pv: string[] }
 ```
-- The engine runs in a Web Worker. Search is synchronous inside the worker, with a node-count check so `movetimeMs` is honoured.
+- `reason` is one of `checkmate`, `stalemate`, `fifty_move_rule`, `insufficient_material`, `threefold_repetition`. The wrapper keeps the hash history, so repetition is exact, and plays through `Position::play`, so accreted mass is carried.
+- `breakdown()`, `state()` and `search()` return plain objects (`serde-wasm-bindgen`, JSON-compatible, no `Map`s). `Report` (`kepler-core::eval::Report`) has `terms {material, bind, space, roche, score_white}`, `field {white[64], black[64]}` (square index a1 = 0 ... h8 = 63), `pieces[] {square, piece, color, rest_mass, accreted, carried_mass, emission, energy, hops[3][]}`, `kings[2] {square, body[], stress, binding, eta, gauge, break_ratio}`, `constants`, `generation`. Per-side `energy` sums to the evaluator's `U_W` and `U_B`.
+- **Time limits.** `std::time::Instant` panics on `wasm32-unknown-unknown`, so the wasm build has no clock (`kepler_core::clock::Instant` is a stub whose `elapsed()` is 0). `movetimeMs` is therefore turned into a node budget, `nodes = movetimeMs * nps / 1000`, with `nps` defaulting to a conservative 150,000 (override it per call once a device is measured). The search stops at the end of the iteration that reaches the budget, or inside it (`Limits.nodes`); the result is the last completed depth. With no limit at all it searches depth 4.
+- The engine runs in a Web Worker. Search is synchronous inside the worker. Cancelling means terminating the worker, since there is no clock or stop flag to poll.
+- Build: `cargo build -p kepler-wasm --release --target wasm32-unknown-unknown`, then `wasm-bindgen --target web|nodejs --out-dir crates/kepler-wasm/pkg <wasm>` (CLI version must equal the `wasm-bindgen` crate, 0.2.100). Node smoke test: `node crates/kepler-wasm/tests/smoke.mjs`.
 - The UI can call `breakdown()` at any time to draw exactly what the engine computes.
-- **Until `kepler-wasm` ships, the website develops against a mock with this exact interface.**
 
 ### 6.3 Replay v3 (data the website shows in Watch mode)
-JSON:
-- `{ schema: 3, spec: "v1.0-spec-N", generation, game: {headers}, initialFen, result, plies: [...] }`
-- Each ply: `{ ply, san, uci, fenAfter, breakdown (02 §10), search: { scoreKu, depth, pv, nodes } }`
+JSON, written compactly with numbers rounded to four decimals:
+- `{ schema: 3, spec: "v1.0-spec-N", generation, game: {headers}, initialFen, initialBreakdown, result, reason, highlights, plies: [...] }`
+- Each ply: `{ ply (1-based), san, uci, fenAfter, breakdown (02 §10, of the position after the move), search: { scoreKu, pov: "white", mateIn, depth, nodes, best, pv } }`
+- `search` is run from the position **before** the move, at the replay's fixed depth. `scoreKu` is from White's point of view. For PGN games `best` can differ from the move played; for self-play the move is `best`, except in the first exploration plies.
 - Highlights:
-  - `firstBreakPly` (first ply where a king's `η/ρ ≥ 1`);
-  - `biggestSwingPly`;
-  - `heaviest` (`{ square, M }` at the end);
-  - `captures`.
+  - `firstBreakPly` and `firstBreakColor` (first ply after which a king's `η/ρ ≥ 1`);
+  - `biggestSwingPly` and `biggestSwingKu` (the move after which the white-point-of-view search score changed most; scores clamped to ±50 ku);
+  - `heaviest` (`{ square, M, piece, color }` after the last ply);
+  - `captures` (`{ ply, square, captor, victim, massGained }`).
+- `result` is `1-0`, `0-1`, `1/2-1/2` or `*`; `reason` is the game-end reason, `ply_limit` for a capped self-play game, or `game_record_ends` for a PGN that stops early.
 
-Written by `kepler-train replay`. v2 (the Python schema) is retired with v0.
+Written by `kepler-train replay --gen <json> (--pgn <file> [--game N] | --selfplay --seed S) --depth D --plies N --out <dir>`. v2 (the Python schema) is retired with v0.
 
 ## 7. Performance budget (Ryzen 5 5500U, single thread)
 

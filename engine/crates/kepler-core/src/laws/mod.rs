@@ -1,6 +1,8 @@
 //! The v1 laws. Each function implements one section of `02_LAWS_SPEC.md`.
 
+pub mod fast;
 pub mod field;
+mod tanh;
 
 use crate::params::{Laws, Params};
 use crate::position::Position;

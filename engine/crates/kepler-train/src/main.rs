@@ -6,6 +6,7 @@ mod epd;
 mod evolve;
 mod matchcmd;
 mod openings;
+mod replaycmd;
 mod selfgame;
 mod selfplaycmd;
 mod sprt;
@@ -53,6 +54,8 @@ enum Cmd {
     DeterminismRef(determinism::RefArgs),
     /// Rerun the reference units and compare result hashes; non-zero exit on a mismatch
     DeterminismCheck(determinism::CheckArgs),
+    /// Replay v3 JSON (per-ply breakdown) from a PGN or a fresh self-play game
+    Replay(replaycmd::ReplayArgs),
     /// Run an EPD suite through one UCI engine
     Suite(suite::SuiteArgs),
     /// Opening suite tools
@@ -84,6 +87,7 @@ fn main() {
         Cmd::SprtReduce(a) => sprt::run_reduce(a),
         Cmd::DeterminismRef(a) => determinism::run_ref(a),
         Cmd::DeterminismCheck(a) => determinism::run_check(a),
+        Cmd::Replay(a) => replaycmd::run(a),
         Cmd::Suite(a) => suite::run(a),
         Cmd::Openings {
             cmd: OpeningsCmd::Build(a),

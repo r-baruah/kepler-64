@@ -2,15 +2,16 @@
 //! transposition table, null move, LMR, check extension. Single-threaded.
 //! The evaluation is only `eval_f32`; nothing here scores chess knowledge.
 
+mod evalcache;
 mod tt;
 
-use crate::eval::eval_f32;
+use crate::clock::Instant;
 use crate::params::Params;
 use crate::position::Position;
 use cozy_chess::{Board, Color, File, Move, Piece, Rank, Square};
+use evalcache::EvalCache;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
 use tt::{Bound, Tt};
 
 pub const MATE: f32 = 30000.0;
@@ -143,6 +144,7 @@ fn score_from_tt(s: f32, ply: usize) -> f32 {
 
 pub struct Searcher {
     tt: Tt,
+    ecache: EvalCache,
     killers: [[Option<Move>; 2]; MAX_PLY + 2],
     history: Vec<i32>,
     stop: Arc<AtomicBool>,
@@ -166,6 +168,7 @@ impl Searcher {
     pub fn new(hash_mb: usize) -> Self {
         Searcher {
             tt: Tt::new(hash_mb),
+            ecache: EvalCache::new(),
             killers: [[None; 2]; MAX_PLY + 2],
             history: vec![0; 2 * 64 * 64],
             stop: Arc::new(AtomicBool::new(false)),
@@ -188,6 +191,7 @@ impl Searcher {
     /// side that stands pat having stopped). Used as the TDLeaf leaf, which should be
     /// measured at equilibrium. Accreted mass is carried by `Position::play`.
     pub fn quiet_leaf(&mut self, pos: &Position, params: &Params) -> Position {
+        self.ecache.set_params(params);
         self.nodes = 0;
         self.aborted = false;
         self.can_abort = false;
@@ -230,6 +234,7 @@ impl Searcher {
         limits: &Limits,
         info: &mut dyn FnMut(&SearchResult),
     ) -> SearchResult {
+        self.ecache.set_params(params);
         self.start = Instant::now();
         self.stop.store(false, Ordering::Relaxed);
         self.tt.age = self.tt.age.wrapping_add(1);
@@ -428,7 +433,7 @@ impl Searcher {
         let board = &pos.board;
         let in_check = !board.checkers().is_empty();
         if ply >= MAX_PLY {
-            return eval_f32(pos, params);
+            return self.ecache.eval(pos, params);
         }
         if in_check {
             depth += 1;
@@ -487,7 +492,7 @@ impl Searcher {
                 & !(board.pieces(Piece::Pawn) | board.pieces(Piece::King)))
             .is_empty();
             if has_pieces
-                && eval_f32(pos, params) >= beta
+                && self.ecache.eval(pos, params) >= beta
                 && let Some(nb) = board.null_move()
             {
                 let child = Position {
@@ -644,10 +649,11 @@ impl Searcher {
         }
         let in_check = !board.checkers().is_empty();
         if ply >= MAX_PLY {
-            return eval_f32(pos, params);
+            return self.ecache.eval(pos, params);
         }
-        let moves = legal_moves(board);
-        if moves.is_empty() {
+        // Mate and stalemate need only to know whether any legal move exists; the
+        // move list is built after the stand-pat cutoff, and only if it is needed.
+        if !board.generate_moves(|_| true) {
             return if in_check { -MATE + ply as f32 } else { 0.0 };
         }
         if board.halfmove_clock() >= 100 {
@@ -656,7 +662,7 @@ impl Searcher {
         let stand = if in_check {
             -INF
         } else {
-            eval_f32(pos, params)
+            self.ecache.eval(pos, params)
         };
         if !in_check {
             if stand >= beta {
@@ -665,12 +671,19 @@ impl Searcher {
             alpha = alpha.max(stand);
         }
         let candidates: Vec<Move> = if in_check {
-            moves
+            legal_moves(board)
         } else {
-            moves
-                .into_iter()
-                .filter(|&m| is_capture(board, m) || m.promotion.is_some())
-                .collect()
+            // Same moves, same order as filtering the full list.
+            let mut v = Vec::with_capacity(16);
+            board.generate_moves(|pm| {
+                for m in pm {
+                    if is_capture(board, m) || m.promotion.is_some() {
+                        v.push(m);
+                    }
+                }
+                false
+            });
+            v
         };
         let ordered = self.order_moves(pos, params, candidates, None, ply, true);
         let mut best = stand;

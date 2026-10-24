@@ -4,6 +4,7 @@
 //! exactly. Rules (legality, check, mate, draws) come from `cozy-chess`; the
 //! evaluation comes only from `laws`.
 
+pub mod clock;
 pub mod eval;
 pub mod laws;
 pub mod params;
@@ -12,7 +13,7 @@ pub mod scalar;
 pub mod search;
 
 pub use cozy_chess;
-pub use eval::{Breakdown, KingReport, eval_f32, evaluate};
+pub use eval::{Breakdown, KingReport, Report, eval_f32, evaluate, report};
 pub use params::Params;
 pub use position::Position;
 pub use scalar::{Dual, NGRAD, Scalar};

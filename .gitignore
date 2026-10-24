@@ -76,3 +76,6 @@ data/
 bench-results/
 /engine/target-train/
 /engine/runs/
+/engine/target-wasm/
+/engine/crates/kepler-wasm/pkg/
+/engine/target-perf/

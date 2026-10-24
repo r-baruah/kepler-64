@@ -51,7 +51,7 @@ pub fn evaluate<S: Scalar>(pos: &Position, p: &Params) -> Breakdown<S> {
 /// Score from the side to move's point of view, in Kepler units (f32 play path).
 #[inline]
 pub fn eval_f32(pos: &Position, p: &Params) -> f32 {
-    let s = evaluate::<f32>(pos, p).score_white;
+    let s = laws::fast::score_white_f32(pos, p);
     if pos.board.side_to_move() == Color::White {
         s
     } else {
@@ -87,6 +87,185 @@ impl Breakdown<f32> {
             eta: k.eta,
             gauge: k.gauge,
             break_ratio: k.eta / p.rho,
+        }
+    }
+}
+
+/// The four terms and the total, White's point of view (`02_LAWS_SPEC.md` §10).
+#[derive(Clone, Debug, Serialize)]
+pub struct TermsReport {
+    pub material: f32,
+    pub bind: f32,
+    pub space: f32,
+    pub roche: f32,
+    pub score_white: f32,
+}
+
+/// Both side fields, 64 values each, indexed by square (a1 = 0, b1 = 1, ..., h8 = 63).
+#[derive(Clone, Debug, Serialize)]
+pub struct FieldReport {
+    pub white: Vec<f32>,
+    pub black: Vec<f32>,
+}
+
+/// One piece with its mass bookkeeping and light cone (§10 "per piece").
+#[derive(Clone, Debug, Serialize)]
+pub struct PieceReport {
+    pub square: String,
+    /// Piece type as an upper-case letter: P N B R Q K.
+    pub piece: char,
+    /// "white" or "black".
+    pub color: &'static str,
+    /// `mu`: rest mass (0 for kings).
+    pub rest_mass: f32,
+    /// `A`: accreted mass.
+    pub accreted: f32,
+    /// `M = mu + A` (0 for kings).
+    pub carried_mass: f32,
+    /// What the piece emits into the field: `M` for pieces, `kappa + A` for kings.
+    pub emission: f32,
+    /// Binding energy `e_q = M (Phi_enemy - Phi_own)` at its square (0 for kings).
+    pub energy: f32,
+    /// Squares at hop distance 1, 2 and 3 (its light cone; hop 3 is empty when `c < 3`).
+    pub hops: [Vec<String>; 3],
+}
+
+/// The full §10 breakdown, ready for JSON.
+#[derive(Clone, Debug, Serialize)]
+pub struct Report {
+    pub terms: TermsReport,
+    pub field: FieldReport,
+    /// Sorted White first, then Black; within a side by piece type then square.
+    pub pieces: Vec<PieceReport>,
+    /// White's king, then Black's.
+    pub kings: [KingReport; 2],
+    pub constants: Params,
+    pub generation: Option<u32>,
+}
+
+fn piece_letter(p: cozy_chess::Piece) -> char {
+    use cozy_chess::Piece::*;
+    match p {
+        Pawn => 'P',
+        Knight => 'N',
+        Bishop => 'B',
+        Rook => 'R',
+        Queen => 'Q',
+        King => 'K',
+    }
+}
+
+/// Build the §10 report. This is an additional view of `evaluate::<f32>`; the
+/// evaluation itself is untouched.
+pub fn report(pos: &Position, p: &Params, generation: Option<u32>) -> Report {
+    let bd = evaluate::<f32>(pos, p);
+    let pieces = bd
+        .cones
+        .iter()
+        .map(|cone| {
+            let is_king = cone.piece == cozy_chess::Piece::King;
+            let acc = pos.acc[cone.sq as usize];
+            let rest = p.rest_mass(cone.piece);
+            let carried = if is_king { 0.0 } else { rest + acc };
+            let me = cone.color as usize;
+            let them = 1 - me;
+            let sq = cone.sq as usize;
+            let energy = if is_king {
+                0.0
+            } else {
+                carried * (bd.field[them][sq] - bd.field[me][sq])
+            };
+            PieceReport {
+                square: cone.sq.to_string(),
+                piece: piece_letter(cone.piece),
+                color: if cone.color == Color::White {
+                    "white"
+                } else {
+                    "black"
+                },
+                rest_mass: rest,
+                accreted: acc,
+                carried_mass: carried,
+                emission: if is_king { p.kappa + acc } else { carried },
+                energy,
+                hops: [
+                    squares(cone.hops[0]),
+                    squares(cone.hops[1]),
+                    squares(cone.hops[2]),
+                ],
+            }
+        })
+        .collect();
+    Report {
+        terms: TermsReport {
+            material: bd.material,
+            bind: bd.bind,
+            space: bd.space,
+            roche: bd.roche,
+            score_white: bd.score_white,
+        },
+        field: FieldReport {
+            white: bd.field[0].to_vec(),
+            black: bd.field[1].to_vec(),
+        },
+        pieces,
+        kings: [
+            bd.king_report(Color::White, p),
+            bd.king_report(Color::Black, p),
+        ],
+        constants: *p,
+        generation,
+    }
+}
+
+#[cfg(test)]
+mod report_tests {
+    use super::*;
+
+    #[test]
+    fn report_energy_matches_breakdown() {
+        let p = Params {
+            lambda_bind: 0.1,
+            ..Params::default()
+        };
+        let mut pos = Position::startpos();
+        for uci in ["e2e4", "d7d5", "e4d5", "d8d5", "b1c3", "d5a5", "g1f3"] {
+            let mv = crate::search::move_from_uci(&pos.board, uci).unwrap();
+            pos = pos.play(mv, &p);
+        }
+        for fen in [
+            None,
+            Some("r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"),
+        ] {
+            let pos = fen.map_or(pos.clone(), |f| Position::from_fen(f).unwrap());
+            let bd = evaluate::<f32>(&pos, &p);
+            let r = report(&pos, &p, Some(7));
+            assert_eq!(r.generation, Some(7));
+            assert_eq!(r.field.white.len(), 64);
+            assert_eq!(r.pieces.len(), pos.board.occupied().len() as usize);
+            for (i, color) in ["white", "black"].iter().enumerate() {
+                let sum: f32 = r
+                    .pieces
+                    .iter()
+                    .filter(|x| x.color == *color)
+                    .map(|x| x.energy)
+                    .sum();
+                assert!(
+                    (sum - bd.energy[i]).abs() < 1e-4,
+                    "{color}: {sum} vs {}",
+                    bd.energy[i]
+                );
+            }
+            let t = &r.terms;
+            assert_eq!(t.material + t.bind + t.space + t.roche, t.score_white);
+            assert!(
+                r.pieces
+                    .iter()
+                    .filter(|x| x.piece == 'K')
+                    .all(|k| k.energy == 0.0)
+            );
+            assert!((r.kings[0].break_ratio - bd.kings[0].eta / p.rho).abs() < 1e-6);
+            serde_json::to_string(&r).unwrap();
         }
     }
 }

@@ -39,10 +39,10 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [ ] PVS, null move, LMR, check extension, aspiration windows, killers and history
 - [ ] Incremental field updates (recompute only affected pieces), equal to the from-scratch result in tests
 - [ ] Time management (§5)
-- [ ] ≥ 1M nps native; perf file committed
-- [ ] `kepler-wasm` with the §6.2 interface, built and tested in Node
+- [x] about 1M nps native (985k startpos, 1,015k Kiwipete at depth 6); evaluations bit-identical, proven by golden tests (`results/perf-m2.md`)
+- [x] `kepler-wasm` with the §6.2 interface, built and tested in Node (`crates/kepler-wasm/tests/smoke.mjs`)
 - [ ] Depth 6 in under 1 s in a desktop browser, plus a measured number on one real phone
-- [ ] Replay v3 export (`kepler-train replay`)
+- [x] Replay v3 export (`kepler-train replay`); samples in `engine/results/replays/`
 
 **Accept when:** the speed budget is met (or the shortfall is recorded with a decision) and the WASM package passes an interface test.
 
