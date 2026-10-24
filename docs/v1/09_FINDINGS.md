@@ -301,5 +301,6 @@ Written before any result existed; left unchanged below.
 - **What:** gen-003 with L5b switched on at `lambda_tide` = 0.34 (the weight from the outcome fit in F31), no other change, lost to gen-003 by **-248 Elo [-262, -235]** (4,000 games, depth 4).
 - **Evidence:** `engine/results/ledger-gen003-tide034.json`.
 - **Why, most likely:** the load counts the attackers' mass, so a heavy piece next to the enemy king adds a lot of it. At 0.34 that's worth more than material, and the engine gives pieces away to get near the king. The fit's weight came from games where the load was high because the attacker was already winning: prediction, not strength (F10 again, and the caveat in F31).
-- **Status of L5b:** not judged yet. Smaller fixed weights (0.05, 0.10) and a training run that starts the weight at 0 (`gen004-tide-a`) are running.
+- **Smaller weights** (same setup): 0.05 gives **-31 [-41, -21]**, 0.10 gives **-77 [-87, -67]**. The loss grows with the weight: bolted onto gen-003, any amount of tidal load makes it weaker. Evidence: `engine/results/ledger-gen003-tide005.json`, `ledger-gen003-tide010.json`.
+- **Status of L5b:** failing as a bolt-on. A training run that starts the weight at 0 and lets the other constants adapt (`gen004-tide-a`) is the last test.
 
