@@ -319,3 +319,16 @@ Written before any result existed; left unchanged below.
 - **Meaning:** the website can play the full engine at depth 6 (the ladder engine searches deeper on its clock) with no server, well inside the 1 s target. Node counts match the native engine exactly at the same depth.
 - **Desktop browser** (Brave/Chromium 156 on the maintainer's Ryzen 5 5500U laptop): 55, 307 and 134 ms at depth 6, 360 ms at depth 7 (`engine/results/browser/desktop-linux-chromium156.json`). The phone is only 10–15% slower than this laptop's browser.
 - **Caveat:** one phone. The browser hides the exact model.
+
+### F35 · The universe rejected tidal load too: a second Roche design cut (2026-10-25) · confirmed
+- **What:** training from gen-003 with L5b learnable from 0 (`gen004-tide-a`, 20 rounds × 2,000 games, depth 4) kept the weight small: it wandered between 0.02 and 0.055 and ended at 0.055. Inside that trained universe, switching tidal load off makes it **stronger by 24 Elo [+14, +34]** (4,000 games, depth 4).
+- **Evidence:** `engine/results/ledger-gen004tide-tide0.json`, `engine/results/gen004-tide-a/`; with F33 (fixed weights 0.05, 0.10 and 0.34 all lose).
+- **Meaning:** L5b is cut and stays in the spec at weight 0 as an alternate universe (decision log 2026-10-25). Of the three king-danger quantities tried so far (spec-1 gauge, tidal load, and the probe's alternatives), none has earned a place in the Ledger. F31's lesson stands: these quantities predict lost games well, but most of what they know is already in the evaluation or is better handled by search.
+- **Not claimable:** "Kepler's king safety comes from a Roche limit". Claimable: "we tried two physical laws for a breaking king; the universe rejected both, with the numbers."
+
+### F36 · Gen 4: +30 Elo over gen-003 (2026-10-25) · confirmed
+- **What:** the `gen004-tide-a` candidate with tidal load switched off beat gen-003 by **+30 Elo [+20, +40]** over 4,000 games at depth 4 (SPRT H1). Accepted as `gen-004` (a spec-1 universe). With tidal load left on, the same candidate scored only +13 [+3, +23].
+- **Evidence:** `engine/results/gen004b-vs-gen003.json`, `engine/results/gen004tide-vs-gen003.json`, `engine/data/generations/gen-004.json`.
+- **What moved from gen-003:** queen 8.28 → 7.39, rook 4.83 → 4.24, bishop 3.53 → 3.12, knight 3.04 → 2.72 (every piece lighter relative to the pawn); the king's own pull `kappa` 1.88 → 2.63; `alpha` 0.46 → 0.54; the spec-1 Roche gain `beta` 1.49 → 2.75.
+- **Roche row at Gen 4:** switching the spec-1 Roche gauge off changes strength by **-6 [-16, +4]** (H0, `engine/results/ledger-gen004-roche0.json`). As at Gen 3 (F27): training keeps growing its weight, but it doesn't make the engine stronger. Growth of a weight under TDLeaf is not evidence a law helps.
+- **Caveat:** engine vs engine at fixed depth. No new ladder yet.

@@ -1,6 +1,6 @@
 {
   "spec": "v1.0-spec-1",
-  "champion": "gen-003",
+  "champion": "gen-004",
   "note": "Elo against the parent is engine versus engine at fixed depth, 95% interval. It is not a rating. Calibrated strength is in the ladder files.",
   "generations": [
     {
@@ -69,6 +69,25 @@
         "games": 4000,
         "depth": 4,
         "file": "results/gen003a-vs-gen002.json"
+      },
+      "ladder": "results/ladder-gen003.json"
+    },
+    {
+      "id": "gen-004",
+      "file": "gen-004.json",
+      "generation": 4,
+      "parent": 3,
+      "spec": "v1.0-spec-1",
+      "created": "2026-10-25",
+      "summary": "Gen 3 after 40,000 more games of self-play, with the rejected tidal-load law switched off.",
+      "temperature": 3.0582571029663086,
+      "vs_parent": {
+        "elo": 30,
+        "lo95": 20,
+        "hi95": 40,
+        "games": 4000,
+        "depth": 4,
+        "file": "results/gen004b-vs-gen003.json"
       },
       "ladder": null
     }

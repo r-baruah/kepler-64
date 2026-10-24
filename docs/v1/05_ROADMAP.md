@@ -55,7 +55,7 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [x] Law Ledger at Gen 1, all 10 rows (`results/ledger-gen001.md`): field, spreading and space kept; accretion, binding and spec-1 Roche cut
 - [x] Spec handling of cut laws decided: they stay at weight 0 as playable alternate universes (decision log 2026-10-25); spec-2 adds L5b
 - [x] v1 beats material-only by SPRT (the honesty gate): +330 Elo at depth 4, 4,000 games
-- [x] Gen 2+ while time allows: gen-002 (+81 over gen-001, Ledger cuts applied), gen-003 (+53 over gen-002, self-play on GitHub Actions)
+- [x] Gen 2+ while time allows: gen-002 (+81 over gen-001, Ledger cuts applied), gen-003 (+53 over gen-002, self-play on GitHub Actions), gen-004 (+30 over gen-003; F36)
 
 **Accept when:** Gen ≥ 1 exists, the Ledger is published in `engine/results/`, and the material-only gate passes. If it fails, record that honestly and decide in the log.
 
