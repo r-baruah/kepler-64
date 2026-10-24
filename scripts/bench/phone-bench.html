@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kepler-64 phone bench</title>
+<style>
+  :root { --bg: #fafafa; --fg: #1a1a1a; --muted: #666; --line: #ddd; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --muted: #999; --line: #333; } }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; margin: 0; padding: 16px; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { color: var(--muted); margin: 0 0 16px; }
+  button { font: inherit; padding: 12px 20px; border-radius: 8px; border: 1px solid var(--line); background: var(--fg); color: var(--bg); width: 100%; }
+  button:disabled { opacity: .5; }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; font-variant-numeric: tabular-nums; }
+  td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  pre { white-space: pre-wrap; word-break: break-all; font-size: 12px; background: var(--line); padding: 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>Kepler-64 phone bench</h1>
+<p>Runs the gen-003 engine in this browser: three positions at depth 6, three times each, then the start position at depth 7. Keep the screen on until it says done (under a minute on most phones).</p>
+<button id="go">Run</button>
+<table><thead><tr><th>position</th><th>depth</th><th>median ms</th><th>nodes</th><th>knps</th></tr></thead><tbody id="rows"></tbody></table>
+<p id="status"></p>
+<pre id="out" hidden></pre>
+<script type="module">
+import init, { Engine } from './pkg/kepler_wasm.js';
+const POS = [
+  ['start', null],
+  ['kiwipete', 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1'],
+  ['middlegame', 'r1bq1rk1/pp2bppp/2n1pn2/3p4/2PP4/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 8'],
+];
+const $ = id => document.getElementById(id);
+const median = a => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+const tick = () => new Promise(r => setTimeout(r, 30));
+$('go').onclick = async () => {
+  $('go').disabled = true; $('rows').innerHTML = ''; $('out').hidden = true;
+  const t0 = performance.now();
+  await init();
+  const gen = await (await fetch('./gen-003.json')).text();
+  const eng = new Engine(gen);
+  const results = [];
+  const jobs = POS.map(([n, f]) => [n, f, 6, 3]).concat([['start', null, 7, 1]]);
+  for (const [name, fen, depth, reps] of jobs) {
+    const times = []; let nodes = 0;
+    for (let i = 0; i < reps; i++) {
+      $('status').textContent = `${name}, depth ${depth}, run ${i + 1} of ${reps}`;
+      await tick();
+      eng.newGame(fen ?? undefined);
+      const s = performance.now();
+      const r = eng.search({ depth });
+      times.push(performance.now() - s); nodes = r.nodes;
+    }
+    const ms = median(times);
+    results.push({ name, depth, ms: Math.round(ms), nodes, knps: Math.round(nodes / ms) });
+    $('rows').insertAdjacentHTML('beforeend', `<tr><td>${name}</td><td>${depth}</td><td>${Math.round(ms)}</td><td>${nodes}</td><td>${Math.round(nodes / ms)}</td></tr>`);
+  }
+  eng.free();
+  const report = { engine: 'kepler-wasm gen-003', ua: navigator.userAgent, cores: navigator.hardwareConcurrency, totalSeconds: +((performance.now() - t0) / 1000).toFixed(1), results };
+  $('status').textContent = 'Done. Copy the text below and send it back.';
+  $('out').textContent = JSON.stringify(report);
+  $('out').hidden = false;
+  $('go').disabled = false;
+};
+</script>
+</body>
+</html>

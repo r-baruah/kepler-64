@@ -304,3 +304,17 @@ Written before any result existed; left unchanged below.
 - **Smaller weights** (same setup): 0.05 gives **-31 [-41, -21]**, 0.10 gives **-77 [-87, -67]**. The loss grows with the weight: bolted onto gen-003, any amount of tidal load makes it weaker. Evidence: `engine/results/ledger-gen003-tide005.json`, `ledger-gen003-tide010.json`.
 - **Status of L5b:** failing as a bolt-on. A training run that starts the weight at 0 and lets the other constants adapt (`gen004-tide-a`) is the last test.
 
+
+### F34 · The full engine runs fast on a phone (2026-10-25) · measured, one device
+- **What:** gen-003 compiled to WebAssembly, in Chrome 155 on the maintainer's Android phone, single thread, median of three runs:
+
+  | position | depth | time | nodes | thousand nodes/s |
+  |---|---|---|---|---|
+  | start | 6 | 64 ms | 34,872 | 545 |
+  | Kiwipete | 6 | 333 ms | 139,849 | 420 |
+  | quiet middlegame | 6 | 149 ms | 65,952 | 444 |
+  | start | 7 | 412 ms (one run) | 117,011 | 284 |
+
+- **Evidence:** `engine/results/browser/phone-android-chrome155.json`; the page is `scripts/bench/phone-bench.html` (serve it next to a `--target web` build of `kepler-wasm` and `gen-003.json`).
+- **Meaning:** the website can play the full engine at depth 6 (the ladder engine searches deeper on its clock) with no server, well inside the 1 s target. Node counts match the native engine exactly at the same depth.
+- **Caveat:** one phone. The browser hides the exact model.
