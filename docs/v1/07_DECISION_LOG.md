@@ -31,3 +31,10 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 - **Decision (maintainer):** laws the Law Ledger cuts are not deleted. Their formulas stay in the spec with weight 0 in the champion: accretion (L6, `f_acc = 0`), the spec-1 Roche gauge (L5, `beta`), and, if its last test fails, tidal load (L5b, `lambda_tide = 0`). Binding energy (L4a) was cut at Gen 1 and earned its place back at Gen 3 (F26), which is the reason not to delete: a verdict holds for the generation it was measured on.
 - **Public framing:** a "laws the universe rejected" table with the Ledger numbers, and the website lets visitors switch a rejected law back on and play that universe. Every claim names the generation it was measured on.
 - **Spec consequence:** no spec id change for a cut; the weight is a constant value, not a formula change (§12).
+
+## 2026-10-25 · Website direction after the backend results (web plan §3b)
+- **Hero visual:** the field (pull along legal lines, stopped at the first piece), on by default at low intensity, in every share image.
+- **King readout:** "pull on your king": enemy pull on the king's body against its own support, from `KingReport`. No break event, no breaking-point percentage.
+- **Opponent:** levels are node budgets; the default level gets its own Stockfish ladder on CI before launch, and the site's strength line describes that level only.
+- **Launch presets:** Champion (gen-004), Equal start, Gen 0 (untrained), and the three rejected laws switched back on (accretion, spec-1 Roche, tidal load), each labelled as an untrained variant with its Ledger result and generation. Slow light left out (a tie in the Ledger, nothing to see).
+- **Domain:** `kepler.ripuranjan.com`.
