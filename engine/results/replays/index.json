@@ -1,0 +1,128 @@
+{
+ "generation": "gen-003",
+ "depth": 4,
+ "selfplay_seeds_tried": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10
+ ],
+ "games": [
+  {
+   "file": "selfplay-gen003-d4-s9.json",
+   "title": "Self-play, seed 9: White wins",
+   "kind": "selfplay",
+   "white": "Kepler-64 gen-003",
+   "black": "Kepler-64 gen-003",
+   "result": "1-0",
+   "plies": 149,
+   "source": "selfplay seed 9, depth 4, plies cap 300",
+   "note": "Shortest of the 2 White wins among seeds 1-10. Ends in checkmate."
+  },
+  {
+   "file": "selfplay-gen003-d4-s6.json",
+   "title": "Self-play, seed 6: Black wins",
+   "kind": "selfplay",
+   "white": "Kepler-64 gen-003",
+   "black": "Kepler-64 gen-003",
+   "result": "0-1",
+   "plies": 114,
+   "source": "selfplay seed 6, depth 4, plies cap 300",
+   "note": "Shortest decisive game among seeds 1-10 (7 of 10 seeds were Black wins). Ends in checkmate."
+  },
+  {
+   "file": "selfplay-gen003-d4-s8.json",
+   "title": "Self-play, seed 8: threefold repetition",
+   "kind": "selfplay",
+   "white": "Kepler-64 gen-003",
+   "black": "Kepler-64 gen-003",
+   "result": "1/2-1/2",
+   "plies": 179,
+   "source": "selfplay seed 8, depth 4, plies cap 300",
+   "note": "The only drawn game among seeds 1-10."
+  },
+  {
+   "file": "ladder-win-sf2300-gen003-d4.json",
+   "title": "Kepler beats Stockfish 2300",
+   "kind": "ladder",
+   "white": "Kepler-64 gen-003",
+   "black": "Stockfish 19 (UCI_LimitStrength, UCI_Elo 2300, 30+0.3)",
+   "result": "1-0",
+   "plies": 66,
+   "source": "engine/results/ladder-gen003/m-2300-0.json game index 2 (m-2300-0.pgn game 3)",
+   "note": "First Kepler win vs the 2300 rung in sorted file order. Opening is a book position from the match opening set (FEN header)."
+  },
+  {
+   "file": "ladder-loss-sf2300-gen003-d4.json",
+   "title": "Kepler loses to Stockfish 2300",
+   "kind": "ladder",
+   "white": "Kepler-64 gen-003",
+   "black": "Stockfish 19 (UCI_LimitStrength, UCI_Elo 2300, 30+0.3)",
+   "result": "0-1",
+   "plies": 86,
+   "source": "engine/results/ladder-gen003/m-2300-0.json game index 0 (m-2300-0.pgn game 1)",
+   "note": "First Kepler loss vs the 2300 rung in sorted file order."
+  },
+  {
+   "file": "ladder-win-sf2100-gen003-d4.json",
+   "title": "Kepler beats Stockfish 2100",
+   "kind": "ladder",
+   "white": "Kepler-64 gen-003",
+   "black": "Stockfish 19 (UCI_LimitStrength, UCI_Elo 2100, 30+0.3)",
+   "result": "1-0",
+   "plies": 111,
+   "source": "engine/results/ladder-gen003/m-2100-0.json game index 0 (m-2100-0.pgn game 1)",
+   "note": "First Kepler win vs the 2100 rung in sorted file order."
+  },
+  {
+   "file": "human-opera-game-1858-gen003-d4.json",
+   "title": "Opera Game, judged by Kepler",
+   "kind": "human",
+   "white": "Paul Morphy",
+   "black": "Duke Karl / Count Isouard",
+   "result": "1-0",
+   "plies": 33,
+   "source": "engine/data/games/opera-game-1858.pgn",
+   "note": "Paris 1858. Kepler gen-003 depth-4 search at every ply of the human game."
+  },
+  {
+   "file": "human-immortal-game-1851-gen003-d4.json",
+   "title": "Immortal Game, judged by Kepler",
+   "kind": "human",
+   "white": "Adolf Anderssen",
+   "black": "Lionel Kieseritzky",
+   "result": "1-0",
+   "plies": 45,
+   "source": "engine/data/games/immortal-game-1851.pgn",
+   "note": "London 1851. Move list replayed legally to Be7#."
+  },
+  {
+   "file": "human-evergreen-game-1852-gen003-d4.json",
+   "title": "Evergreen Game, judged by Kepler",
+   "kind": "human",
+   "white": "Adolf Anderssen",
+   "black": "Jean Dufresne",
+   "result": "1-0",
+   "plies": 47,
+   "source": "engine/data/games/evergreen-game-1852.pgn",
+   "note": "Berlin 1852. Move list replayed legally to Bxe7#."
+  },
+  {
+   "file": "human-game-of-the-century-1956-gen003-d4.json",
+   "title": "Game of the Century, judged by Kepler",
+   "kind": "human",
+   "white": "Donald Byrne",
+   "black": "Robert James Fischer",
+   "result": "0-1",
+   "plies": 82,
+   "source": "engine/data/games/game-of-the-century-1956.pgn",
+   "note": "New York 1956. Move list replayed legally to Rc2#."
+  }
+ ]
+}

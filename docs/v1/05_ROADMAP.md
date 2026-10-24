@@ -63,7 +63,7 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [x] Stockfish ladder for gen-002 (`results/ladder-gen002.json`): 97% vs SF-1320, 81% vs 1500, 54% vs 1700 and 1900, 39% vs 2100 at 30+0.3 (findings F21)
 - [x] Stockfish ladder for gen-003 (`results/ladder-gen003.json`): 87% vs 1500, 79% vs 1700, 62% vs 1900, 53% vs 2100, 40% vs 2300; zero crashes (F29)
 - [x] Tactics suite tracked per generation (`results/suites-per-generation.md`: own-games tactics, mate in 1 and 2, closed blunders; F28)
-- [ ] 8–12 showcase games exported as Replay v3 for Watch mode (self-play, vs a ladder rung, famous human games judged by Kepler)
+- [x] 10 showcase games exported as Replay v3 with gen-003 (`results/replays/index.json`): 3 self-play, 3 vs Stockfish 2100/2300 from the ladder, 4 famous human games (Immortal, Evergreen, Opera, Game of the Century)
 - [x] Generations manifest for the website (`engine/data/generations/index.json`: champion, lineage, Elo vs parent with its result file)
 
 ## M5 · Website: Play first
