@@ -14,15 +14,15 @@ jobs:
         working-directory: engine
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-          targets: wasm32-unknown-unknown
+      - name: pinned toolchain (engine/rust-toolchain.toml)
+        run: rustup toolchain install && rustc --version
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: engine
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test --release
+      - run: cargo test --release --locked
+      - name: determinism reference units (docs/v1/08 rule D8)
+        run: cargo run --release --locked -p kepler-train -- determinism-check --reference data/determinism/reference.json
       - name: kepler-core builds for the browser
         run: cargo build -p kepler-core --release --target wasm32-unknown-unknown
