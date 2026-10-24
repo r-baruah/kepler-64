@@ -73,9 +73,9 @@ Decisions 1–3 were taken as recommended.
 
 | route | milestone | purpose |
 |---|---|---|
-| `/` | M5 | **Play.** Board with the field, opponent card, pull-on-king readouts, move list, controls. |
-| `/g/<code>` | M5 | A shared game: replays it on the board, then "Play this universe". |
-| `/u/<slug>` | M5 | Play opens with that universe preset selected (`/u/equal-start`, `/u/accretion`...). |
+| `/` | M5 | **Landing = Play at rest.** Hero (headline, one sentence, Play White / Black, the live board) that turns into the Play screen in place when a game starts; below it exactly three short sections (pull follows the moves; it found the piece values itself; every law had to earn its place) and an open-source band. Ladder and v0 story are links into Lab. |
+| `/g/<code>` | M5 | A shared game: opens straight on the board (never the landing story), replays it, then "Play this universe". |
+| `/u/<slug>` | M5 | Opens straight on the board with that universe selected (`/u/equal-start`, `/u/accretion`...). |
 | `/watch` and `/watch/<id>` | M6 | The ten showcase replays (`results/replays/index.json`), one loaded at a time. |
 | `/explore` | M6 | Paste a FEN or PGN, see the field and every term in plain words. |
 | `/lab` | M6 | The laws (plain words first, then exact), the Ledger with rejected laws, generations and their learned values, the ladder, the v0 → v1 story, citation, UCI download. |
@@ -149,7 +149,7 @@ Same budget, same move on every device (the search is deterministic for a given 
 ## 7. Sharing
 - **Link:** `/g/<code>`, `code` = base64url of a packed payload `{v:1, preset slug or constants diff, start FEN if not standard, moves as 12-bit from-to(+promo) codes}`. A 100-move game is about 200 bytes. No server storage; long games still fit in a URL.
 - **Preview image:** `/og/g/<code>.png`, rendered by a Vercel function (`@vercel/og`): the final or key position with its pull tint, the result, the universe name. The only server-side code.
-- **End card download:** the same image, rendered client-side from the board canvas, for people who'd rather post a picture.
+- **No other share tooling.** No image download, no GIF or clip export: the old frontend's GIF generator added weight and wasn't used. One action, "Copy link"; the preview image does the visual work.
 
 ## 8. Tech
 - SvelteKit + TypeScript in `web/`, `adapter-vercel`; everything prerendered except `/og/*`.
@@ -160,6 +160,12 @@ Same budget, same move on every device (the search is deterministic for a given 
 - Analytics: Vercel Web Analytics (no cookies).
 - Tests: Vitest for the payload codec, data sync and moment detection; Playwright for Play on a desktop and a phone viewport.
 - Budgets (§3) checked in CI.
+
+## 8b. Landing rules (2026-10-25)
+- The hero must work alone: a visitor who never scrolls still gets the idea from the headline, one sentence and the live board.
+- At most three story sections, each one sentence plus one real visual. Anything more goes to Lab.
+- The README tells the same three beats in the same order.
+- Checked before launch with the cold testers: half see the board-only version, half the hero; the question is "What does this engine do differently?". The version with more correct answers ships. After launch, privacy-friendly analytics track two numbers: games started per visit, and visits reaching section 2.
 
 ## 9. Resolved and open
 - Resolved: domain; hero; king readout; levels; presets; share format (no server storage); moment card is both link and image; piece set.

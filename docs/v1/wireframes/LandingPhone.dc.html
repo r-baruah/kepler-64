@@ -15,7 +15,7 @@ body{margin:0}
 a{color:#14213D}a:hover{color:#2F5BFF}
 </style>
 </helmet>
-<div style="width: 390px; height: 4400px; box-sizing: border-box; background: #F6F7F9; color: #14213D; font-family: Geist, system-ui, sans-serif; display: flex; flex-direction: column">
+<div style="width: 390px; height: 3100px; box-sizing: border-box; background: #F6F7F9; color: #14213D; font-family: Geist, system-ui, sans-serif; display: flex; flex-direction: column">
 
 <header style="height: 56px; box-sizing: border-box; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #DCE0E7">
 <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="4" fill="#14213D"></circle><ellipse cx="10" cy="10" rx="9" ry="3.4" fill="none" stroke="#14213D" stroke-width="1.2" transform="rotate(-20 10 10)"></ellipse></svg>
@@ -75,28 +75,7 @@ a{color:#14213D}a:hover{color:#2F5BFF}
 <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #DCE0E7; color: #5B6478"><span>Captures absorb weight</span><span>Rejected</span></div>
 <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #DCE0E7; color: #5B6478"><span>A king torn apart</span><span>Rejected, twice</span></div>
 </div>
-<a href="#" style="font-size: 15px; color: #2F5BFF; text-decoration: none">Play a rejected universe →</a>
-</section>
-
-<section style="padding: 36px 16px; border-top: 1px solid #DCE0E7; display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #2F5BFF">04 · HOW STRONG</div>
-<h2 style="margin: 0; font-size: 30px; font-weight: 300; letter-spacing: -0.03em; line-height: 1.1">Measured against a known yardstick.</h2>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #2A3550">Gen 3 against Stockfish 19, deliberately limited, 200 games per level. It holds level with the 2100 setting.</p>
-<div style="display: grid; grid-template-columns: 44px 1fr 40px; row-gap: 10px; column-gap: 10px; align-items: center; font-size: 14px">
-<span style="font-family: 'Geist Mono', monospace; font-size: 11px">1500</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 87%; height: 8px; background: #14213D"></span></span><span>87%</span>
-<span style="font-family: 'Geist Mono', monospace; font-size: 11px">1700</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 79%; height: 8px; background: #14213D"></span></span><span>79%</span>
-<span style="font-family: 'Geist Mono', monospace; font-size: 11px">1900</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 62%; height: 8px; background: #14213D"></span></span><span>62%</span>
-<span style="font-family: 'Geist Mono', monospace; font-size: 11px">2100</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 53%; height: 8px; background: #2F5BFF"></span></span><span>53%</span>
-<span style="font-family: 'Geist Mono', monospace; font-size: 11px">2300</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 40%; height: 8px; background: #14213D"></span></span><span>40%</span>
-</div>
-<p style="margin: 0; font-size: 13px; line-height: 1.6; color: #5B6478">Stockfish's own scale, 30 s + 0.3 s. Not a human rating. The browser opponent searches less; its own numbers come before launch.</p>
-</section>
-
-<section style="padding: 36px 16px; border-top: 1px solid #DCE0E7; display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #2F5BFF">05 · REBUILT HONESTLY</div>
-<h2 style="margin: 0; font-size: 26px; font-weight: 300; letter-spacing: -0.03em; line-height: 1.15">The first version had a bigger story than its physics.</h2>
-<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #2A3550">On 120 test positions, removing its headline physics changed none of its moves. So I rebuilt it so that a law stays only if it wins games.</p>
-<a href="#" style="font-size: 15px; color: #2F5BFF; text-decoration: none">Read the audit →</a>
+<div style="display: flex; flex-direction: column; gap: 10px; font-size: 15px"><a href="#" style="color: #2F5BFF; text-decoration: none">Play a rejected universe →</a><a href="#" style="color: #2F5BFF; text-decoration: none">How strong it is →</a><a href="#" style="color: #2F5BFF; text-decoration: none">Why it was rebuilt →</a></div>
 </section>
 
 <section style="margin-top: auto; padding: 40px 16px; background: #14213D; color: #F6F7F9; display: flex; flex-direction: column; gap: 16px">
@@ -112,7 +91,7 @@ a{color:#14213D}a:hover{color:#2F5BFF}
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":4400}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":3100}}'>
 class Component extends DCLogic {
   renderVals() { return { full: 358, mid: 260 }; }
 }
