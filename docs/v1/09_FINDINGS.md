@@ -17,7 +17,7 @@ Rules:
 
 | id | question | answered by |
 |---|---|---|
-| Q1 | Does self-play rediscover roughly 3/3/5/9 piece values, starting from those values and from perturbed ones? | M3 training; a perturbed-start control run |
+| Q1 | Does self-play rediscover roughly 3/3/5/9 piece values, starting from those values and from perturbed ones? | **F20: yes in one equal-mass run (order and ratios); replication pending** |
 | Q2 | Does the universe value a bishop above a knight? | learned `m_b` vs `m_n` |
 | Q3 | Does accretion survive (`f_acc` > 0), or is it rejected? | **answered by F17: rejected at Gen 1** |
 | Q4 | Which light speed wins: pull that travels 1, 2 or 3 moves? | **answered by F18: 1 or 2, not 3** |
@@ -146,3 +146,17 @@ Rules:
   - Together with F14 (training drove beta to 0 twice), the Roche limit *as formulated in spec-1* does not help.
 - **Evidence:** `ledger-gen001-bind0.json`, `ledger-gen001-roche-on.json`.
 - **Open:** whether a different Roche formula (smoother, or normalised another way) earns its place. The idea isn't refuted; this formula is.
+
+### F20 · Starting from equal masses, self-play recovered the human piece order (2026-10-24) · observed (one seed)
+- **What:**
+  - The knight, bishop, rook and queen all started at 4.43, so the army's total equals the human-valued army's (39), with the other laws at Gen 0.
+  - After 30 TDLeaf rounds (60,000 self-play games, depth 4, GitHub Actions) they settled at **N 2.65, B 3.30, R 4.44, Q 8.23**.
+  - Ratios to the knight: **bishop 1.25, rook 1.68, queen 3.11**. The human convention is 1.00, 1.67 and 3.00.
+  - The order queen > rook > bishop > knight emerged with no human values and no human games. The temperature cooled from 6.0 to 2.42, the same pattern as F13.
+- **Evidence:** `engine/results/control-equal-masses-a/` (round files and candidate), run `control-equal-masses-a` in `r-baruah/kepler-64-compute`.
+- **Caveats:**
+  - One seed.
+  - Not fully converged: the queen was still rising and the knight still falling.
+  - The absolute scale is below human (knight 2.65 vs 3).
+  - The masses are what this universe's laws need, not "true" piece values.
+- **To confirm:** a second seed (`control-equal-masses-b`), and a strength check of this candidate against gen-001.
