@@ -69,7 +69,8 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 ## M5 · Website: Play first
 Plan and stages are in `06_WEB_PLAN.md`. Design follows the staged check-ins there.
 - [x] Stage A (understand) and stage B (plan) written into `06_WEB_PLAN.md` (2026-10-25)
-- [ ] Stage C: low-fi wireframes approved by the maintainer
+- [x] Stage C: wireframes and visual direction approved (2026-10-25): low-fi states, Mission look, landing; the remaining states are checked on the working build instead of redrawn
+- [ ] Phone layout polish (maintainer, 2026-10-25: "needs a lot of optimizations"), done during stage D
 - [ ] Stage D: visual build of Play (board, pull meters, field layer, universe picker, end-of-game moment, share link, Star)
 - [ ] Hosted on Vercel at the chosen domain. Soft launch to 5–10 cold testers, findings written down
 

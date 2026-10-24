@@ -47,3 +47,8 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 ## 2026-10-25 · Landing kept strict; share tooling minimal
 - **Landing:** hero plus exactly three sections (the one law, self-found piece values, the Law Ledger); the ladder and the v0 story are links into Lab. Shared-game and universe links skip the landing and open the board. Board-only vs hero is checked with the cold testers before launch (web plan §8b).
 - **Sharing:** link plus server-rendered preview image only. No image download, no clip or GIF export: the old frontend's GIF generator added weight and wasn't used, and shares follow the quality of the work more than the tooling.
+
+## 2026-10-25 · Stage C closed; check-ins move to the working build
+- The low-fi frames cover every Play state and the Mission frames plus the landing cover the look; redrawing every state in Mission would cost more than it teaches. The maintainer said proceed. Stage D's first check-in is the working Play screen (desktop and phone screenshots), not another drawing.
+- Superseded parts of the low-fi frames do not ship: the "Download image" button, the blue/orange tint, the side-panel layout.
+- Preset files created for the launch universes: `ablations/gen004-accretion.json`, `gen004-strong-roche.json`, `gen004-tidal.json` (spec-2), all loading in the WASM engine.
