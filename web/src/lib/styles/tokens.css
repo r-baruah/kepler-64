@@ -1,0 +1,31 @@
+/* Design tokens. "Mission": light, precise, navy ink, one electric-blue accent. */
+:root {
+	color-scheme: light;
+
+	--bg: #f6f7f9;
+	--ink: #14213d;
+	--ink-2: #2a3550;
+	--muted: #5b6478;
+	--line: #dce0e7;
+	--line-strong: #c9ced8;
+	--accent: #2f5bff;
+	--card: #ffffff;
+	--soft: #e9ecf2;
+
+	/* Board */
+	--sq-light: #ffffff;
+	--sq-dark: #e9ecf1;
+	--coord: #7a8499;
+
+	--radius-pill: 999px;
+	--radius-card: 20px;
+	--radius-card-sm: 16px;
+	--shadow-card: 0 10px 40px rgba(20, 33, 61, 0.08);
+	--shadow-dock: 0 6px 24px rgba(20, 33, 61, 0.1);
+
+	--font-sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+	--gutter: 16px;
+	--tap: 44px;
+}
