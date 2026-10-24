@@ -182,3 +182,8 @@ Rules:
 ### F22 · Bug found by the ladder: illegal moves in the reported search line (2026-10-24) · fixed
 - **What:** non-PV search nodes didn't clear their stored line, so a stale tail from an earlier sibling could be appended to the principal variation. The UCI layer replayed it to print `info pv` and panicked.
 - **Fix:** every node clears its line on entry, and the UCI layer stops at the first illegal move. All 29 crash positions now replay cleanly, with no illegal move in any reported line. Search results are unchanged (golden tests), and the regression test is `kepler-core/tests/pv_legal.rs`.
+
+### F23 · The self-discovered universe plays at least as well (2026-10-24) · confirmed, not a fair comparison
+- **What:** the equal-mass control candidate (F20: piece values learned from an all-equal start) beat gen-001 (trained from human values) by **+19 Elo [+10, +29]** over 4,000 games at depth 4.
+- **Evidence:** `engine/results/control-a-vs-gen001.json`.
+- **Caveat:** the control had about 10× more training (30 rounds × 2,000 games at depth 4) than gen-001 (11 rounds × 500 games at depth 3), and both still use accretion. This shows that starting from equal values costs nothing. It does **not** show that self-discovered values beat human values.
