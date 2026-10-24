@@ -233,3 +233,20 @@ Rules:
 - **Evidence:** `engine/results/suite-tactics-own-gen00<k>-d<depth>.json`, `engine/results/suites-per-generation.md`.
 - **Meaning:** the spread (about 6 positions) is about one standard error. Short tactics are found by search, so the learned constants change little here; the generations' gains (F13, F25) come from judgement in quiet positions, which this suite doesn't test. Mate-in-1 and mate-in-2 are 100/100 for every generation.
 - **Bias:** the positions come from games gen-002 played against strength-limited Stockfish (UCI_Elo 1320 to 2100), so they are drawn from those games' mistakes, not from chess at large.
+
+### F29 · Gen 3 on the Stockfish ladder: level with Stockfish limited to 2100, no crashes (2026-10-24) · confirmed, with caveats
+- **What:** same setup as F21 (200 games per level, 100 openings × both colours, 30 s + 0.3 s, Stockfish 19 with `UCI_LimitStrength`), now with the F22 fix. Zero engine errors in 1,000 games.
+
+  | Stockfish UCI_Elo | gen-003 W / D / L | score | Elo diff [95%] | gen-002 score (F21) |
+  |---|---|---|---|---|
+  | 1500 | 174 / 1 / 25 | 87.3% | +334 [+271, +421] | 81% |
+  | 1700 | 154 / 6 / 40 | 78.5% | +225 [+172, +289] | 54% |
+  | 1900 | 123 / 3 / 74 | 62.3% | +87 [+39, +138] | 54% |
+  | 2100 | 103 / 5 / 92 | 52.8% | +19 [-28, +67] | 39% |
+  | 2300 | 75 / 10 / 115 | 40.0% | -70 [-120, -24] | not run |
+
+  Gen 3 is roughly level with Stockfish limited to 2100 and below 2300, at this time control.
+- **Evidence:** `engine/results/ladder-gen003.json` and per-shard games in `engine/results/ladder-gen003/` (run link in the file).
+- **Caveats:**
+  - The F21 caveats about UCI_Elo still apply: it is not a human rating, and claims must name the setup.
+  - Part of the gain over gen-002 is the crash fix: gen-002 lost 6–9 games per rung to the F22 bug. Even counting all of them as wins, gen-002 would score about 43% at 2100 against gen-003's 53%.
