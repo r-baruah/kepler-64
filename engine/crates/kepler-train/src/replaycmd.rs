@@ -12,7 +12,7 @@ use crate::util::{self, XorShift};
 use clap::Args;
 use cozy_chess::{Board, Move, Piece};
 use kepler_core::eval::{self, Report};
-use kepler_core::params::{Params, SPEC_ID};
+use kepler_core::params::{Params, spec_id};
 use kepler_core::position::Position;
 use kepler_core::search::{Limits, Searcher, move_to_uci};
 use serde::Serialize;
@@ -452,7 +452,7 @@ fn run_job(job: Job) -> Result<ReplayOut, String> {
 
     Ok(ReplayOut {
         schema: 3,
-        spec: SPEC_ID,
+        spec: spec_id(job.params),
         generation: job.generation,
         game: GameInfo {
             headers: job.headers,

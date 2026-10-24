@@ -185,10 +185,14 @@ pub fn fnv1a64(bytes: &[u8]) -> u64 {
     h
 }
 
-/// All 14 constants as a JSON object (GRAD_NAMES, then `c`, `f_acc`).
+/// All 14 constants (15 with a nonzero `lambda_tide`) as a JSON object (GRAD_NAMES, then `c`, `f_acc`).
 pub fn constants_json(p: &Params) -> serde_json::Value {
     let mut m = serde_json::Map::new();
     for (n, v) in Params::GRAD_NAMES.iter().zip(p.grad_values()) {
+        // spec-2: lambda_tide = 0 is omitted so spec-1 hashes do not change.
+        if *n == "lambda_tide" && v == 0.0 {
+            continue;
+        }
         m.insert(n.to_string(), json!(v));
     }
     m.insert("c".into(), json!(p.c));

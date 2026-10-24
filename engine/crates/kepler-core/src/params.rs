@@ -1,10 +1,42 @@
-//! The 14 constants of the v1 universe (`02_LAWS_SPEC.md` §1).
+//! The 15 constants of the v1 universe (`02_LAWS_SPEC.md` §1).
 
 use crate::scalar::Scalar;
 use serde::{Deserialize, Serialize};
 
 /// Spec id this code implements. Bump together with `02_LAWS_SPEC.md` §12.
-pub const SPEC_ID: &str = "v1.0-spec-1";
+pub const SPEC_ID: &str = "v1.0-spec-2";
+/// The spec-1 id. A universe with `lambda_tide = 0` is exactly a spec-1 universe,
+/// so files describing one keep this id (`02_LAWS_SPEC.md` §12).
+pub const SPEC_ID_1: &str = "v1.0-spec-1";
+
+/// The spec id a file describing `p` is written with: spec-1 when `lambda_tide`
+/// is 0 (the field is then omitted too), spec-2 otherwise.
+pub fn spec_id(p: &Params) -> &'static str {
+    if p.lambda_tide == 0.0 {
+        SPEC_ID_1
+    } else {
+        SPEC_ID
+    }
+}
+
+/// The spec id for a file that holds two universes (a match or SPRT shard):
+/// spec-2 if either one uses `lambda_tide`.
+pub fn spec_id_pair(a: &Params, b: &Params) -> &'static str {
+    if a.lambda_tide == 0.0 && b.lambda_tide == 0.0 {
+        SPEC_ID_1
+    } else {
+        SPEC_ID
+    }
+}
+
+/// Whether `s` is a spec id this code can read.
+pub fn is_known_spec(s: &str) -> bool {
+    s == SPEC_ID || s == SPEC_ID_1
+}
+
+fn is_zero(x: &f32) -> bool {
+    *x == 0.0
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -23,6 +55,9 @@ pub struct Params {
     pub k_roche: f32,
     pub beta: f32,
     pub f_acc: f32,
+    /// spec-2 constant 15. Omitted from JSON when 0, so spec-1 files are unchanged.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub lambda_tide: f32,
 }
 
 impl Default for Params {
@@ -44,6 +79,7 @@ impl Default for Params {
             k_roche: 3.0,
             beta: 2.0,
             f_acc: 0.8,
+            lambda_tide: 0.0,
         }
     }
 }
@@ -63,11 +99,12 @@ pub struct Laws<S> {
     pub rho: S,
     pub k_roche: S,
     pub beta: S,
+    pub lambda_tide: S,
 }
 
 impl Params {
     /// Analytically tuned constants, in gradient-slot order.
-    pub const GRAD_NAMES: [&'static str; 12] = [
+    pub const GRAD_NAMES: [&'static str; 13] = [
         "m_n",
         "m_b",
         "m_r",
@@ -80,10 +117,11 @@ impl Params {
         "rho",
         "k_roche",
         "beta",
+        "lambda_tide",
     ];
 
     /// Bounds per gradient slot (`02_LAWS_SPEC.md` §1).
-    pub const GRAD_BOUNDS: [(f32, f32); 12] = [
+    pub const GRAD_BOUNDS: [(f32, f32); 13] = [
         (1.0, 8.0),
         (1.0, 8.0),
         (2.0, 12.0),
@@ -96,9 +134,10 @@ impl Params {
         (0.1, 10.0),
         (0.1, 20.0),
         (0.0, 30.0),
+        (0.0, 2.0),
     ];
 
-    pub fn grad_values(&self) -> [f32; 12] {
+    pub fn grad_values(&self) -> [f32; 13] {
         [
             self.m_n,
             self.m_b,
@@ -112,11 +151,12 @@ impl Params {
             self.rho,
             self.k_roche,
             self.beta,
+            self.lambda_tide,
         ]
     }
 
     /// Set the gradient-slot values, projected onto their bounds.
-    pub fn set_grad_values(&mut self, v: [f32; 12]) {
+    pub fn set_grad_values(&mut self, v: [f32; 13]) {
         let p = |i: usize| v[i].clamp(Self::GRAD_BOUNDS[i].0, Self::GRAD_BOUNDS[i].1);
         self.m_n = p(0);
         self.m_b = p(1);
@@ -130,6 +170,7 @@ impl Params {
         self.rho = p(9);
         self.k_roche = p(10);
         self.beta = p(11);
+        self.lambda_tide = p(12);
     }
 
     /// The continuous constants in scalar type `S`; for `Dual` each one is
@@ -149,6 +190,7 @@ impl Params {
             rho: S::var(v[9], 9),
             k_roche: S::var(v[10], 10),
             beta: S::var(v[11], 11),
+            lambda_tide: S::var(v[12], 12),
         }
     }
 
@@ -211,13 +253,68 @@ impl Generation {
     /// be in bounds, so a stale or hand-edited file fails loudly.
     pub fn from_json(s: &str) -> Result<Self, String> {
         let g: Generation = serde_json::from_str(s).map_err(|e| e.to_string())?;
-        if g.spec != SPEC_ID {
+        if g.spec != SPEC_ID && g.spec != SPEC_ID_1 {
             return Err(format!(
-                "generation spec {} does not match engine spec {SPEC_ID}",
+                "generation spec {} is not one of {SPEC_ID_1}, {SPEC_ID}",
                 g.spec
+            ));
+        }
+        if g.spec == SPEC_ID_1 && g.constants.lambda_tide != 0.0 {
+            return Err(format!(
+                "a {SPEC_ID_1} file cannot set lambda_tide ({}); that constant is {SPEC_ID}",
+                g.constants.lambda_tide
             ));
         }
         g.constants.validate()?;
         Ok(g)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn gen_json(spec: &str, constants: &str) -> String {
+        format!("{{\"generation\": 1, \"spec\": \"{spec}\", \"constants\": {constants}}}")
+    }
+
+    #[test]
+    fn lambda_tide_defaults_to_zero_and_is_omitted() {
+        let p: Params = serde_json::from_str("{\"rho\": 2.0}").unwrap();
+        assert_eq!(p.lambda_tide, 0.0);
+        assert!(!serde_json::to_string(&p).unwrap().contains("lambda_tide"));
+        let q = Params {
+            lambda_tide: 0.34,
+            ..p
+        };
+        assert!(serde_json::to_string(&q).unwrap().contains("lambda_tide"));
+        assert_eq!(spec_id(&p), SPEC_ID_1);
+        assert_eq!(spec_id(&q), SPEC_ID);
+    }
+
+    #[test]
+    fn spec_ids_and_lambda_tide_rules() {
+        assert!(Generation::from_json(&gen_json(SPEC_ID_1, "{}")).is_ok());
+        assert!(Generation::from_json(&gen_json(SPEC_ID, "{}")).is_ok());
+        assert!(Generation::from_json(&gen_json(SPEC_ID, "{\"lambda_tide\": 0.5}")).is_ok());
+        assert!(Generation::from_json(&gen_json(SPEC_ID_1, "{\"lambda_tide\": 0.5}")).is_err());
+        assert!(Generation::from_json(&gen_json(SPEC_ID, "{\"lambda_tide\": 2.5}")).is_err());
+        assert!(Generation::from_json(&gen_json("v1.0-spec-0", "{}")).is_err());
+    }
+
+    #[test]
+    fn every_generation_file_loads() {
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../data/generations");
+        let mut n = 0;
+        for e in std::fs::read_dir(dir).unwrap().flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with("gen-") && name.ends_with(".json") {
+                let g = Generation::from_json(&std::fs::read_to_string(e.path()).unwrap())
+                    .unwrap_or_else(|e| panic!("{name}: {e}"));
+                assert_eq!(g.constants.lambda_tide, 0.0, "{name}");
+                n += 1;
+            }
+        }
+        assert!(n >= 4);
     }
 }

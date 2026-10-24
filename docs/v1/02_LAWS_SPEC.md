@@ -1,6 +1,6 @@
 # 02 · The v1 laws (normative spec)
 
-Status: **draft v1.0-spec-1** (2026-10-23). This file is the single source of truth for what the v1 engine computes. Code that disagrees with it is a bug, unless this file is updated first and the change is logged in `07_DECISION_LOG.md`.
+Status: **draft v1.0-spec-2** (2026-10-24; spec-1 was 2026-10-23). spec-2 adds one term, L5b tidal load (§6b), with weight 0 by default, so every spec-1 universe is a spec-2 universe with `lambda_tide = 0` and plays identically (§12). This file is the single source of truth for what the v1 engine computes. Code that disagrees with it is a bug, unless this file is updated first and the change is logged in `07_DECISION_LOG.md`.
 
 The principle: **the rules of chess are the shape of space. A field is the only law. Learning tunes the constants.**
 
@@ -28,7 +28,7 @@ Honesty note, to repeat in public material: this is a field on the board's move 
 
 ## 1. The constants
 
-There are 14 constants. **Gen 0** is the hand-set universe; training produces Gen 1, Gen 2 and so on. "Grad" says how a constant is tuned (§7): `A` = analytic gradient (TDLeaf), `O` = outer loop (match-based), `X` = discrete ablation.
+There are 15 constants. **Gen 0** is the hand-set universe; training produces Gen 1, Gen 2 and so on. "Grad" says how a constant is tuned (§7): `A` = analytic gradient (TDLeaf), `O` = outer loop (match-based), `X` = discrete ablation.
 
 | # | id | meaning (plain) | law | Gen 0 | bounds | grad |
 |---|---|---|---|---|---|---|
@@ -46,6 +46,7 @@ There are 14 constants. **Gen 0** is the hand-set universe; training produces Ge
 | 12 | `k_roche` | sharpness of breaking | L5 | 3.0 | [0.1, 20] | A |
 | 13 | `beta` | weight of a breaking king | L5 | calibrated (§8) | [0, 30] | A |
 | 14 | `f_acc` | fraction of a victim's mass the captor absorbs | L6 | 0.8 | [0, 1] | O |
+| 15 | `lambda_tide` | weight of the tidal load on a king's body (spec-2) | L5b | 0 | [0, 2] | A |
 
 Fixed by definition (not constants): the pawn rest mass `m_p = 1` (the unit), and `tanh` scale 1 ku in L4b.
 
@@ -53,7 +54,7 @@ Every bound is a human prior. Each one is listed here with the reason it exists.
 
 - Mass bounds keep the unit meaningful (no piece lighter than a pawn) and stop runaway growth.
 - `alpha` and `sigma` bounds are mathematical (fractions).
-- `rho`, `k_roche` and `beta` bounds only stop numerical blow-up.
+- `rho`, `k_roche`, `beta` and `lambda_tide` bounds only stop numerical blow-up.
 
 ---
 
@@ -160,6 +161,19 @@ In plain words: a king breaks when the enemy pulls across its body harder than i
 - Checkmate is the rule-defined extreme case, and it's handled by search (§9), not by the gauge.
 - Public UI shows `η_K / rho` as a percentage, where 100% means the breaking point.
 
+### 6b. L5b · Tidal load (spec-2)
+
+The energy of an extended body in an external field is the field summed over the body. For king `K` of colour `C` with body `S_K` (as in §6):
+```
+load     U_K    = Σ_{s ∈ S_K} Φ_{¬C}(s)            enemy pull landing on the king's body (= τ_K)
+T_tide   = lambda_tide · ( U_{K_B} − U_{K_W} )
+```
+In plain words: the more of the enemy's pull lands on a king's body, the closer it is to being torn apart.
+
+- It's linear: no threshold and no shape constants, so its gradient `U_{K_B} − U_{K_W}` is defined at `lambda_tide = 0` and training can grow it from zero (findings F30).
+- It uses only the field of §3 and the body of §6. The king's own support is deliberately absent: L4a and L4b already count it (findings F31).
+- L5 (the spec-1 gauge) is unchanged. The two terms are independent and each has its own Ledger row.
+
 ---
 
 ## 7. L6 · Accretion
@@ -183,7 +197,7 @@ A_captor ← A_captor + f_acc · M_victim
 ## 8. Total evaluation and calibration
 
 ```
-score_white = T_mat + T_bind + T_space + T_roche
+score_white = T_mat + T_bind + T_space + T_roche + T_tide
 score_stm   = score_white if White to move, else −score_white
 ```
 
@@ -207,11 +221,11 @@ These are chess rules and are never scored by physics: legal moves, checkmate (s
 ## 10. What the evaluator must expose
 
 Every evaluation can return a full breakdown. It's used by tests, the trainer and the website, with the same numbers everywhere:
-- `terms`: `T_mat`, `T_bind`, `T_space`, `T_roche`, `score_white`.
+- `terms`: `T_mat`, `T_bind`, `T_space`, `T_roche`, `T_tide`, `score_white`.
 - `field`: `Φ_W[64]`, `Φ_B[64]`.
 - Per piece: square, type, colour, `μ`, `A`, `M`, `e_q`, and the hop-1/2/3 bitboards (its light cone, for drawing).
-- Per king: body squares, `τ`, `b`, `η`, `g`, and `η / rho`.
-- `constants`: the 14 values and the generation id.
+- Per king: body squares, `τ`, `b`, `η`, `g`, and `η / rho`. (`U_K` equals `τ`.)
+- `constants`: the 15 values and the generation id.
 
 ---
 
@@ -224,7 +238,8 @@ Every evaluation can return a full breakdown. It's used by tests, the trainer an
 5. **Blocking:** closing a file with a pawn strictly reduces the rook's hop-1 set.
 6. **Locality:** pull from a piece with `h > c` is exactly 0.
 7. **Gradient check:** for every A-tuned constant and **each** of 200 positions, the analytic derivative matches a central finite difference within `1e-3 · (1 + |g|)` (accreted masses frozen, see §7).
-8. **Breakdown sums:** `T_mat + T_bind + T_space + T_roche == score_white` bit-for-bit in f32.
+8. **Breakdown sums:** `T_mat + T_bind + T_space + T_roche + T_tide == score_white` bit-for-bit in f32.
+9. **spec-1 compatibility:** with `lambda_tide = 0`, every evaluation, search result and work-unit hash is bit-identical to spec-1.
 
 ---
 
@@ -232,3 +247,4 @@ Every evaluation can return a full breakdown. It's used by tests, the trainer an
 
 - Any change to a formula in §2–§7 bumps the spec id (`v1.0-spec-N`), is logged in `07_DECISION_LOG.md`, and invalidates previously learned generations until the Law Ledger is rerun.
 - Changing only constant values is a new generation, not a new spec.
+- **spec-2 (2026-10-24):** adds L5b (§6b) and constant 15, `lambda_tide`. A generation file that has no `lambda_tide` (every spec-1 file) loads with `lambda_tide = 0`, which is exactly the spec-1 universe, so spec-1 generations stay valid and need no Ledger rerun. Files written by spec-2 code that leave `lambda_tide` at 0 omit it and keep the id `v1.0-spec-1`, so their content and hashes match spec-1; a file with `lambda_tide > 0` carries `v1.0-spec-2`. Spec-1 code refuses spec-2 files, which is correct: it can't compute L5b.

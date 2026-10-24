@@ -212,6 +212,14 @@ impl Game {
         eval::report(&self.pos, &self.params, self.generation)
     }
 
+    /// The breakdown as JSON for the browser: `constants.lambda_tide` is always present
+    /// (the file formats omit it at 0; the website should not have to guess).
+    pub fn breakdown_json(&self) -> serde_json::Value {
+        let mut v = serde_json::to_value(self.breakdown()).expect("Report serialises");
+        v["constants"] = constants_value(&self.params);
+        v
+    }
+
     pub fn search(&mut self, l: &LimitsIn) -> Result<SearchOut, String> {
         if self.result().is_some() || !self.has_moves() {
             return Err("the game is over: no move to search".into());
@@ -256,7 +264,7 @@ impl Game {
         let serde_json::Value::Object(patch) = partial else {
             return Err("constants must be a JSON object".into());
         };
-        let mut cur = serde_json::to_value(self.params).map_err(|e| e.to_string())?;
+        let mut cur = constants_value(&self.params);
         let obj = cur.as_object_mut().expect("Params serialises to an object");
         for (k, v) in patch {
             if !obj.contains_key(&k) {
@@ -273,8 +281,15 @@ impl Game {
     }
 
     pub fn constants_json(&self) -> String {
-        serde_json::to_string(&self.params).expect("Params serialises")
+        constants_value(&self.params).to_string()
     }
+}
+
+/// The constants as a JSON object that always has `lambda_tide` (`Params` omits it at 0).
+fn constants_value(p: &Params) -> serde_json::Value {
+    let mut v = serde_json::to_value(p).expect("Params serialises");
+    v["lambda_tide"] = serde_json::json!(p.lambda_tide);
+    v
 }
 
 /// PV moves as UCI, replaying the line so castling is written correctly.
@@ -343,6 +358,32 @@ mod tests {
         assert!(!moves.contains(&"e1h1".to_string()));
         assert!(g.play("e1g1"));
         assert!(g.state().fen.starts_with("r3k2r/8/8/8/8/8/8/R4RK1 b"));
+    }
+
+    #[test]
+    fn lambda_tide_is_settable_and_reported() {
+        let mut g = game();
+        let c: serde_json::Value = serde_json::from_str(&g.constants_json()).unwrap();
+        assert_eq!(c["lambda_tide"], 0.0);
+        assert!(g.set_constants("{\"lambda_tide\": 0.34}").is_ok());
+        assert!(g.set_constants("{\"lambda_tide\": 3.0}").is_err());
+        let b = g.breakdown_json();
+        assert!((b["constants"]["lambda_tide"].as_f64().unwrap() - 0.34).abs() < 1e-6);
+        assert!(b["terms"]["tide"].is_number());
+        let t = &b["terms"];
+        let sum = t["material"].as_f64().unwrap()
+            + t["bind"].as_f64().unwrap()
+            + t["space"].as_f64().unwrap()
+            + t["roche"].as_f64().unwrap()
+            + t["tide"].as_f64().unwrap();
+        assert!((sum - t["score_white"].as_f64().unwrap()).abs() < 1e-4);
+        // A spec-1 generation file with lambda_tide > 0 is refused.
+        assert!(
+            Game::new(
+                "{\"spec\": \"v1.0-spec-1\", \"generation\": 1, \"constants\": {\"lambda_tide\": 0.1}}"
+            )
+            .is_err()
+        );
     }
 
     #[test]

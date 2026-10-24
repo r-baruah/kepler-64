@@ -43,7 +43,7 @@ use crate::selfgame::{
 };
 use crate::util::{self, XorShift};
 use clap::{Args, ValueEnum};
-use kepler_core::params::{Generation, SPEC_ID};
+use kepler_core::params::{Generation, is_known_spec, spec_id};
 use kepler_core::search::{Limits, Searcher};
 use kepler_core::{NGRAD, Params};
 use serde::{Deserialize, Serialize};
@@ -81,6 +81,11 @@ pub struct PlayOpts {
     /// Transposition table per searcher, MB
     #[arg(long, default_value_t = 8)]
     hash: usize,
+    /// spec-2: also report the gradient of `lambda_tide` (a 13th grad_sum entry) so it can
+    /// be learned from 0. Off by default: a shard of a `lambda_tide = 0` universe is then
+    /// exactly a spec-1 shard (invariant 9). Always on when `lambda_tide > 0`.
+    #[arg(long = "learn-tide")]
+    learn_tide: bool,
     #[command(flatten)]
     adj: AdjArgs,
 }
@@ -349,7 +354,7 @@ pub fn play_shard(
     let mut sh = Shard {
         kind: "tdleaf-shard".into(),
         version: 1,
-        spec: SPEC_ID.into(),
+        spec: spec_id(params).into(),
         gen_hash: gen_hash(params),
         seed,
         games: 0,
@@ -389,6 +394,10 @@ pub fn play_shard(
             grad[i] += td.grad_sum[i] as f64;
         }
     }
+    let tide_on = o.learn_tide || params.lambda_tide != 0.0;
+    if !tide_on {
+        grad.truncate(OLD_NGRAD);
+    }
     sh.grad_sum = grad;
     sh.elapsed_ms = t0.elapsed().as_millis() as u64;
     sh.config = json!({
@@ -401,6 +410,9 @@ pub fn play_shard(
         "adjudication": o.adj.cfg(),
         "created": util::utc_iso(),
     });
+    if tide_on {
+        sh.config["learn_tide"] = json!(true);
+    }
     Ok(sh)
 }
 
@@ -455,9 +467,29 @@ pub fn game_td(leaves: &[Leaf], result_last: f32, lambda: f32, temperature: f32)
     }
 }
 
+/// Number of gradient slots before spec-2 added `lambda_tide`.
+const OLD_NGRAD: usize = 12;
+
+/// Read an Adam moment vector; a 12-entry one from before spec-2 gets a zero moment for
+/// `lambda_tide`.
+fn de_moments<'de, D: serde::Deserializer<'de>>(d: D) -> Result<[f64; NGRAD], D::Error> {
+    let v = Vec::<f64>::deserialize(d)?;
+    if v.len() != NGRAD && v.len() != OLD_NGRAD {
+        return Err(serde::de::Error::custom(format!(
+            "Adam moments have {} entries, expected {NGRAD} (or {OLD_NGRAD} from before spec-2)",
+            v.len()
+        )));
+    }
+    let mut out = [0.0; NGRAD];
+    out[..v.len()].copy_from_slice(&v);
+    Ok(out)
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Adam {
+    #[serde(deserialize_with = "de_moments")]
     pub m: [f64; NGRAD],
+    #[serde(deserialize_with = "de_moments")]
     pub v: [f64; NGRAD],
     pub t: u64,
 }
@@ -547,12 +579,19 @@ pub fn conserve_mass(p: &mut Params, target: f64) {
     p.m_q = (p.m_q * f).clamp(b[3].0, b[3].1);
 }
 
-/// Constants sitting on a bound.
-pub fn at_bound(p: &Params) -> Vec<String> {
+/// Constants sitting on a bound. `tide_learned`: whether `lambda_tide` is being trained
+/// (13-entry gradients); while it isn't, its 0 is "unused", not "pinned".
+pub fn at_bound(p: &Params, tide_learned: bool) -> Vec<String> {
     let mut v = Vec::new();
     for (i, x) in p.grad_values().iter().enumerate() {
         let (lo, hi) = Params::GRAD_BOUNDS[i];
         let tol = 1e-6 * (hi - lo);
+        // spec-2: an unused lambda_tide (not trained, exactly 0) is not "pinned"; this keeps
+        // the bound lists, and so the files that carry them, the same as under spec-1.
+        // A trained lambda_tide that reaches 0 is reported like any other bound.
+        if Params::GRAD_NAMES[i] == "lambda_tide" && !tide_learned && *x == 0.0 {
+            continue;
+        }
         if *x <= lo + tol || *x >= hi - tol {
             v.push(Params::GRAD_NAMES[i].to_string());
         }
@@ -663,10 +702,12 @@ pub fn reduce_round(
         if s.kind != "tdleaf-shard" || s.version != 1 {
             return Err(format!("shard {i}: not a tdleaf-shard v1 file"));
         }
-        if s.spec != first.spec || s.spec != SPEC_ID || spec != SPEC_ID {
+        if s.spec != first.spec || s.spec != spec_id(&ck.params) || !is_known_spec(spec) {
             return Err(format!(
-                "shard {i}: spec {} differs from {} / generation {spec} / engine {SPEC_ID}",
-                s.spec, first.spec
+                "shard {i}: spec {} differs from {} / generation {spec} / constants {}",
+                s.spec,
+                first.spec,
+                spec_id(&ck.params)
             ));
         }
         if s.gen_hash != first.gen_hash {
@@ -681,7 +722,16 @@ pub fn reduce_round(
                 s.gen_hash
             ));
         }
-        if s.grad_sum.len() != NGRAD {
+        // A shard played before constant 13 existed has 12 entries (lambda_tide's partial is
+        // then zero).
+        if s.grad_sum.len() != first.grad_sum.len() {
+            return Err(format!(
+                "shard {i}: grad_sum has {} entries, shard 0 has {}",
+                s.grad_sum.len(),
+                first.grad_sum.len()
+            ));
+        }
+        if s.grad_sum.len() != NGRAD && s.grad_sum.len() != OLD_NGRAD {
             return Err(format!(
                 "shard {i}: grad_sum has {} entries",
                 s.grad_sum.len()
@@ -726,8 +776,8 @@ pub fn reduce_round(
         res.l += s.results.l;
         res.capped += s.results.capped;
         res.adjudicated += s.results.adjudicated;
-        for i in 0..NGRAD {
-            grad[i] += s.grad_sum[i];
+        for (g, x) in grad.iter_mut().zip(&s.grad_sum) {
+            *g += x;
         }
     }
     let np = plies.max(1) as f64;
@@ -755,7 +805,7 @@ pub fn reduce_round(
     ck.params = next;
     ck.round += 1;
     ck.games += games;
-    let bound = at_bound(&ck.params);
+    let bound = at_bound(&ck.params, first.grad_sum.len() == NGRAD);
     ck.bound_history.push(bound.clone());
     let pin = pinned(&ck.bound_history);
     let finite = g32.iter().all(|x| x.is_finite())
@@ -774,7 +824,10 @@ pub fn reduce_round(
         .unwrap_or_default();
     let mut names_delta = serde_json::Map::new();
     let mut names_grad = serde_json::Map::new();
-    for i in 0..NGRAD {
+    // A 12-entry shard set does not learn lambda_tide: its keys and lines are left out so
+    // the round files read as under spec-1.
+    let shown = first.grad_sum.len();
+    for i in 0..shown {
         names_delta.insert(Params::GRAD_NAMES[i].into(), json!(delta[i]));
         names_grad.insert(Params::GRAD_NAMES[i].into(), json!(g32[i]));
     }
@@ -803,7 +856,8 @@ pub fn reduce_round(
     let candidate = Generation {
         generation: ck.parent + 1,
         parent: Some(ck.parent),
-        spec: spec.to_string(),
+        // spec-1 while lambda_tide is still 0 (the file then omits it), spec-2 once it is learned
+        spec: spec_id(&ck.params).to_string(),
         created: util::utc_date(),
         constants: ck.params,
         pinned: pin.clone(),
@@ -842,7 +896,7 @@ pub fn reduce_round(
         g_logt,
         if step.learn_t { "" } else { " (fixed)" }
     );
-    for i in 0..NGRAD {
+    for i in 0..shown {
         text += &format!(
             "  {:<13} {:>9.5} -> {:>9.5} ({:+.5})  grad {:+.3e}\n",
             Params::GRAD_NAMES[i],
@@ -1054,6 +1108,7 @@ mod tests {
     use super::*;
     use clap::Parser;
     use kepler_core::Position;
+    use kepler_core::params::{SPEC_ID_1, spec_id};
 
     #[derive(Parser)]
     struct W {
@@ -1220,7 +1275,7 @@ mod tests {
         Shard {
             kind: "tdleaf-shard".into(),
             version: 1,
-            spec: SPEC_ID.into(),
+            spec: SPEC_ID_1.into(),
             gen_hash: gen_hash(p),
             seed: 1,
             games: 1,
@@ -1312,7 +1367,7 @@ mod tests {
         let gen_ = load_generation(Path::new(&data("generations/gen-000.json"))).unwrap();
         let sh = synth_shard(&gen_.constants, 4.0, 5.0, 10);
         let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
-        let s = reduce_round(&mut ck, std::slice::from_ref(&sh), step(), SPEC_ID).unwrap();
+        let s = reduce_round(&mut ck, std::slice::from_ref(&sh), step(), SPEC_ID_1).unwrap();
         assert!(ck.temperature > 4.0);
         assert_eq!(s.candidate.training["temperature"], json!(ck.temperature));
         assert_eq!(s.round_json["temperature"]["before"], json!(4.0));
@@ -1322,17 +1377,17 @@ mod tests {
             learn_t: false,
             ..step()
         };
-        reduce_round(&mut ck, std::slice::from_ref(&sh), fixed, SPEC_ID).unwrap();
+        reduce_round(&mut ck, std::slice::from_ref(&sh), fixed, SPEC_ID_1).unwrap();
         assert_eq!(ck.temperature, 4.0);
         // shards played at a different temperature are refused
         let mut ck = fresh_checkpoint(&gen_, 1, 5.0);
-        let e = reduce_round(&mut ck, std::slice::from_ref(&sh), step(), SPEC_ID).unwrap_err();
+        let e = reduce_round(&mut ck, std::slice::from_ref(&sh), step(), SPEC_ID_1).unwrap_err();
         assert!(e.contains("temperature"), "{e}");
         // differing capped_target between shards is refused
         let mut other = sh.clone();
         other.config["capped_target"] = json!("draw");
         let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
-        let e = reduce_round(&mut ck, &[sh, other], step(), SPEC_ID).unwrap_err();
+        let e = reduce_round(&mut ck, &[sh, other], step(), SPEC_ID_1).unwrap_err();
         assert!(e.contains("capped_target"), "{e}");
     }
 
@@ -1371,7 +1426,7 @@ mod tests {
             conserve_mass: true,
             ..step()
         };
-        reduce_round(&mut ck, &[sh], on, SPEC_ID).unwrap();
+        reduce_round(&mut ck, &[sh], on, SPEC_ID_1).unwrap();
         assert!((total_mass(&ck.params) - t0).abs() < 1e-3);
     }
 
@@ -1413,6 +1468,59 @@ mod tests {
     }
 
     #[test]
+    fn learn_tide_adds_the_thirteenth_gradient_entry() {
+        let gen_ = load_generation(Path::new(&data("generations/gen-000.json"))).unwrap();
+        let ops = load_openings(Path::new(&data("openings/balanced-200.epd"))).unwrap();
+        let mut o = PlayOpts::try_parse_from_args();
+        o.depth = 1;
+        o.max_plies = 6;
+        o.explore_plies = 2;
+        o.capped_target = CappedTarget::Score;
+        // default: a spec-1 shard (12 entries, no learn_tide key)
+        let a = play_shard(&gen_.constants, &ops, 2, 3, &o, 4.0).unwrap();
+        assert_eq!(a.grad_sum.len(), OLD_NGRAD);
+        assert!(a.config.get("learn_tide").is_none());
+        assert_eq!(a.spec, SPEC_ID_1);
+        o.learn_tide = true;
+        let b = play_shard(&gen_.constants, &ops, 2, 3, &o, 4.0).unwrap();
+        assert_eq!(b.grad_sum.len(), NGRAD);
+        assert_eq!(b.grad_sum[..OLD_NGRAD], a.grad_sum[..]);
+        assert!(
+            b.grad_sum[OLD_NGRAD] != 0.0,
+            "gradient exists at lambda_tide = 0"
+        );
+        assert_eq!(b.config["learn_tide"], json!(true));
+        // the round moves lambda_tide only for the 13-entry shard
+        let step = StepOpts {
+            lr: 0.01,
+            learn_t: false,
+            conserve_mass: false,
+        };
+        let mk = || Checkpoint {
+            round: 0,
+            games: 0,
+            parent: 0,
+            params: gen_.constants,
+            adam: Adam::new(),
+            rng_state: 0,
+            bound_history: vec![],
+            temperature: 4.0,
+            adam_t: AdamT::default(),
+            mass_total: 0.0,
+        };
+        let (mut c12, mut c13) = (mk(), mk());
+        let r12 = reduce_round(&mut c12, &[a], step, SPEC_ID_1).unwrap();
+        let r13 = reduce_round(&mut c13, &[b], step, SPEC_ID_1).unwrap();
+        assert_eq!(c12.params.lambda_tide, 0.0);
+        // (the step may be negative and then sits on the lower bound; the moment shows it)
+        assert!(c13.adam.m[OLD_NGRAD] != 0.0 && c12.adam.m[OLD_NGRAD] == 0.0);
+        assert_eq!(r12.candidate.spec, SPEC_ID_1);
+        assert_eq!(r13.candidate.spec, spec_id(&c13.params));
+        assert!(r12.round_json["grad_avg"].get("lambda_tide").is_none());
+        assert!(r13.round_json["grad_avg"].get("lambda_tide").is_some());
+    }
+
+    #[test]
     fn reduce_refuses_mismatched_gen_hash() {
         let gen_ = load_generation(Path::new(&data("generations/gen-000.json"))).unwrap();
         let ops = load_openings(Path::new(&data("openings/balanced-200.epd"))).unwrap();
@@ -1423,15 +1531,15 @@ mod tests {
         let s2 = play_shard(&other, &ops, 1, 2, &o, 4.0).unwrap();
         assert_ne!(s1.gen_hash, s2.gen_hash);
         let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
-        let e = reduce_round(&mut ck, &[s1.clone(), s2.clone()], step(), SPEC_ID).unwrap_err();
+        let e = reduce_round(&mut ck, &[s1.clone(), s2.clone()], step(), SPEC_ID_1).unwrap_err();
         assert!(e.contains("gen_hash"), "{e}");
         // all shards agree with each other but not with the current constants
         let mut ck = fresh_checkpoint(&gen_, 1, 4.0);
-        let e = reduce_round(&mut ck, &[s2], step(), SPEC_ID).unwrap_err();
+        let e = reduce_round(&mut ck, &[s2], step(), SPEC_ID_1).unwrap_err();
         assert!(e.contains("gen_hash"), "{e}");
         assert_eq!(ck.round, 0);
         // matching shards are accepted
-        assert!(reduce_round(&mut ck, &[s1], step(), SPEC_ID).is_ok());
+        assert!(reduce_round(&mut ck, &[s1], step(), SPEC_ID_1).is_ok());
     }
 
     #[test]
@@ -1501,6 +1609,41 @@ mod tests {
     }
 
     #[test]
+    fn spec1_checkpoint_and_constants_still_load() {
+        // A 12-slot Adam state (written before lambda_tide) loads with a zero moment for it.
+        let mut adam = Adam::new();
+        for i in 0..OLD_NGRAD {
+            adam.m[i] = 0.5 + i as f64;
+            adam.v[i] = 0.25 + i as f64;
+        }
+        adam.t = 7;
+        let mut j = serde_json::to_value(&adam).unwrap();
+        j["m"].as_array_mut().unwrap().truncate(OLD_NGRAD);
+        j["v"].as_array_mut().unwrap().truncate(OLD_NGRAD);
+        let back: Adam = serde_json::from_value(j.clone()).unwrap();
+        assert_eq!(back.m[..OLD_NGRAD], adam.m[..OLD_NGRAD]);
+        assert_eq!(
+            (back.m[OLD_NGRAD], back.v[OLD_NGRAD], back.t),
+            (0.0, 0.0, 7)
+        );
+        j["m"].as_array_mut().unwrap().truncate(5);
+        assert!(serde_json::from_value::<Adam>(j).is_err());
+        // With lambda_tide = 0 the hashed constants have no lambda_tide key, and
+        // switching it on changes the hash.
+        let p = Params::default();
+        assert!(constants_json(&p).get("lambda_tide").is_none());
+        let q = Params {
+            lambda_tide: 0.1,
+            ..p
+        };
+        assert!(constants_json(&q).get("lambda_tide").is_some());
+        assert_ne!(gen_hash(&p), gen_hash(&q));
+        assert_eq!(spec_id(&p), SPEC_ID_1);
+        assert!(at_bound(&p, false).iter().all(|n| n != "lambda_tide"));
+        assert!(at_bound(&p, true).iter().any(|n| n == "lambda_tide"));
+    }
+
+    #[test]
     fn adam_step_and_projection() {
         // alpha (slot 5) has range 1, so normalised units equal raw units
         let mut adam = Adam::new();
@@ -1534,7 +1677,10 @@ mod tests {
         p.set_grad_values(big);
         assert_eq!(p.alpha, 1.0);
         assert_eq!(p.m_n, 1.0);
-        assert_eq!(at_bound(&p), vec!["m_n".to_string(), "alpha".to_string()]);
+        assert_eq!(
+            at_bound(&p, false),
+            vec!["m_n".to_string(), "alpha".to_string()]
+        );
     }
 
     #[test]

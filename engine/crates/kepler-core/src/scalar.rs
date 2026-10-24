@@ -13,7 +13,7 @@ use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 use libm::{expf, logf, powf, tanhf};
 
 /// Number of analytically tuned constants (see `Params::GRAD_NAMES`).
-pub const NGRAD: usize = 12;
+pub const NGRAD: usize = 13;
 
 pub trait Scalar:
     Copy

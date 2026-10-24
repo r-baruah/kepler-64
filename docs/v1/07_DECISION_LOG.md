@@ -20,3 +20,9 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 | 2026-10-23 | v1 laws: rule-shaped field (L2), light speed in moves (L3), binding energy and space (L4), Roche limit on the king's body (L5), accretion (L6). Dropped: Euclidean Plummer field, tidal-tensor η, Lorentz mass, GW, Schwarzschild, Verlet drift, CoM/inertia/entropy deltas, binding γ, image seed, Observer (from the core) | Measured: the dropped terms changed 0–3% of moves, and the decisive ones were the cause of the blunders (01) | 02 |
 | 2026-10-23 | v0 (`kepler64/`, Python + JAX) is frozen and used only as a baseline; moved to `legacy/` at release | v1 replaces it; the comparison must stay reproducible | 03, 05 M6 |
 | 2026-10-23 | The old web frontend `viz-web/` is retired. The website is rebuilt in `web/` on the v1 engine. | Comprehension problems, and its browser engine wasn't the real engine | 06 |
+
+## 2026-10-24 · spec-2: add L5b tidal load, keep L5 as it is
+- **Decision:** add one term, `T_tide = lambda_tide · (U_{K_B} − U_{K_W})` with `U_K` the enemy pull summed over the king's body (`02_LAWS_SPEC.md` §6b). Constant 15, `lambda_tide`, bounds [0, 2], default 0. The spec-1 Roche gauge (L5) stays unchanged as its own law.
+- **Why:** the measurement in findings F31. The spec-1 index detects doomed kings but divides by the king's own support, which L4 already counts; its numerator alone carries the information the evaluation lacks. F30 showed that a gated law's shape constants freeze at weight 0; a linear term has no shape constants.
+- **Compatibility:** `lambda_tide = 0` is exactly spec-1, so existing generations remain valid with no Ledger rerun. Files omit `lambda_tide` when it's 0, so work-unit hashes don't change.
+- **Not decided yet:** whether L5b is kept. That's its Ledger row (`lambda_tide = 0` vs learned), on CI.

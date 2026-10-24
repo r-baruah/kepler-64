@@ -143,3 +143,9 @@ pub fn roche_term<S: Scalar>(w: &Roche<S>, b: &Roche<S>, l: &Laws<S>) -> S {
 pub fn laws_f32(p: &Params) -> Laws<f32> {
     p.laws::<f32>()
 }
+
+/// L5b term `lambda_tide · (U_{K_B} − U_{K_W})`, with `U_K` the enemy pull on the
+/// king's body, which is the L5 stress `τ_K` (`02_LAWS_SPEC.md` §6b).
+pub fn tide_term<S: Scalar>(w: &Roche<S>, b: &Roche<S>, l: &Laws<S>) -> S {
+    l.lambda_tide * (b.stress - w.stress)
+}

@@ -38,7 +38,7 @@ assert.equal(bd.generation, 2);
 assert.ok(typeof bd.terms.score_white === 'number');
 assert.ok(bd.kings.every((k) => typeof k.break_ratio === 'number' && k.body.length >= 4));
 assert.ok(bd.pieces.every((p) => Array.isArray(p.hops) && p.hops.length === 3));
-const sumTerms = bd.terms.material + bd.terms.bind + bd.terms.space + bd.terms.roche;
+const sumTerms = bd.terms.material + bd.terms.bind + bd.terms.space + bd.terms.roche + bd.terms.tide;
 assert.ok(Math.abs(sumTerms - bd.terms.score_white) < 1e-4);
 
 // movetimeMs is a node budget.
@@ -49,6 +49,11 @@ assert.ok(t.nodes <= 6000, `node budget respected (${t.nodes})`);
 // setConstants
 eng.setConstants('{"rho": 2.0}');
 assert.equal(eng.breakdown().constants.rho, 2.0);
+assert.equal(eng.breakdown().constants.lambda_tide, 0);
+eng.setConstants('{"lambda_tide": 0.34}');
+assert.ok(Math.abs(JSON.parse(eng.constantsJson()).lambda_tide - 0.34) < 1e-6);
+assert.throws(() => eng.setConstants('{"lambda_tide": 3}'));
+eng.setConstants('{"lambda_tide": 0}');
 assert.throws(() => eng.setConstants('{"rho": 99}'));
 assert.throws(() => eng.newGame('not a fen'));
 

@@ -62,7 +62,7 @@ impl Engine {
 
     /// The `02_LAWS_SPEC.md` §10 breakdown as a JS object (see `eval::Report`).
     pub fn breakdown(&self) -> Result<JsValue, JsError> {
-        to_js(&self.game.breakdown())
+        to_js(&self.game.breakdown_json())
     }
 
     /// `limits`: `{ depth?, movetimeMs?, nodes?, nps? }` (all optional).

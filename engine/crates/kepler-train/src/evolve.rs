@@ -4,7 +4,7 @@
 //! Twin universes `theta+` and `theta-` around the current constants play each other; the
 //! winner pulls the constants towards itself. This is SPSA on playing strength.
 //!
-//! * Parameters: the 12 `GRAD_NAMES` constants plus `f_acc` (13; `c` is discrete and stays).
+//! * Parameters: the 12 `GRAD_NAMES` constants plus `f_acc` (13; `c` is discrete and stays; spec-2's `lambda_tide` is not evolved).
 //!   Perturbation and step are in *relative* units: coordinate `i` moves in units of
 //!   `range_i = hi - lo` (`f_acc`: 1).
 //! * Iteration `K` (0-based). Cooling: `c_K = c0 / (K+1)^0.101`, `a_K = a0 / (K+1+A)^0.602`.
@@ -28,7 +28,7 @@ use crate::tdleaf::{at_bound, pinned, write_json};
 use crate::util::{self, XorShift};
 use clap::Args;
 use kepler_core::Params;
-use kepler_core::params::{Generation, SPEC_ID};
+use kepler_core::params::{Generation, is_known_spec, spec_id};
 use kepler_core::search::Searcher;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -68,7 +68,7 @@ pub fn range(i: usize) -> f64 {
 
 pub fn theta_of(p: &Params) -> [f32; NP] {
     let mut t = [0.0; NP];
-    t[..12].copy_from_slice(&p.grad_values());
+    t[..12].copy_from_slice(&p.grad_values()[..12]);
     t[12] = p.f_acc;
     t
 }
@@ -76,8 +76,9 @@ pub fn theta_of(p: &Params) -> [f32; NP] {
 /// `base` with its 13 evolved parameters replaced by `th`, projected onto the bounds.
 pub fn with_theta(base: &Params, th: &[f32; NP]) -> Params {
     let mut p = *base;
-    let mut g = [0.0f32; 12];
-    g.copy_from_slice(&th[..12]);
+    // `lambda_tide` (the 13th gradient constant) is not evolved: it keeps its value.
+    let mut g = base.grad_values();
+    g[..12].copy_from_slice(&th[..12]);
     p.set_grad_values(g);
     p.f_acc = th[12].clamp(0.0, 1.0);
     p
@@ -322,7 +323,7 @@ pub fn play_evolve_shard(
     Ok(EvolveShard {
         kind: "evolve-shard".into(),
         version: 1,
-        spec: SPEC_ID.into(),
+        spec: spec_id(centre).into(),
         centre_hash: gen_hash(centre),
         iter,
         seed,
@@ -437,10 +438,12 @@ pub fn reduce_iter(
         if s.kind != "evolve-shard" || s.version != 1 {
             return Err(format!("shard {i}: not an evolve-shard v1 file"));
         }
-        if s.spec != first.spec || s.spec != SPEC_ID || spec != SPEC_ID {
+        if s.spec != first.spec || s.spec != spec_id(&st.params) || !is_known_spec(spec) {
             return Err(format!(
-                "shard {i}: spec {} differs from {} / generation {spec} / engine {SPEC_ID}",
-                s.spec, first.spec
+                "shard {i}: spec {} differs from {} / generation {spec} / constants {}",
+                s.spec,
+                first.spec,
+                spec_id(&st.params)
             ));
         }
         if s.centre_hash != first.centre_hash {
@@ -535,7 +538,8 @@ pub fn reduce_iter(
         c_k: ck,
         a_k: ak,
     });
-    let bound = at_bound(&st.params);
+    // evolve never perturbs lambda_tide (it keeps its base value)
+    let bound = at_bound(&st.params, false);
     st.bound_history.push(bound.clone());
     let pin = pinned(&st.bound_history);
     let mut names_g = serde_json::Map::new();
@@ -565,7 +569,7 @@ pub fn reduce_iter(
     let candidate = Generation {
         generation: st.parent + 1,
         parent: Some(st.parent),
-        spec: spec.to_string(),
+        spec: spec_id(&st.params).to_string(),
         created: util::utc_date(),
         constants: st.params,
         pinned: pin.clone(),
@@ -806,6 +810,7 @@ pub fn run_reduce(a: ReduceArgs) -> Result<(), String> {
 mod tests {
     use super::*;
     use clap::Parser;
+    use kepler_core::params::SPEC_ID_1;
 
     #[derive(Parser)]
     struct WS {
@@ -851,7 +856,7 @@ mod tests {
         EvolveShard {
             kind: "evolve-shard".into(),
             version: 1,
-            spec: SPEC_ID.into(),
+            spec: SPEC_ID_1.into(),
             centre_hash: gen_hash(&st.params),
             iter: st.iter,
             seed,

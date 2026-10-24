@@ -19,7 +19,7 @@ use crate::stats;
 use crate::util::{self, XorShift};
 use clap::Args;
 use kepler_core::Params;
-use kepler_core::params::SPEC_ID;
+use kepler_core::params::spec_id_pair;
 use kepler_core::search::{Limits, Searcher};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -276,7 +276,7 @@ pub fn run_shard(a: ShardArgs) -> Result<(), String> {
     let mut sh = SprtShard {
         kind: "sprt-shard".into(),
         version: 1,
-        spec: SPEC_ID.into(),
+        spec: spec_id_pair(&pa, &pb).into(),
         a_hash: gen_hash(&pa),
         b_hash: gen_hash(&pb),
         seed,
@@ -570,7 +570,7 @@ mod tests {
         SprtShard {
             kind: "sprt-shard".into(),
             version: 1,
-            spec: SPEC_ID.into(),
+            spec: kepler_core::params::SPEC_ID_1.into(),
             a_hash: "aa".into(),
             b_hash: "bb".into(),
             seed,

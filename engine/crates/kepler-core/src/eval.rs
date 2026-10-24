@@ -13,6 +13,7 @@ pub struct Breakdown<S> {
     pub bind: S,
     pub space: S,
     pub roche: S,
+    pub tide: S,
     pub score_white: S,
     /// `field[0]` = Φ_W, `field[1]` = Φ_B.
     pub field: [[S; 64]; 2],
@@ -34,12 +35,14 @@ pub fn evaluate<S: Scalar>(pos: &Position, p: &Params) -> Breakdown<S> {
     let kw = laws::roche(pos, Color::White, &phi, &l);
     let kb = laws::roche(pos, Color::Black, &phi, &l);
     let roche = laws::roche_term(&kw, &kb, &l);
-    let score_white = material + bind + space + roche;
+    let tide = laws::tide_term(&kw, &kb, &l);
+    let score_white = material + bind + space + roche + tide;
     Breakdown {
         material,
         bind,
         space,
         roche,
+        tide,
         score_white,
         field: phi,
         energy,
@@ -91,13 +94,14 @@ impl Breakdown<f32> {
     }
 }
 
-/// The four terms and the total, White's point of view (`02_LAWS_SPEC.md` §10).
+/// The five terms and the total, White's point of view (`02_LAWS_SPEC.md` §10).
 #[derive(Clone, Debug, Serialize)]
 pub struct TermsReport {
     pub material: f32,
     pub bind: f32,
     pub space: f32,
     pub roche: f32,
+    pub tide: f32,
     pub score_white: f32,
 }
 
@@ -202,6 +206,7 @@ pub fn report(pos: &Position, p: &Params, generation: Option<u32>) -> Report {
             bind: bd.bind,
             space: bd.space,
             roche: bd.roche,
+            tide: bd.tide,
             score_white: bd.score_white,
         },
         field: FieldReport {
@@ -257,7 +262,10 @@ mod report_tests {
                 );
             }
             let t = &r.terms;
-            assert_eq!(t.material + t.bind + t.space + t.roche, t.score_white);
+            assert_eq!(
+                t.material + t.bind + t.space + t.roche + t.tide,
+                t.score_white
+            );
             assert!(
                 r.pieces
                     .iter()

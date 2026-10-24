@@ -105,11 +105,16 @@ fn close(a: f32, b: f32, tol: f32) -> bool {
 
 #[test]
 fn colour_symmetry() {
-    let p = Params::default();
-    for pos in random_positions(200, &p) {
-        let s = evaluate::<f32>(&pos, &p).score_white;
-        let m = evaluate::<f32>(&pos.mirrored(), &p).score_white;
-        assert!(close(s, -m, 1e-4), "{s} vs mirrored {m} for {}", pos.board);
+    for lambda_tide in [0.0, 0.5] {
+        let p = Params {
+            lambda_tide,
+            ..Params::default()
+        };
+        for pos in random_positions(200, &p) {
+            let s = evaluate::<f32>(&pos, &p).score_white;
+            let m = evaluate::<f32>(&pos.mirrored(), &p).score_white;
+            assert!(close(s, -m, 1e-4), "{s} vs mirrored {m} for {}", pos.board);
+        }
     }
 }
 
@@ -253,12 +258,81 @@ fn breakdown_sums_exactly() {
     for pos in random_positions(50, &p) {
         let b = evaluate::<f32>(&pos, &p);
         assert_eq!(b.material + b.bind + b.space + b.roche, b.score_white);
+        assert_eq!(b.tide, 0.0);
+    }
+    let p = Params {
+        lambda_tide: 0.34,
+        ..Params::default()
+    };
+    let mut nonzero = 0;
+    for pos in random_positions(50, &p) {
+        let b = evaluate::<f32>(&pos, &p);
+        assert_eq!(
+            b.material + b.bind + b.space + b.roche + b.tide,
+            b.score_white
+        );
+        nonzero += (b.tide != 0.0) as usize;
+    }
+    assert!(nonzero > 40);
+}
+
+#[test]
+fn tide_uses_the_l5_stress() {
+    // U_K equals the reported L5 stress tau_K; T_tide = lambda_tide (U_KB - U_KW).
+    let p = Params {
+        lambda_tide: 0.34,
+        ..Params::default()
+    };
+    for pos in random_positions(100, &p) {
+        let b = evaluate::<f32>(&pos, &p);
+        let r = kepler_core::eval::report(&pos, &p, None);
+        assert_eq!(r.kings[0].stress, b.kings[0].stress);
+        assert_eq!(
+            b.tide,
+            p.lambda_tide * (r.kings[1].stress - r.kings[0].stress)
+        );
+        assert_eq!(r.terms.tide, b.tide);
+        // Enemy pull summed over the body, recomputed from the field.
+        for (c, color) in [Color::White, Color::Black].into_iter().enumerate() {
+            let sum: f32 = b.kings[c]
+                .body
+                .into_iter()
+                .map(|s| b.field[1 - c][s as usize])
+                .sum();
+            assert!(close(sum, b.kings[c].stress, 1e-4), "{color:?}");
+        }
+        // The lean path agrees with the generic one.
+        assert_eq!(
+            kepler_core::laws::fast::score_white_f32(&pos, &p).to_bits(),
+            b.score_white.to_bits()
+        );
+    }
+}
+
+#[test]
+fn tide_zero_is_spec_1() {
+    let p0 = Params::default();
+    let pt = Params {
+        lambda_tide: 1e-9,
+        ..p0
+    };
+    for pos in random_positions(50, &p0) {
+        let a = evaluate::<f32>(&pos, &p0);
+        assert_eq!(a.tide, 0.0);
+        assert_eq!(a.score_white, a.material + a.bind + a.space + a.roche);
+        // Pull on the king exists, so a tiny weight must differ in the term only.
+        let b = evaluate::<f32>(&pos, &pt);
+        assert!((b.score_white - a.score_white).abs() < 1e-3);
     }
 }
 
 #[test]
 fn gradient_matches_finite_difference() {
-    let base = Params::default();
+    // lambda_tide is nonzero so its central difference stays inside [0, 2].
+    let base = Params {
+        lambda_tide: 0.3,
+        ..Params::default()
+    };
     let positions = random_positions(200, &base);
     let v0 = base.grad_values();
     for (i, name) in Params::GRAD_NAMES.iter().enumerate() {

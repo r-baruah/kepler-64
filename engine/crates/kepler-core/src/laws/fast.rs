@@ -4,7 +4,7 @@
 //! generic path is enforced by `tests/eval_golden.rs` and `tests/laws.rs`.
 
 use super::field::hops_of;
-use super::{emission, material, rest_mass, roche, roche_term};
+use super::{emission, material, rest_mass, roche, roche_term, tide_term};
 use crate::params::{Laws, Params};
 use crate::position::Position;
 use cozy_chess::{Color, Piece};
@@ -158,5 +158,6 @@ fn score_white_f32_impl(pos: &Position, p: &Params) -> f32 {
     let kw = roche(pos, Color::White, &phi, &l);
     let kb = roche(pos, Color::Black, &phi, &l);
     let ro = roche_term(&kw, &kb, &l);
-    mat + bind + sp + ro
+    // L5b is added last: with lambda_tide = 0 the sum is exactly the spec-1 sum.
+    mat + bind + sp + ro + tide_term(&kw, &kb, &l)
 }

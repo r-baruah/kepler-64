@@ -83,7 +83,9 @@ fn generate() -> String {
     for (i, pos) in ps.iter().enumerate().step_by(20) {
         let b = kepler_core::eval::evaluate::<Dual>(pos, &p);
         write!(s, "dual {i} {:08x}", b.score_white.v.to_bits()).unwrap();
-        for d in b.score_white.d {
+        // The spec-1 constants only: the file predates constant 13 (lambda_tide, spec-2),
+        // whose partial is tested in laws.rs.
+        for d in b.score_white.d.iter().take(12).copied() {
             write!(s, " {:08x}", d.to_bits()).unwrap();
         }
         writeln!(s).unwrap();
