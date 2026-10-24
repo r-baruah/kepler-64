@@ -317,4 +317,5 @@ Written before any result existed; left unchanged below.
 
 - **Evidence:** `engine/results/browser/phone-android-chrome155.json`; the page is `scripts/bench/phone-bench.html` (serve it next to a `--target web` build of `kepler-wasm` and `gen-003.json`).
 - **Meaning:** the website can play the full engine at depth 6 (the ladder engine searches deeper on its clock) with no server, well inside the 1 s target. Node counts match the native engine exactly at the same depth.
+- **Desktop browser** (Brave/Chromium 156 on the maintainer's Ryzen 5 5500U laptop): 55, 307 and 134 ms at depth 6, 360 ms at depth 7 (`engine/results/browser/desktop-linux-chromium156.json`). The phone is only 10–15% slower than this laptop's browser.
 - **Caveat:** one phone. The browser hides the exact model.
