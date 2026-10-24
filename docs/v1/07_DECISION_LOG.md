@@ -38,3 +38,8 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 - **Opponent:** levels are node budgets; the default level gets its own Stockfish ladder on CI before launch, and the site's strength line describes that level only.
 - **Launch presets:** Champion (gen-004), Equal start, Gen 0 (untrained), and the three rejected laws switched back on (accretion, spec-1 Roche, tidal load), each labelled as an untrained variant with its Ledger result and generation. Slow light left out (a tie in the Ledger, nothing to see).
 - **Domain:** `kepler.ripuranjan.com`.
+
+## 2026-10-25 · Visual direction: "Mission"; the landing page is Play at rest
+- **Look (maintainer):** concept 2, Mission: light, precise, navy ink, one electric-blue accent, Geist and Geist Mono, the field as a dot plate (solid dots for White's pull, rings for Black's). The dark "Observatory" concept is rejected: it repeated the old frontend's glowing dark theme. Space feel comes from small, sparing touches (a planet-and-ring mark), never glow or jargon.
+- **Controls:** a floating pill dock.
+- **Landing:** `/` opens on Play at rest (headline plus the live board) with a short scrolling story below; pressing Play turns it into the Play screen in place. See `docs/v1/wireframes/README.md`.

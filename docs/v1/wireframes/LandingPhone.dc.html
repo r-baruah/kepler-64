@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Landing on a phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#14213D}a:hover{color:#2F5BFF}
+</style>
+</helmet>
+<div style="width: 390px; height: 4400px; box-sizing: border-box; background: #F6F7F9; color: #14213D; font-family: Geist, system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="height: 56px; box-sizing: border-box; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #DCE0E7">
+<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="4" fill="#14213D"></circle><ellipse cx="10" cy="10" rx="9" ry="3.4" fill="none" stroke="#14213D" stroke-width="1.2" transform="rotate(-20 10 10)"></ellipse></svg>
+<div style="font-weight: 600; font-size: 16px; flex-grow: 1">Kepler-64</div>
+<a href="#" style="height: 40px; padding: 0 14px; display: flex; align-items: center; font-size: 12px; text-decoration: none; background: #14213D; color: #FFFFFF; border-radius: 999px">Star · [STARS]</a>
+<button aria-label="Menu" style="width: 44px; height: 44px; font: inherit; border: 1px solid #DCE0E7; border-radius: 999px; background: #FFFFFF">=</button>
+</header>
+
+<section style="padding: 28px 16px 36px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478"><span style="width: 6px; height: 6px; border-radius: 3px; background: #2F5BFF"></span>OPEN-SOURCE CHESS ENGINE · GEN 4</div>
+<h1 style="margin: 0; font-size: 40px; font-weight: 300; letter-spacing: -0.04em; line-height: 1.05">A tiny universe that learned to play chess.</h1>
+<dc-import name="BoardHi" fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR" tint=".bbbBbb.BbBBBbbBbbbbbbbb................wwwwwwwwWwWWWwwW.wwwWww." marks="" theme="mission" size="{{full}}" hint-size="358px,358px"></dc-import>
+<div style="display: flex; gap: 10px">
+<button style="flex: 1 1 0; height: 52px; font: inherit; font-size: 16px; font-weight: 500; border-radius: 999px; border: 1px solid #14213D; background: #14213D; color: #FFFFFF">Play White</button>
+<button style="flex: 1 1 0; height: 52px; font: inherit; font-size: 16px; font-weight: 500; border-radius: 999px; border: 1px solid #14213D; background: none; color: #14213D">Play Black</button>
+</div>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #2A3550">Kepler-64 knows no chess advice. Its only judgement is one physical field: every piece pulls along the lines it can move, and the pull stops at the first piece in the way. It learned how strong each law is by playing itself.</p>
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478; line-height: 1.7">IN YOUR BROWSER · 4 GENERATIONS · OPEN SOURCE</div>
+</section>
+
+<section style="padding: 36px 16px; border-top: 1px solid #DCE0E7; display: flex; flex-direction: column; gap: 14px">
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #2F5BFF">01 · THE ONE LAW</div>
+<h2 style="margin: 0; font-size: 30px; font-weight: 300; letter-spacing: -0.03em; line-height: 1.1">Pull follows the moves.</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #2A3550">A rook pulls along its file and rank, a knight in its L-shapes, and the pull stops at the first piece in the way. This rook's pull reaches its own pawn and goes no further.</p>
+<dc-import name="BoardHi" fen="8/8/8/8/3P4/8/3R4/8" tint="" marks="...................................h.......h....hhh.hhhh...h...." theme="mission" size="{{mid}}" hint-size="260px,260px"></dc-import>
+<p style="margin: 0; font-size: 14px; line-height: 1.6; color: #5B6478">The field beats counting material alone by 330 Elo (engine against engine).</p>
+</section>
+
+<section style="padding: 36px 16px; border-top: 1px solid #DCE0E7; display: flex; flex-direction: column; gap: 14px">
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #2F5BFF">02 · LEARNED, NOT TOLD</div>
+<h2 style="margin: 0; font-size: 30px; font-weight: 300; letter-spacing: -0.03em; line-height: 1.1">It found the piece values by itself.</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #2A3550">Every piece started with the same weight. After 60,000 games against itself it sorted them: queen, rook, bishop, knight. A second universe landed on the same values.</p>
+<svg width="358" height="200" viewBox="-20 -20 650 320" role="img" aria-label="Piece masses over 30 training rounds, from all equal at 4.43 to queen 8.2, rook 4.4, bishop 3.3, knight 2.65">
+<line x1="0" y1="260" x2="520" y2="260" stroke="#DCE0E7"></line>
+<polyline fill="none" stroke="#14213D" stroke-width="3" points="0.0,169.8 17.3,163.9 34.7,157.9 52.0,151.9 69.3,146.0 86.7,140.1 104.0,134.2 121.3,128.4 138.7,122.7 156.0,117.0 173.3,111.5 190.7,106.0 208.0,100.7 225.3,95.4 242.7,90.3 260.0,85.2 277.3,80.2 294.7,75.4 312.0,70.7 329.3,66.2 346.7,61.9 364.0,57.8 381.3,53.8 398.7,50.0 416.0,46.4 433.3,43.0 450.7,39.8 468.0,36.8 485.3,34.0 502.7,31.3 520.0,28.8"></polyline>
+<polyline fill="none" stroke="#14213D" stroke-width="3" points="0.0,169.8 17.3,166.1 34.7,162.4 52.0,158.7 69.3,155.0 86.7,151.4 104.0,148.2 121.3,145.2 138.7,142.2 156.0,139.6 173.3,138.0 190.7,136.8 208.0,136.3 225.3,136.5 242.7,137.2 260.0,138.6 277.3,140.3 294.7,142.2 312.0,144.3 329.3,146.7 346.7,149.3 364.0,151.9 381.3,154.4 398.7,156.9 416.0,159.4 433.3,161.7 450.7,163.7 468.0,165.7 485.3,167.1 502.7,168.4 520.0,169.3"></polyline>
+<polyline fill="none" stroke="#2F5BFF" stroke-width="3" points="0.0,169.8 17.3,172.4 34.7,175.0 52.0,177.6 69.3,180.2 86.7,182.8 104.0,185.3 121.3,187.8 138.7,190.3 156.0,192.6 173.3,194.8 190.7,196.9 208.0,198.9 225.3,200.7 242.7,202.4 260.0,203.9 277.3,205.1 294.7,206.1 312.0,206.9 329.3,207.6 346.7,208.1 364.0,208.5 381.3,208.9 398.7,209.1 416.0,209.3 433.3,209.5 450.7,209.7 468.0,210.0 485.3,210.5 502.7,211.0 520.0,211.8"></polyline>
+<polyline fill="none" stroke="#2F5BFF" stroke-width="3" stroke-dasharray="8 6" points="0.0,169.8 17.3,172.4 34.7,175.0 52.0,177.6 69.3,180.2 86.7,182.8 104.0,185.3 121.3,187.8 138.7,190.3 156.0,192.8 173.3,195.2 190.7,197.6 208.0,200.1 225.3,202.5 242.7,204.9 260.0,207.2 277.3,209.6 294.7,212.0 312.0,214.3 329.3,216.6 346.7,218.8 364.0,220.9 381.3,223.0 398.7,225.0 416.0,226.9 433.3,228.7 450.7,230.5 468.0,232.1 485.3,233.6 502.7,234.9 520.0,236.0"></polyline>
+<text x="530" y="36" font-family="Geist, sans-serif" font-size="22" fill="#14213D">Q 8.2</text>
+<text x="530" y="176" font-family="Geist, sans-serif" font-size="22" fill="#14213D">R 4.4</text>
+<text x="530" y="214" font-family="Geist, sans-serif" font-size="22" fill="#2F5BFF">B 3.3</text>
+<text x="530" y="246" font-family="Geist, sans-serif" font-size="22" fill="#2F5BFF">N 2.65</text>
+<text x="0" y="292" font-family="Geist Mono, monospace" font-size="18" fill="#5B6478">ALL START AT 4.43 · 30 ROUNDS</text>
+</svg>
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478; line-height: 1.6">RELATIVE TO THE KNIGHT: BISHOP 1.25× · ROOK 1.68× · QUEEN 3.11×<br>HUMAN RULE OF THUMB: 1× · 1.67× · 3×</div>
+</section>
+
+<section style="padding: 36px 16px; border-top: 1px solid #DCE0E7; display: flex; flex-direction: column; gap: 12px">
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #2F5BFF">03 · THE LAW LEDGER</div>
+<h2 style="margin: 0; font-size: 30px; font-weight: 300; letter-spacing: -0.03em; line-height: 1.1">Every law has to earn its place.</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #2A3550">Each law was switched off and the engine played itself 4,000 times. Laws that mattered stayed.</p>
+<div style="display: flex; flex-direction: column; border-top: 1px solid #14213D; font-size: 15px">
+<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #DCE0E7"><span>The field, against material</span><span style="font-weight: 600">Kept · +330</span></div>
+<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #DCE0E7"><span>Pull spreads out</span><span style="font-weight: 600">Kept · +129</span></div>
+<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #DCE0E7"><span>Squares to the stronger pull</span><span style="font-weight: 600">Kept · +111</span></div>
+<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #DCE0E7"><span>Defended pieces held</span><span style="font-weight: 600">Came back · +35</span></div>
+<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #DCE0E7; color: #5B6478"><span>Captures absorb weight</span><span>Rejected</span></div>
+<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #DCE0E7; color: #5B6478"><span>A king torn apart</span><span>Rejected, twice</span></div>
+</div>
+<a href="#" style="font-size: 15px; color: #2F5BFF; text-decoration: none">Play a rejected universe →</a>
+</section>
+
+<section style="padding: 36px 16px; border-top: 1px solid #DCE0E7; display: flex; flex-direction: column; gap: 12px">
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #2F5BFF">04 · HOW STRONG</div>
+<h2 style="margin: 0; font-size: 30px; font-weight: 300; letter-spacing: -0.03em; line-height: 1.1">Measured against a known yardstick.</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #2A3550">Gen 3 against Stockfish 19, deliberately limited, 200 games per level. It holds level with the 2100 setting.</p>
+<div style="display: grid; grid-template-columns: 44px 1fr 40px; row-gap: 10px; column-gap: 10px; align-items: center; font-size: 14px">
+<span style="font-family: 'Geist Mono', monospace; font-size: 11px">1500</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 87%; height: 8px; background: #14213D"></span></span><span>87%</span>
+<span style="font-family: 'Geist Mono', monospace; font-size: 11px">1700</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 79%; height: 8px; background: #14213D"></span></span><span>79%</span>
+<span style="font-family: 'Geist Mono', monospace; font-size: 11px">1900</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 62%; height: 8px; background: #14213D"></span></span><span>62%</span>
+<span style="font-family: 'Geist Mono', monospace; font-size: 11px">2100</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 53%; height: 8px; background: #2F5BFF"></span></span><span>53%</span>
+<span style="font-family: 'Geist Mono', monospace; font-size: 11px">2300</span><span style="height: 8px; background: #E6E9EF"><span style="display: block; width: 40%; height: 8px; background: #14213D"></span></span><span>40%</span>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 1.6; color: #5B6478">Stockfish's own scale, 30 s + 0.3 s. Not a human rating. The browser opponent searches less; its own numbers come before launch.</p>
+</section>
+
+<section style="padding: 36px 16px; border-top: 1px solid #DCE0E7; display: flex; flex-direction: column; gap: 12px">
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #2F5BFF">05 · REBUILT HONESTLY</div>
+<h2 style="margin: 0; font-size: 26px; font-weight: 300; letter-spacing: -0.03em; line-height: 1.15">The first version had a bigger story than its physics.</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.6; color: #2A3550">On 120 test positions, removing its headline physics changed none of its moves. So I rebuilt it so that a law stays only if it wins games.</p>
+<a href="#" style="font-size: 15px; color: #2F5BFF; text-decoration: none">Read the audit →</a>
+</section>
+
+<section style="margin-top: auto; padding: 40px 16px; background: #14213D; color: #F6F7F9; display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-size: 28px; font-weight: 300; letter-spacing: -0.03em">Kepler-64 is open source.</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.6; color: #C9D0DD">The engine, the training runs and every number here are on GitHub.</p>
+<a href="#" style="height: 50px; display: flex; align-items: center; justify-content: center; font-size: 15px; text-decoration: none; background: #F6F7F9; color: #14213D; border-radius: 999px">Star on GitHub · [STARS]</a>
+<div style="display: flex; gap: 10px">
+<a href="#" style="flex: 1 1 0; height: 46px; display: flex; align-items: center; justify-content: center; font-size: 14px; text-decoration: none; border: 1px solid #F6F7F9; color: #F6F7F9; border-radius: 999px">Download</a>
+<a href="#" style="flex: 1 1 0; height: 46px; display: flex; align-items: center; justify-content: center; font-size: 14px; text-decoration: none; border: 1px solid #F6F7F9; color: #F6F7F9; border-radius: 999px">Cite</a>
+</div>
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #9AA6BD; line-height: 1.7">MADE BY RIPURANJAN BARUAH<br>ALSO BUILDING GAMBITS, CHESS TRAINING</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":4400}}'>
+class Component extends DCLogic {
+  renderVals() { return { full: 358, mid: 260 }; }
+}
+</script>
+</body>
+</html>

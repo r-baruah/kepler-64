@@ -43,3 +43,9 @@ The maintainer asked for a space-themed, hypermodern, professional look, shown o
 | `VisMission*.dc.html` | 2 · Mission: bright, precise, one electric-blue accent; the field as a scientific dot plate (solid dots for White, rings for Black, size = strength). Geist + Geist Mono |
 
 `BoardHi.dc.html` draws both themes from the same computed field.
+
+## Decision and landing page (2026-10-25, third review)
+
+- **Chosen look: concept 2, Mission** (light, navy ink, one electric-blue accent, dot-plate field, Geist). Observatory rejected: it repeated the old frontend's dark, glowing look. A rebalanced dark theme may come later only as an optional community theme.
+- Floating pill dock (from concept 1) adopted in Mission.
+- **Landing** (`Landing.dc.html`, `LandingPhone.dc.html`): the hero is Play at rest (headline plus the live board); pressing Play turns the page into the Play screen in place. Below: five short sections (the one law, self-found piece values with the real curves from both equal-start runs, the Law Ledger, the Stockfish ladder with its caveat, the honest v0 story), then open source. The planet-and-ring mark is the only space ornament.
