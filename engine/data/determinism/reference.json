@@ -1,0 +1,67 @@
+{
+  "note": "reference units for determinism rule D8; produced by `kepler-train determinism-ref`",
+  "units": [
+    {
+      "args": [
+        "--gen",
+        "data/generations/gen-000.json",
+        "--openings",
+        "data/openings/balanced-200.epd",
+        "--games",
+        "6",
+        "--depth",
+        "2",
+        "--seed",
+        "424242",
+        "--shard-index",
+        "0",
+        "--threads",
+        "2"
+      ],
+      "kind": "tdleaf-shard",
+      "result_hash": "b1f56a3e30f1eb9c"
+    },
+    {
+      "args": [
+        "--a",
+        "data/generations/gen-000.json",
+        "--b",
+        "data/ablations/gen-000-material-only.json",
+        "--openings",
+        "data/openings/balanced-200.epd",
+        "--pairs",
+        "3",
+        "--depth",
+        "2",
+        "--seed",
+        "424242",
+        "--threads",
+        "2"
+      ],
+      "kind": "sprt-shard",
+      "result_hash": "d7c71a0b84c5142b"
+    },
+    {
+      "args": [
+        "--gen",
+        "data/generations/gen-000.json",
+        "--state",
+        "none",
+        "--openings",
+        "data/openings/balanced-200.epd",
+        "--iter",
+        "0",
+        "--pairs",
+        "2",
+        "--depth",
+        "2",
+        "--seed",
+        "424242",
+        "--threads",
+        "2"
+      ],
+      "kind": "evolve-shard",
+      "result_hash": "da3f1b02cbf711c9"
+    }
+  ]
+}

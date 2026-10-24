@@ -1,6 +1,7 @@
 //! kepler-train: testing and training harness for Kepler-64 v1.
 
 mod chess;
+mod determinism;
 mod epd;
 mod evolve;
 mod matchcmd;
@@ -48,6 +49,10 @@ enum Cmd {
     SprtShard(sprt::ShardArgs),
     /// Combine SPRT shards and judge once on the total
     SprtReduce(sprt::ReduceArgs),
+    /// Run the fixed reference units and write reference.json (determinism rule D8)
+    DeterminismRef(determinism::RefArgs),
+    /// Rerun the reference units and compare result hashes; non-zero exit on a mismatch
+    DeterminismCheck(determinism::CheckArgs),
     /// Run an EPD suite through one UCI engine
     Suite(suite::SuiteArgs),
     /// Opening suite tools
@@ -77,6 +82,8 @@ fn main() {
         Cmd::Sprt(a) => sprt::run(a),
         Cmd::SprtShard(a) => sprt::run_shard(a),
         Cmd::SprtReduce(a) => sprt::run_reduce(a),
+        Cmd::DeterminismRef(a) => determinism::run_ref(a),
+        Cmd::DeterminismCheck(a) => determinism::run_check(a),
         Cmd::Suite(a) => suite::run(a),
         Cmd::Openings {
             cmd: OpeningsCmd::Build(a),

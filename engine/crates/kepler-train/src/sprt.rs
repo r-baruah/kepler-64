@@ -174,6 +174,9 @@ pub struct ShardArgs {
     explore_plies: usize,
     #[arg(long, default_value_t = 8)]
     hash: usize,
+    /// Allow --movetime; the shard then says "deterministic": false (rule D3)
+    #[arg(long = "allow-nondeterministic")]
+    allow_nondeterministic: bool,
     #[command(flatten)]
     adj: AdjArgs,
     #[arg(long)]
@@ -200,9 +203,16 @@ pub struct SprtShard {
     pub wdl: Wdl,
     pub elapsed_ms: u64,
     pub config: serde_json::Value,
+    /// False only for units run with `--allow-nondeterministic` (rule D3).
+    #[serde(default = "util::yes")]
+    pub deterministic: bool,
+    /// Canonical hash of the deterministic content (rule D6, `util::canonical_hash`).
+    #[serde(default)]
+    pub result_hash: Option<String>,
 }
 
 pub fn run_shard(a: ShardArgs) -> Result<(), String> {
+    util::check_time_limit(a.movetime.is_some(), a.allow_nondeterministic)?;
     let ga = load_generation(&a.a)?;
     let gb = load_generation(&a.b)?;
     let (pa, pb) = (ga.constants, gb.constants);
@@ -254,6 +264,8 @@ pub fn run_shard(a: ShardArgs) -> Result<(), String> {
         "depth": a.depth, "movetime_ms": a.movetime, "pairs": a.pairs,
         "max_plies": a.max_plies, "explore_plies": a.explore_plies,
         "adjudication": a.adj.cfg(), "openings": a.openings,
+        "openings_hash": util::file_hash(&a.openings)?, "hash_mb": a.hash,
+        "threads": a.threads,
         "created": util::utc_iso(),
         "note": "pentanomial = pairs scoring 0, 0.5, 1, 1.5, 2 for A",
     });
@@ -261,7 +273,7 @@ pub fn run_shard(a: ShardArgs) -> Result<(), String> {
         config["round_seed"] = json!(a.seed);
         config["shard_index"] = json!(k);
     }
-    let sh = SprtShard {
+    let mut sh = SprtShard {
         kind: "sprt-shard".into(),
         version: 1,
         spec: SPEC_ID.into(),
@@ -276,7 +288,10 @@ pub fn run_shard(a: ShardArgs) -> Result<(), String> {
         },
         elapsed_ms: ms,
         config,
+        deterministic: !a.allow_nondeterministic,
+        result_hash: None,
     };
+    sh.result_hash = Some(util::result_hash_of(&sh));
     std::fs::write(&a.out, serde_json::to_string_pretty(&sh).unwrap() + "\n")
         .map_err(|e| format!("{}: {e}", a.out.display()))?;
     println!(
@@ -308,6 +323,20 @@ pub struct ReduceArgs {
     out: PathBuf,
 }
 
+impl ReduceArgs {
+    #[cfg(test)]
+    pub fn for_test(shards: Vec<PathBuf>, out: PathBuf) -> Self {
+        ReduceArgs {
+            shards,
+            elo0: 0.0,
+            elo1: 10.0,
+            alpha: 0.05,
+            beta: 0.05,
+            out,
+        }
+    }
+}
+
 /// Combine shards: sum the pentanomials and judge once on the total.
 pub fn reduce(
     shards: &[SprtShard],
@@ -316,7 +345,21 @@ pub fn reduce(
     alpha: f64,
     beta: f64,
 ) -> Result<serde_json::Value, String> {
+    // D7: combine in (shard_index, seed, result_hash) order, whatever order they arrive in
+    let mut sorted = shards.to_vec();
+    sorted.sort_by_key(|s| {
+        (
+            s.config
+                .get("shard_index")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(u64::MAX),
+            s.seed,
+            s.result_hash.clone(),
+        )
+    });
+    let shards = &sorted[..];
     let first = shards.first().ok_or("no shards")?;
+    util::check_same_determinism(shards.iter().map(|s| s.deterministic))?;
     let mut penta = [0u32; 5];
     let mut wdl = [0u32; 3];
     let mut ms = 0u64;
@@ -368,6 +411,7 @@ pub fn reduce(
             "shards": shards.len(), "shard_seeds": shards.iter().map(|s| s.seed).collect::<Vec<_>>(),
             "elo0": elo0, "elo1": elo1, "alpha": alpha, "beta": beta,
             "shard_config": first.config,
+            "deterministic": first.deterministic,
             "created": util::utc_iso(),
             "note": "result is for A versus B; judged once on the summed pentanomial",
         },
@@ -378,10 +422,7 @@ pub fn run_reduce(a: ReduceArgs) -> Result<(), String> {
     let shards: Vec<SprtShard> = a
         .shards
         .iter()
-        .map(|p| {
-            let s = std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))?;
-            serde_json::from_str(&s).map_err(|e| format!("{}: {e}", p.display()))
-        })
+        .map(|p| util::load_shard(p))
         .collect::<Result<_, String>>()?;
     let doc = reduce(&shards, a.elo0, a.elo1, a.alpha, a.beta)?;
     std::fs::write(&a.out, serde_json::to_string_pretty(&doc).unwrap() + "\n")
@@ -537,6 +578,8 @@ mod tests {
             wdl: Wdl { w: 1, d: 2, l: 3 },
             elapsed_ms: 10,
             config: json!({ "depth": 3, "movetime_ms": null }),
+            deterministic: true,
+            result_hash: None,
         }
     }
 

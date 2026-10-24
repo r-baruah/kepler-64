@@ -82,6 +82,109 @@ pub fn mix(a: u64, b: u64) -> u64 {
     z ^ (z >> 31)
 }
 
+/// Keys left out of a shard's `result_hash` (removed at every depth before hashing):
+/// - `elapsed_ms`, `created`: wall-clock facts.
+/// - `result_hash`: the hash itself.
+/// - `threads`: thread count must not change a result (rule D4, tested).
+/// - `gen_file`, `openings`, `file`: host paths. The inputs they name are pinned by
+///   `gen_hash` / `a_hash` / `b_hash` / `centre_hash` and `config.openings_hash`.
+///
+/// `hash_mb` is deliberately NOT here: the transposition table size changes cutoffs and
+/// replacement, so it can change which move is chosen. Everything else, including
+/// `deterministic`, `generation` and the search settings, is hashed.
+pub const HASH_EXCLUDED_KEYS: &[&str] = &[
+    "elapsed_ms",
+    "created",
+    "result_hash",
+    "threads",
+    "gen_file",
+    "openings",
+    "file",
+];
+
+fn strip_excluded(v: &mut serde_json::Value) {
+    match v {
+        serde_json::Value::Object(m) => {
+            m.retain(|k, _| !HASH_EXCLUDED_KEYS.contains(&k.as_str()));
+            m.values_mut().for_each(strip_excluded);
+        }
+        serde_json::Value::Array(a) => a.iter_mut().for_each(strip_excluded),
+        _ => {}
+    }
+}
+
+/// D6: FNV-1a 64 (16 hex digits) of the compact canonical JSON of `v` without the
+/// `HASH_EXCLUDED_KEYS`. Object keys are sorted (serde_json's `Map` is a `BTreeMap`) and
+/// numbers are written the way serde_json writes them.
+pub fn canonical_hash(v: &serde_json::Value) -> String {
+    let mut v = v.clone();
+    strip_excluded(&mut v);
+    format!(
+        "{:016x}",
+        crate::selfgame::fnv1a64(v.to_string().as_bytes())
+    )
+}
+
+/// `canonical_hash` of any serialisable shard.
+pub fn result_hash_of<T: serde::Serialize>(t: &T) -> String {
+    canonical_hash(&serde_json::to_value(t).expect("shard serialises"))
+}
+
+/// FNV-1a 64 of a file's bytes (pins an input such as the opening suite).
+pub fn file_hash(path: &std::path::Path) -> Result<String, String> {
+    let b = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(format!("{:016x}", crate::selfgame::fnv1a64(&b)))
+}
+
+/// Read a shard file, check its `result_hash` against the recomputed one, deserialise.
+pub fn load_shard<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<T, String> {
+    let s = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let v: serde_json::Value =
+        serde_json::from_str(&s).map_err(|e| format!("{}: {e}", path.display()))?;
+    let stored = v
+        .get("result_hash")
+        .and_then(|h| h.as_str())
+        .ok_or_else(|| {
+            format!(
+                "{}: no result_hash (shard from an older binary)",
+                path.display()
+            )
+        })?;
+    let want = canonical_hash(&v);
+    if stored != want {
+        return Err(format!(
+            "{}: result_hash {stored} does not match the content ({want}); shard is corrupt or edited",
+            path.display()
+        ));
+    }
+    serde_json::from_value(v).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// D3: a time limit is refused unless `--allow-nondeterministic` is given.
+pub fn check_time_limit(time_limited: bool, allow: bool) -> Result<(), String> {
+    if time_limited && !allow {
+        return Err(
+            "time limits (--movetime) make a unit non-reproducible (determinism rule D3); \
+             use --depth, or pass --allow-nondeterministic"
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+/// D3/D7: all shards of one reduce must agree on `deterministic`.
+pub fn check_same_determinism(flags: impl Iterator<Item = bool>) -> Result<(), String> {
+    let v: Vec<bool> = flags.collect();
+    if v.iter().any(|&d| d != v[0]) {
+        return Err("refusing to mix deterministic and non-deterministic shards".into());
+    }
+    Ok(())
+}
+
+pub fn yes() -> bool {
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

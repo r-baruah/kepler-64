@@ -56,6 +56,12 @@ use std::time::Instant;
 pub struct PlayOpts {
     #[arg(long, default_value_t = 4)]
     depth: u32,
+    /// Milliseconds per move instead of --depth. Refused unless --allow-nondeterministic
+    /// (rule D3); the shard then says "deterministic": false
+    #[arg(long)]
+    movetime: Option<u64>,
+    #[arg(long = "allow-nondeterministic")]
+    allow_nondeterministic: bool,
     #[arg(long, default_value_t = 10)]
     threads: usize,
     #[arg(long, default_value_t = 0.7)]
@@ -259,6 +265,12 @@ pub struct Shard {
     pub results: ShardResults,
     pub elapsed_ms: u64,
     pub config: serde_json::Value,
+    /// False only for units run with `--allow-nondeterministic` (rule D3).
+    #[serde(default = "util::yes")]
+    pub deterministic: bool,
+    /// Canonical hash of the deterministic content (rule D6, `util::canonical_hash`).
+    #[serde(default)]
+    pub result_hash: Option<String>,
 }
 
 pub fn shard_seed(round_seed: u64, k: u64) -> u64 {
@@ -274,10 +286,17 @@ pub fn play_shard(
     o: &PlayOpts,
     temperature: f32,
 ) -> Result<Shard, String> {
+    util::check_time_limit(o.movetime.is_some(), o.allow_nondeterministic)?;
     let cfg = GameCfg {
-        limits: Limits {
-            depth: Some(o.depth),
-            ..Default::default()
+        limits: match o.movetime {
+            Some(ms) => Limits {
+                movetime_ms: Some(ms),
+                ..Default::default()
+            },
+            None => Limits {
+                depth: Some(o.depth),
+                ..Default::default()
+            },
         },
         explore_depth: o.depth.saturating_sub(1).max(1),
         max_plies: o.max_plies,
@@ -343,6 +362,8 @@ pub fn play_shard(
         results: ShardResults::default(),
         elapsed_ms: 0,
         config: serde_json::Value::Null,
+        deterministic: !o.allow_nondeterministic,
+        result_hash: None,
     };
     for g in played {
         let Some((td, dropped, res, cap, adj)) = g? else {
@@ -371,7 +392,8 @@ pub fn play_shard(
     sh.grad_sum = grad;
     sh.elapsed_ms = t0.elapsed().as_millis() as u64;
     sh.config = json!({
-        "depth": o.depth, "threads": o.threads, "hash_mb": o.hash,
+        "depth": o.depth, "movetime_ms": o.movetime,
+        "threads": o.threads, "hash_mb": o.hash,
         "lambda": o.lambda, "temperature": temperature,
         "capped_target": o.capped_target.name(), "quiet_leaf": true,
         "max_plies": o.max_plies, "explore_plies": o.explore_plies, "explore_margin": 0.15,
@@ -621,7 +643,21 @@ pub fn reduce_round(
     spec: &str,
 ) -> Result<RoundSummary, String> {
     let lr = step.lr;
+    // D7: combine in (shard_index, seed, result_hash) order, whatever order they arrive in
+    let mut sorted = shards.to_vec();
+    sorted.sort_by_key(|s| {
+        (
+            s.config
+                .get("shard_index")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(u64::MAX),
+            s.seed,
+            s.result_hash.clone(),
+        )
+    });
+    let shards = &sorted[..];
     let first = shards.first().ok_or("no shards to reduce")?;
+    util::check_same_determinism(shards.iter().map(|s| s.deterministic))?;
     let want = gen_hash(&ck.params);
     for (i, s) in shards.iter().enumerate() {
         if s.kind != "tdleaf-shard" || s.version != 1 {
@@ -939,10 +975,12 @@ pub fn run_shard(a: ShardArgs) -> Result<(), String> {
     sh.config["generation"] = json!(gen_.generation);
     sh.config["gen_file"] = json!(a.gen_file);
     sh.config["openings"] = json!(a.openings);
+    sh.config["openings_hash"] = json!(util::file_hash(&a.openings)?);
     if let Some(k) = a.shard_index {
         sh.config["round_seed"] = json!(a.seed);
         sh.config["shard_index"] = json!(k);
     }
+    sh.result_hash = Some(util::result_hash_of(&sh));
     write_json(a.out.clone(), &serde_json::to_value(&sh).unwrap())?;
     println!(
         "shard {}: {} games, {} plies in {:.1}s ({:.2} games/s) | W{} D{} L{} cap{} adj{} | gen_hash {} seed {}",
@@ -977,13 +1015,7 @@ fn read_shards(a: &ReduceArgs) -> Result<Vec<Shard>, String> {
     if files.is_empty() {
         return Err("give --shards <files...> or --shard-dir".into());
     }
-    files
-        .iter()
-        .map(|p| {
-            let s = std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))?;
-            serde_json::from_str(&s).map_err(|e| format!("{}: {e}", p.display()))
-        })
-        .collect()
+    files.iter().map(|p| util::load_shard(p)).collect()
 }
 
 pub fn run_reduce(a: ReduceArgs) -> Result<(), String> {
@@ -1201,6 +1233,8 @@ mod tests {
             results: ShardResults::default(),
             elapsed_ms: 1,
             config: json!({"lambda": 0.7, "temperature": t, "capped_target": "drop", "depth": 2}),
+            deterministic: true,
+            result_hash: None,
         }
     }
 
