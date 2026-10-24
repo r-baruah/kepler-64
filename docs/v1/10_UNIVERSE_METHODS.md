@@ -97,3 +97,17 @@ None of these is active. Each needs a spec change, then must earn its place in t
 
 ### Note: pawn structure may already be in the laws
 Pawns only pull diagonally forward, so pawns defend each other through L4a binding. An isolated pawn gets no friendly pull and is "unbound". Doubled pawns block each other's field. If binding is kept (the F10 run zeroed it through an artefact, not evidence), pawn structure should partly emerge. Check this in ladder game reviews before adding anything.
+
+---
+
+## Part C · Laws proposed by anyone (planned, after v1.0)
+
+Anyone can propose a law for the universe. The process is the same one every law here goes through, done in public:
+
+1. **Proposal:** a GitHub issue using the "Propose a law" template. It covers the physical source; the literal mechanism as a quantity computed from the board (no chess heuristics: `02_LAWS_SPEC.md` §9 applies); what it should change; and how to switch it off.
+2. **Review:** the maintainer checks that it's literal, computable and not a disguised chess rule, and tags it `law: accepted for testing` or explains why not.
+3. **Implementation:** behind a constant whose value 0 turns it off, with invariant tests. One pull request per law.
+4. **Verdict:** a Law Ledger row on the compute repository (SPRT, 4,000 games, depth 4) against the current generation. The issue gets the result, kept or cut, with the numbers and the run link, whatever the outcome.
+5. **Record:** a findings entry. Kept laws enter the next spec version with credit to the proposer. Cut laws stay listed in a public "laws the universe rejected" table.
+
+Every verdict is reproducible (`08_DISTRIBUTED_COMPUTE.md` §3a), so anyone can rerun it.
