@@ -226,6 +226,60 @@ impl Engine {
             }
         }
     }
+
+    /// Like `go`, but returns the final line of each of the first `n` principal variations
+    /// (score and first move), for engines running with `MultiPV >= n`.
+    pub fn go_multi(
+        &mut self,
+        position: &str,
+        go_args: &str,
+        n: usize,
+        timeout: Duration,
+    ) -> Result<Vec<(Score, String)>, String> {
+        self.sync()?;
+        self.send(position)?;
+        self.send(&format!("go {go_args}"))?;
+        let deadline = Instant::now() + timeout;
+        let mut lines: Vec<Option<(Score, String)>> = vec![None; n];
+        loop {
+            let line = match self.recv_until(deadline) {
+                Ok(l) => l,
+                Err(m) => {
+                    if m == "timeout" {
+                        let _ = self.send("stop");
+                    }
+                    return Err(m);
+                }
+            };
+            let t: Vec<&str> = line.split_whitespace().collect();
+            match t.first() {
+                Some(&"bestmove") => return Ok(lines.into_iter().flatten().collect()),
+                Some(&"info") => {
+                    let at = |k: &str| t.iter().position(|x| *x == k);
+                    let idx = at("multipv")
+                        .and_then(|i| t.get(i + 1))
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .unwrap_or(1);
+                    let score = at("score").and_then(|i| {
+                        let v = t.get(i + 2)?.parse::<i32>().ok()?;
+                        match *t.get(i + 1)? {
+                            "cp" => Some(Score::Cp(v)),
+                            "mate" => Some(Score::Mate(v)),
+                            _ => None,
+                        }
+                    });
+                    let mv = at("pv").and_then(|i| t.get(i + 1)).map(|s| s.to_string());
+                    if let (Some(sc), Some(mv)) = (score, mv)
+                        && idx >= 1
+                        && idx <= n
+                    {
+                        lines[idx - 1] = Some((sc, mv));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 impl Drop for Engine {

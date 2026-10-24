@@ -5,6 +5,7 @@ mod determinism;
 mod epd;
 mod evolve;
 mod matchcmd;
+mod mates;
 mod openings;
 mod replaycmd;
 mod selfgame;
@@ -12,6 +13,7 @@ mod selfplaycmd;
 mod sprt;
 mod stats;
 mod suite;
+mod tactics;
 mod tdleaf;
 mod uci;
 mod util;
@@ -58,6 +60,10 @@ enum Cmd {
     Replay(replaycmd::ReplayArgs),
     /// Run an EPD suite through one UCI engine
     Suite(suite::SuiteArgs),
+    /// Build the mate-in-1 and mate-in-2 suites (exact solver, Stockfish verified)
+    SuiteBuildMates(mates::MatesArgs),
+    /// Build the tactics-own suite from Kepler's ladder games (Stockfish examines, never teaches)
+    SuiteBuildTactics(tactics::TacticsArgs),
     /// Opening suite tools
     Openings {
         #[command(subcommand)]
@@ -89,6 +95,8 @@ fn main() {
         Cmd::DeterminismCheck(a) => determinism::run_check(a),
         Cmd::Replay(a) => replaycmd::run(a),
         Cmd::Suite(a) => suite::run(a),
+        Cmd::SuiteBuildMates(a) => mates::run(a),
+        Cmd::SuiteBuildTactics(a) => tactics::run(a),
         Cmd::Openings {
             cmd: OpeningsCmd::Build(a),
         } => openings::run(a),

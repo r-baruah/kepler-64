@@ -13,9 +13,9 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [x] Stockfish 19 available locally (`KEPLER_STOCKFISH`)
 - [x] Docs: `CLAUDE.md`, `AGENTS.md`, `docs/v1/` 01–07
 - [x] Merge `backend/improvements` into main (fast-forward, local only; nothing pushed)
-- [ ] History cleanup per the maintainer's private runbook, with the force-push confirmed by the maintainer at that moment (blocked 2026-10-24: the rewrite step needs the maintainer to allow or run it)
-- [ ] Old Pages site replaced by a redirect stub. `deploy-pages.yml` updated in the same push
-- [~] `v1` branch created (from local main; it gets replayed onto the cleaned main after the rewrite; it never touches `viz-web/`)
+- [x] History cleanup per the maintainer's private runbook, force-push confirmed by the maintainer (done 2026-10-24)
+- [x] Old Pages site replaced by a placeholder stub (`site-stub/`). `deploy-pages.yml` updated in the same push
+- [x] `v1` branch created and published on the cleaned history (it never touches `viz-web/`)
 
 **Accept when:** main is clean, the `v1` branch exists, and the v0 baseline still runs (`KEPLER_V0_UCI` answers `uciok`).
 
@@ -55,15 +55,15 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [x] Law Ledger at Gen 1, all 10 rows (`results/ledger-gen001.md`): field, spreading and space kept; accretion, binding and spec-1 Roche cut
 - [ ] Spec updated if any law is cut (new spec id, decision log)
 - [x] v1 beats material-only by SPRT (the honesty gate): +330 Elo at depth 4, 4,000 games
-- [ ] Gen 2+ while time allows
+- [x] Gen 2+ while time allows: gen-002 (+81 over gen-001, Ledger cuts applied), gen-003 (+53 over gen-002, self-play on GitHub Actions)
 
 **Accept when:** Gen ≥ 1 exists, the Ledger is published in `engine/results/`, and the material-only gate passes. If it fails, record that honestly and decide in the log.
 
 ## M4 · Ladder and showcase data
 - [x] Stockfish ladder for gen-002 (`results/ladder-gen002.json`): 97% vs SF-1320, 81% vs 1500, 54% vs 1700 and 1900, 39% vs 2100 at 30+0.3 (findings F21)
-- [ ] Tactics suite tracked per generation
+- [x] Tactics suite tracked per generation (`results/suites-per-generation.md`: own-games tactics, mate in 1 and 2, closed blunders; F28)
 - [ ] 8–12 showcase games exported as Replay v3 for Watch mode (self-play, vs a ladder rung, famous human games judged by Kepler)
-- [ ] Generations manifest for the website (`data/generations/index.json`)
+- [x] Generations manifest for the website (`engine/data/generations/index.json`: champion, lineage, Elo vs parent with its result file)
 
 ## M5 · Website: Play first
 Plan and stages are in `06_WEB_PLAN.md`. Design follows the staged check-ins there.

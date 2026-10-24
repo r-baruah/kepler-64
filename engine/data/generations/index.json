@@ -1,0 +1,76 @@
+{
+  "spec": "v1.0-spec-1",
+  "champion": "gen-003",
+  "note": "Elo against the parent is engine versus engine at fixed depth, 95% interval. It is not a rating. Calibrated strength is in the ladder files.",
+  "generations": [
+    {
+      "id": "gen-000",
+      "file": "gen-000.json",
+      "generation": 0,
+      "parent": null,
+      "spec": "v1.0-spec-1",
+      "created": "2026-10-24",
+      "summary": "Hand-set universe: human piece values and calibrated law weights. No training.",
+      "temperature": null,
+      "vs_parent": null,
+      "ladder": null
+    },
+    {
+      "id": "gen-001",
+      "file": "gen-001.json",
+      "generation": 1,
+      "parent": 0,
+      "spec": "v1.0-spec-1",
+      "created": "2026-10-24",
+      "summary": "Gen 0 after 5,500 games of self-play (TDLeaf, learned temperature).",
+      "temperature": 3.7229480743408203,
+      "vs_parent": {
+        "elo": 132,
+        "lo95": 98,
+        "hi95": 168,
+        "games": 400,
+        "depth": 4,
+        "file": "results/confirm-gen001t1-vs-gen000-d4.json"
+      },
+      "ladder": null
+    },
+    {
+      "id": "gen-002",
+      "file": "gen-002.json",
+      "generation": 2,
+      "parent": 1,
+      "spec": "v1.0-spec-1",
+      "created": "2026-10-24",
+      "summary": "Gen 1 with the two laws the Law Ledger cut (accretion, binding energy) switched off.",
+      "temperature": 3.7229480743408203,
+      "vs_parent": {
+        "elo": 81,
+        "lo95": 71,
+        "hi95": 92,
+        "games": 4000,
+        "depth": 4,
+        "file": "results/gen001b-vs-gen001.json"
+      },
+      "ladder": "results/ladder-gen002.json"
+    },
+    {
+      "id": "gen-003",
+      "file": "gen-003.json",
+      "generation": 3,
+      "parent": 2,
+      "spec": "v1.0-spec-1",
+      "created": "2026-10-24",
+      "summary": "Gen 2 after 40,000 more games of self-play on GitHub Actions.",
+      "temperature": 3.0349416732788086,
+      "vs_parent": {
+        "elo": 53,
+        "lo95": 43,
+        "hi95": 63,
+        "games": 4000,
+        "depth": 4,
+        "file": "results/gen003a-vs-gen002.json"
+      },
+      "ladder": null
+    }
+  ]
+}

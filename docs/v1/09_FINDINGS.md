@@ -147,7 +147,7 @@ Rules:
 - **Evidence:** `ledger-gen001-bind0.json`, `ledger-gen001-roche-on.json`.
 - **Open:** whether a different Roche formula (smoother, or normalised another way) earns its place. The idea isn't refuted; this formula is.
 
-### F20 · Starting from equal masses, self-play recovered the human piece order (2026-10-24) · observed (one seed)
+### F20 · Starting from equal masses, self-play recovered the human piece order (2026-10-24) · confirmed (two seeds, see F24)
 - **What:**
   - The knight, bishop, rook and queen all started at 4.43, so the army's total equals the human-valued army's (39), with the other laws at Gen 0.
   - After 30 TDLeaf rounds (60,000 self-play games, depth 4, GitHub Actions) they settled at **N 2.65, B 3.30, R 4.44, Q 8.23**.
@@ -159,7 +159,7 @@ Rules:
   - Not fully converged: the queen was still rising and the knight still falling.
   - The absolute scale is below human (knight 2.65 vs 3).
   - The masses are what this universe's laws need, not "true" piece values.
-- **To confirm:** a second seed (`control-equal-masses-b`), and a strength check of this candidate against gen-001.
+- **Confirmed:** a second seed reached the same values (F24); the strength check is F23.
 
 ### F21 · First calibrated strength: Gen 2 against Stockfish 19 at fixed strength levels (2026-10-24) · confirmed, with caveats
 - **What:** 200 games per level, 30 s + 0.3 s, Stockfish 19 with `UCI_LimitStrength`. Kepler's score:
@@ -187,3 +187,49 @@ Rules:
 - **What:** the equal-mass control candidate (F20: piece values learned from an all-equal start) beat gen-001 (trained from human values) by **+19 Elo [+10, +29]** over 4,000 games at depth 4.
 - **Evidence:** `engine/results/control-a-vs-gen001.json`.
 - **Caveat:** the control had about 10× more training (30 rounds × 2,000 games at depth 4) than gen-001 (11 rounds × 500 games at depth 3), and both still use accretion. This shows that starting from equal values costs nothing. It does **not** show that self-discovered values beat human values.
+
+### F24 · A second universe with a different seed found the same piece values (2026-10-24) · confirmed
+- **What:**
+  - `control-equal-masses-b` repeated F20 exactly (all four masses starting at 4.43, 30 rounds × 2,000 games, depth 4) with a different self-play seed. Its games differ from round 1 on.
+  - It settled at **N 2.63, B 3.28, R 4.43, Q 8.23**; seed a settled at N 2.65, B 3.30, R 4.44, Q 8.23.
+  - Ratios to the knight: **bishop 1.25, rook 1.68, queen 3.12** (seed a: 1.25, 1.68, 3.11).
+  - Both switched the Roche gain `beta` off (at its bound of 0) and drove binding `lambda_bind` close to zero, matching F14 and F19.
+- **Evidence:** `engine/results/control-equal-masses-b/` (round files and candidate), compared with `engine/results/control-equal-masses-a/`.
+- **Meaning:** the values are a property of the laws plus self-play, not luck of one run.
+- **Caveats:**
+  - Same laws, same starting point, same training settings. Only the seed differs.
+  - The absolute scale (knight about 2.6) is this universe's, not human.
+
+
+### F25 · Gen 3: more self-play from gen-002 gained another 53 Elo (2026-10-24) · confirmed
+- **What:** TDLeaf from gen-002 (run `gen003-tdleaf-a`: 20 rounds × 2,000 games, depth 4, learned temperature, quiet leaves, capped games dropped). The candidate beat gen-002 by **+53 Elo [+43, +63]** over 4,000 games at depth 4 (SPRT H1). Accepted as `gen-003`.
+- **Evidence:** `engine/results/gen003a-vs-gen002.json`, `engine/results/gen003-tdleaf-a/`, `engine/data/generations/gen-003.json`.
+- **What moved:**
+  - Queen 10.58 → 8.28, rook 5.29 → 4.83, knight 3.15 → 3.04, bishop 3.63 → 3.53. The queen now sits where both equal-start universes put it (8.23, F24).
+  - `kappa` (the king's own pull) 1.29 → 1.88, `alpha` 0.30 → 0.46, space 0.043 → 0.118.
+  - The Roche gain `beta` came back from 0 to 1.49, and binding from 0 to 0.014. In F14 training drove `beta` to 0; starting from gen-002 it grew it again.
+- **Caveats:** engine-vs-engine at fixed depth. Whether the regrown Roche and binding terms help is being tested (Ledger rows `ledger-gen003-roche0`, `ledger-gen003-bind0`).
+
+### F26 · Binding energy came back and now earns its place (2026-10-24) · confirmed
+- **What:** at Gen 1 the Ledger cut binding energy (L4a): removing it gained 15 Elo (F19), so gen-002 had `lambda_bind` = 0. Self-play from gen-002 grew it back to 0.014, and at Gen 3 removing it **costs 35 Elo [+25, +45]** (4,000 games, depth 4, SPRT H1).
+- **Evidence:** `engine/results/ledger-gen003.md`, `engine/results/ledger-gen003-bind0.json`.
+- **Meaning:** a law's value depends on the rest of the universe. The other constants moved a lot between Gen 1 and Gen 3 (F25); why binding became useful is not yet known. A Ledger verdict holds for the generation it was measured on, not forever.
+- **Caveat:** one generation, one weight. The spec still lists L4a as a law, so no spec change is needed; F19's "cut" was a weight of 0, not a removal.
+
+### F27 · The Roche limit still does not earn its place, even after training regrew it (2026-10-24) · confirmed
+- **What:** gen-003 has a Roche gain of 1.49 (it was 0 in gen-002). Switching it off changes strength by **-9 Elo [-19, +1]** (SPRT H0): no evidence that it helps, and the estimate leans the other way.
+- **Evidence:** `engine/results/ledger-gen003.md`, `engine/results/ledger-gen003-roche0.json`.
+- **Meaning:** training moving a constant away from 0 is not evidence that the law helps. The spec-1 Roche limit stays unproven (F14, F19). Public copy must not say Kepler's king safety comes from tidal disruption.
+- **Next:** the Roche redesign question (open decision with the maintainer).
+
+### F28 · A tactics suite from Kepler's own games barely separates generations (2026-10-24) · observed
+- **What:** `engine/data/suites/tactics-own.epd`, 200 positions from the gen-002 ladder games where Stockfish 19 (depth 16, MultiPV 2) finds one move at least 2 pawns better than any other. Best-move hits:
+
+  | depth | gen-000 | gen-001 | gen-002 | gen-003 |
+  |---|---|---|---|---|
+  | 4 | 154 | 149 | 157 | 160 |
+  | 6 | 172 | 171 | 172 | 174 |
+
+- **Evidence:** `engine/results/suite-tactics-own-gen00<k>-d<depth>.json`, `engine/results/suites-per-generation.md`.
+- **Meaning:** the spread (about 6 positions) is about one standard error. Short tactics are found by search, so the learned constants change little here; the generations' gains (F13, F25) come from judgement in quiet positions, which this suite doesn't test. Mate-in-1 and mate-in-2 are 100/100 for every generation.
+- **Bias:** the positions come from games gen-002 played against strength-limited Stockfish (UCI_Elo 1320 to 2100), so they are drawn from those games' mistakes, not from chess at large.

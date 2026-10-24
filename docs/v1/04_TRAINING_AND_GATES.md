@@ -55,11 +55,11 @@ TDLeaf(λ) is the method used for KnightCap (Baxter, Tridgell & Weaver, 1998) to
 | suite | contents | pass bar |
 |---|---|---|
 | `perft.epd` | the six positions in `03_ENGINE_ARCHITECTURE.md` §9 | exact |
-| `mate1.epd`, `mate2.epd` | built by `kepler-train suite build-mates` from the opening suite with Stockfish verifying, 100 each | 100% at depth 4 |
+| `mate1.epd`, `mate2.epd` | built by `kepler-train suite-build-mates` (random playouts from the opening suite; an exact solver finds a unique mating first move and Stockfish verifies it), 100 each, seeded | 100% at depth 4 |
 | `v0_closed_blunders.epd` | 12 positions where v0 lost ≥ 2 pawns (Stockfish 19 d18), each with `am` (v0's move) and `bm` | **v1 plays none of the `am` moves** (milestone 1 gate); v1's move loses < 1 pawn vs SF in ≥ 10/12 |
-| `tactics.epd` | about 300 classic tactics positions (Win At Chess). Source and licence noted in the file header before use | tracked per generation; no pass bar, it's a progress number |
+| `tactics-own.epd` | built by `kepler-train suite-build-tactics` from Kepler's own ladder games (gen-002 against strength-limited Stockfish 19); Stockfish at depth 16 verifies a unique winning move; 200 positions, seeded. Win At Chess was dropped because no licence could be stated | tracked per generation; no pass bar, it's a progress number. Biased toward gen-002's own mistakes and its opponent's (see `suites-per-generation.md`) |
 
-Each suite run writes `engine/results/suite-<suite>-gen<k>.json`.
+Each suite run writes `engine/results/suite-<suite>-gen<k>-d<depth>.json`; `engine/results/suites-per-generation.md` collects the scores. The suite file may start with `#` comment lines (source, licence, how it was built).
 
 ## 4. Opening suite
 
