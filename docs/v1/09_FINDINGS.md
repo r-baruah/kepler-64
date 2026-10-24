@@ -160,3 +160,25 @@ Rules:
   - The absolute scale is below human (knight 2.65 vs 3).
   - The masses are what this universe's laws need, not "true" piece values.
 - **To confirm:** a second seed (`control-equal-masses-b`), and a strength check of this candidate against gen-001.
+
+### F21 · First calibrated strength: Gen 2 against Stockfish 19 at fixed strength levels (2026-10-24) · confirmed, with caveats
+- **What:** 200 games per level, 30 s + 0.3 s, Stockfish 19 with `UCI_LimitStrength`. Kepler's score:
+
+  | Stockfish UCI_Elo | Kepler W / D / L | score |
+  |---|---|---|
+  | 1320 | 194 / 1 / 5 | 97% |
+  | 1500 | 162 / 0 / 38 | 81% |
+  | 1700 | 105 / 5 / 90 | 54% |
+  | 1900 | 106 / 3 / 91 | 54% |
+  | 2100 | 75 / 4 / 121 | 39% |
+
+  Gen 2 is roughly level with Stockfish limited to 1700–1900 and clearly below 2100, at this time control.
+- **Evidence:** `engine/results/ladder-gen002.json` and per-shard games in `engine/results/ladder-gen002/`, from the `ladder` workflow in `r-baruah/kepler-64-compute`.
+- **Caveats:**
+  - **29 of the 1,000 games were lost to a Kepler crash** (a bug in reporting the search line, since fixed; F22). All were scored as Kepler losses, so the true scores are slightly higher.
+  - Stockfish's UCI_Elo is calibrated on its own scale at longer time controls. It is **not** a human FIDE rating. The equal scores at 1700 and 1900 suggest the limited-strength levels are not evenly spaced at 30 s + 0.3 s.
+  - Claims must name the setup ("scores 54% against Stockfish 19 limited to UCI_Elo 1900 at 30+0.3"), never "rated 1900".
+
+### F22 · Bug found by the ladder: illegal moves in the reported search line (2026-10-24) · fixed
+- **What:** non-PV search nodes didn't clear their stored line, so a stale tail from an earlier sibling could be appended to the principal variation. The UCI layer replayed it to print `info pv` and panicked.
+- **Fix:** every node clears its line on entry, and the UCI layer stops at the first illegal move. All 29 crash positions now replay cleanly, with no illegal move in any reported line. Search results are unchanged (golden tests), and the regression test is `kepler-core/tests/pv_legal.rs`.

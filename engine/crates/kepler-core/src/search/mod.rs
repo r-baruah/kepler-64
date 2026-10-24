@@ -432,14 +432,19 @@ impl Searcher {
     ) -> f32 {
         let board = &pos.board;
         let in_check = !board.checkers().is_empty();
+        // Clear this ply's line on every entry, PV or not, before any early
+        // return. A null-window child that returns without clearing would leave
+        // a stale line from an earlier sibling, and the parent would append it
+        // to its PV: illegal moves in `info pv`, which crashed the UCI layer
+        // (ladder gen002). Only reporting changes; scores and moves don't.
+        if ply < self.pv.len() {
+            self.pv[ply].clear();
+        }
         if ply >= MAX_PLY {
             return self.ecache.eval(pos, params);
         }
         if in_check {
             depth += 1;
-        }
-        if is_pv {
-            self.pv[ply].clear();
         }
         if depth <= 0 {
             return self.qsearch(pos, params, alpha, beta, ply);

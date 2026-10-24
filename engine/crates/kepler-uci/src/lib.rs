@@ -25,6 +25,10 @@ fn info_line(board: &kepler_core::cozy_chess::Board, r: &SearchResult) -> String
     let mut b = board.clone();
     let mut pv = Vec::new();
     for &m in &r.pv {
+        // Never trust a PV blindly: stop at the first move that isn't legal.
+        if !b.is_legal(m) {
+            break;
+        }
         pv.push(move_to_uci(&b, m));
         b.play_unchecked(m);
     }

@@ -60,7 +60,7 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 **Accept when:** Gen ≥ 1 exists, the Ledger is published in `engine/results/`, and the material-only gate passes. If it fails, record that honestly and decide in the log.
 
 ## M4 · Ladder and showcase data
-- [ ] Stockfish ladder for the latest generation (`ladder-gen<k>.json`, `ladder.md`)
+- [x] Stockfish ladder for gen-002 (`results/ladder-gen002.json`): 97% vs SF-1320, 81% vs 1500, 54% vs 1700 and 1900, 39% vs 2100 at 30+0.3 (findings F21)
 - [ ] Tactics suite tracked per generation
 - [ ] 8–12 showcase games exported as Replay v3 for Watch mode (self-play, vs a ladder rung, famous human games judged by Kepler)
 - [ ] Generations manifest for the website (`data/generations/index.json`)

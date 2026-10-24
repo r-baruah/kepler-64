@@ -1,0 +1,100 @@
+{
+  "name": "gen002",
+  "gen": "engine/data/generations/gen-002.json",
+  "tc": "30+0.3",
+  "stockfish": "sf_19 UCI_LimitStrength",
+  "deterministic": false,
+  "run": "https://github.com/r-baruah/kepler-64-compute/actions/runs/40100420411",
+  "rungs": [
+    {
+      "stockfish_elo": 1320,
+      "games": 200,
+      "w": 194,
+      "d": 1,
+      "l": 5,
+      "score": 0.9725,
+      "elo_diff": 619.4,
+      "elo_diff_lo95": 512.9,
+      "elo_diff_hi95": 907.0,
+      "implied_rating": 1939.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 199,
+        "threefold_repetition": 1
+      }
+    },
+    {
+      "stockfish_elo": 1500,
+      "games": 200,
+      "w": 162,
+      "d": 0,
+      "l": 38,
+      "score": 0.81,
+      "elo_diff": 251.9,
+      "elo_diff_lo95": 196.1,
+      "elo_diff_hi95": 321.7,
+      "implied_rating": 1752.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 193,
+        "engine_error: engine exited": 7
+      }
+    },
+    {
+      "stockfish_elo": 1700,
+      "games": 200,
+      "w": 105,
+      "d": 5,
+      "l": 90,
+      "score": 0.5375,
+      "elo_diff": 26.1,
+      "elo_diff_lo95": -21.4,
+      "elo_diff_hi95": 74.6,
+      "implied_rating": 1726.0,
+      "shards": 10,
+      "reasons": {
+        "max_plies": 1,
+        "checkmate": 188,
+        "engine_error: engine exited": 7,
+        "threefold_repetition": 4
+      }
+    },
+    {
+      "stockfish_elo": 1900,
+      "games": 200,
+      "w": 106,
+      "d": 3,
+      "l": 91,
+      "score": 0.5375,
+      "elo_diff": 26.1,
+      "elo_diff_lo95": -21.6,
+      "elo_diff_hi95": 74.8,
+      "implied_rating": 1926.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 191,
+        "threefold_repetition": 3,
+        "engine_error: engine exited": 6
+      }
+    },
+    {
+      "stockfish_elo": 2100,
+      "games": 200,
+      "w": 75,
+      "d": 4,
+      "l": 121,
+      "score": 0.385,
+      "elo_diff": -81.4,
+      "elo_diff_lo95": -132.3,
+      "elo_diff_hi95": -33.7,
+      "implied_rating": 2019.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 187,
+        "engine_error: engine exited": 9,
+        "fifty_move_rule": 2,
+        "threefold_repetition": 2
+      }
+    }
+  ]
+}
