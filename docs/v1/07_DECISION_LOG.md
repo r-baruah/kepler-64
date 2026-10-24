@@ -26,3 +26,8 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 - **Why:** the measurement in findings F31. The spec-1 index detects doomed kings but divides by the king's own support, which L4 already counts; its numerator alone carries the information the evaluation lacks. F30 showed that a gated law's shape constants freeze at weight 0; a linear term has no shape constants.
 - **Compatibility:** `lambda_tide = 0` is exactly spec-1, so existing generations remain valid with no Ledger rerun. Files omit `lambda_tide` when it's 0, so work-unit hashes don't change.
 - **Not decided yet:** whether L5b is kept. That's its Ledger row (`lambda_tide = 0` vs learned), on CI.
+
+## 2026-10-25 · Cut laws stay in the spec at weight 0, as playable alternate universes
+- **Decision (maintainer):** laws the Law Ledger cuts are not deleted. Their formulas stay in the spec with weight 0 in the champion: accretion (L6, `f_acc = 0`), the spec-1 Roche gauge (L5, `beta`), and, if its last test fails, tidal load (L5b, `lambda_tide = 0`). Binding energy (L4a) was cut at Gen 1 and earned its place back at Gen 3 (F26), which is the reason not to delete: a verdict holds for the generation it was measured on.
+- **Public framing:** a "laws the universe rejected" table with the Ledger numbers, and the website lets visitors switch a rejected law back on and play that universe. Every claim names the generation it was measured on.
+- **Spec consequence:** no spec id change for a cut; the weight is a constant value, not a formula change (§12).

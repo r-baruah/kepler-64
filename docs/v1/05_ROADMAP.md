@@ -53,7 +53,7 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [~] Training fixes and universe-inspired methods coded (T1 temperature, T2 mass conservation, T3/T4 natural selection with cooling, T5 quiet leaves, T6 capped games; `10_UNIVERSE_METHODS.md`). Runs wait for the maintainer's go
 - [x] Gen 1 accepted by SPRT vs Gen 0: +181 Elo at depth 3, +132 at depth 4 over 400 games each (`results/gen001.md`)
 - [x] Law Ledger at Gen 1, all 10 rows (`results/ledger-gen001.md`): field, spreading and space kept; accretion, binding and spec-1 Roche cut
-- [ ] Spec updated if any law is cut (new spec id, decision log)
+- [x] Spec handling of cut laws decided: they stay at weight 0 as playable alternate universes (decision log 2026-10-25); spec-2 adds L5b
 - [x] v1 beats material-only by SPRT (the honesty gate): +330 Elo at depth 4, 4,000 games
 - [x] Gen 2+ while time allows: gen-002 (+81 over gen-001, Ledger cuts applied), gen-003 (+53 over gen-002, self-play on GitHub Actions)
 
