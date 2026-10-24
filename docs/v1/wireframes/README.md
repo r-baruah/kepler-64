@@ -21,3 +21,14 @@ Low-fidelity wireframes for every Play state in `06_WEB_PLAN.md` §5e, desktop (
 | 11 | `Loading.dc.html` | engine loading |
 | 12 | `NoWasm.dc.html` | WebAssembly unavailable |
 | 13 | `Shared.dc.html` | shared game `/g/<code>` |
+
+## Alternative directions (added after the first review, 2026-10-25)
+
+The maintainer found rows 1–3 close to the conventional chess-site layout (board left, panel right), which the old frontend also used. Two different directions, same moment (after 1. e4 e5 2. Nf3 Nc6), desktop and phone:
+
+| file | direction |
+|---|---|
+| `AltUniverse.dc.html`, `AltUniversePhone.dc.html` | A · The board is the universe: one centred board, king readouts on the board edge by each king, a floating control dock, moves in a drawer |
+| `AltNarrate.dc.html`, `AltNarratePhone.dc.html` | B · The universe narrates: board plus a plain-words commentary of what the field did on each move, every line a fact from the engine's breakdown |
+
+Both use a colour-free field (White's pull lights squares, Black's pull shades them): `Board.dc.html` `palette="light"`.

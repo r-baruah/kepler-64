@@ -32,7 +32,7 @@ body{margin:0}
 </sc-for>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"fen":{"editor":"text","default":"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"},"tint":{"editor":"text","default":".bbbBbb.BbBBBbbBbbbbbbbb................wwwwwwwwWwWWWwwW.wwwWww."},"marks":{"editor":"text","default":""},"size":{"editor":"int","default":480,"min":160,"max":800},"field":{"editor":"boolean","default":true},"$preview":{"width":480,"height":480}}'>
+<script type="text/x-dc" data-dc-script data-props='{"fen":{"editor":"text","default":"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"},"tint":{"editor":"text","default":".bbbBbb.BbBBBbbBbbbbbbbb................wwwwwwwwWwWWWwwW.wwwWww."},"marks":{"editor":"text","default":""},"size":{"editor":"int","default":480,"min":160,"max":800},"field":{"editor":"boolean","default":true},"palette":{"editor":"enum","options":["hue","light"],"default":"hue"},"$preview":{"width":480,"height":480}}'>
 class Component extends DCLogic {
   renderVals() {
     const size = this.props.size ?? 480;
@@ -47,13 +47,16 @@ class Component extends DCLogic {
         else cells.push(ch);
       }
     }
-    const tints = { W: 'rgba(52, 104, 196, 0.42)', w: 'rgba(52, 104, 196, 0.17)', B: 'rgba(214, 118, 28, 0.42)', b: 'rgba(214, 118, 28, 0.17)' };
+    const light = (this.props.palette ?? 'hue') === 'light';
+    const tints = light
+      ? { W: 'rgba(255, 255, 255, 0.62)', w: 'rgba(255, 255, 255, 0.28)', B: 'rgba(0, 0, 0, 0.34)', b: 'rgba(0, 0, 0, 0.14)' }
+      : { W: 'rgba(52, 104, 196, 0.42)', w: 'rgba(52, 104, 196, 0.17)', B: 'rgba(214, 118, 28, 0.42)', b: 'rgba(214, 118, 28, 0.17)' };
     const cs = size / 8;
     const squares = cells.map((p, i) => {
       const r = Math.floor(i / 8), f = i % 8;
       const dark = (r + f) % 2 === 1;
       const m = marks[i];
-      let bg = dark ? '#c9c9c9' : '#ededed';
+      let bg = light ? (dark ? '#b4b4b4' : '#cfcfcf') : (dark ? '#c9c9c9' : '#ededed');
       if (m === 'l') bg = dark ? '#b9b39a' : '#dcd6bc';
       let outline = 'none';
       if (m === 's') outline = 'inset 0 0 0 3px #222';
