@@ -107,7 +107,7 @@ Every preset is a committed generation file. Labels are fixed text from this tab
 | slug | name | file | label shown |
 |---|---|---|---|
 | `champion` | Champion (Gen 4) | `generations/gen-004.json` | "The current strongest universe." |
-| `equal-start` | Equal start | `ablations/control-equal-masses-b-candidate.json` | "Every piece started with the same weight. It found these values by playing itself. Trained with accretion on." |
+| `equal-start` | Equal start | `ablations/control-equal-masses-a-candidate.json` | "Every piece started with the same weight. It found these values by playing itself. Trained with accretion on." |
 | `gen-0` | Gen 0 | `generations/gen-000.json` | "Before any self-play: human piece values, hand-set laws." |
 | `accretion` | Accretion | gen-004 with `f_acc = 0.8` | "Captures absorb weight. Rejected by the Ledger at Gen 1 (+103 for switching it off). Untrained variant of Gen 4." |
 | `strong-roche` | Strong Roche limit | gen-004 with `beta = 10` | "A king can be torn apart. Two versions were tried; neither made the engine stronger. Untrained variant of Gen 4." |
@@ -155,7 +155,7 @@ Same budget, same move on every device (the search is deterministic for a given 
 - SvelteKit + TypeScript in `web/`, `adapter-vercel`; everything prerendered except `/og/*`.
 - Board and field: one Canvas 2D layer for squares and tint, SVG pieces above; DOM for controls.
 - Engine: `kepler-wasm` (`--target web`) in a Web Worker; API `03_ENGINE_ARCHITECTURE.md` §6.2. The search call gains a `nodes` limit (already in `LimitsIn`).
-- Pieces: cburnett set (Colin M. L. Burnett), used under its BSD licence, credited in the footer of Lab.
+- Pieces: cburnett set (Colin M. L. Burnett, distributed under GFDL/BSD/GPL); use it under the BSD terms with credit in Lab. Verify the licence text from the original source in stage D before shipping.
 - Fonts: chosen in stage D (one sans for UI, tabular figures for numbers; self-hosted).
 - Analytics: Vercel Web Analytics (no cookies).
 - Tests: Vitest for the payload codec, data sync and moment detection; Playwright for Play on a desktop and a phone viewport.
