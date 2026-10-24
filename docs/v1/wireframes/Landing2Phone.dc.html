@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Landing on a phone, tightened</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#14213D}a:hover{color:#2F5BFF}
+</style>
+</helmet>
+<div style="width: 390px; height: 2780px; box-sizing: border-box; background: #F6F7F9; color: #14213D; font-family: Geist, system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="height: 60px; box-sizing: border-box; padding: 0 16px; display: flex; align-items: center; gap: 10px">
+<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="4" fill="#14213D"></circle><ellipse cx="10" cy="10" rx="9" ry="3.4" fill="none" stroke="#14213D" stroke-width="1.2" transform="rotate(-20 10 10)"></ellipse></svg>
+<div style="font-weight: 600; font-size: 16px; flex-grow: 1">Kepler-64</div>
+<a href="#" style="height: 40px; padding: 0 14px; display: flex; align-items: center; font-size: 13px; text-decoration: none; background: #14213D; color: #FFFFFF; border-radius: 999px">Star · [STARS]</a>
+<button aria-label="Menu" style="width: 44px; height: 44px; font: inherit; border: none; border-radius: 999px; background: #E9ECF2">=</button>
+</header>
+
+<section style="padding: 20px 16px 48px; display: flex; flex-direction: column; gap: 18px">
+<h1 style="margin: 0; font-size: 42px; font-weight: 300; letter-spacing: -0.045em; line-height: 1.02">A tiny universe that learned to play chess.</h1>
+<p style="margin: 0; font-size: 17px; line-height: 1.5; color: #2A3550">It knows no chess strategy. It learned by playing itself.</p>
+<dc-import name="BoardHi" fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR" tint=".bbbBbb.BbBBBbbBbbbbbbbb................wwwwwwwwWwWWWwwW.wwwWww." marks="" theme="mission" size="{{full}}" hint-size="358px,358px"></dc-import>
+<svg width="358" height="72" viewBox="0 0 358 72" role="img" aria-label="Learned weights: pawn 1, knight 2.7, bishop 3.1, rook 4.2, queen 7.4">
+<line x1="0" y1="26" x2="358" y2="26" stroke="#C9CED8" stroke-width="1"></line>
+<circle cx="22" cy="26" r="5" fill="#14213D"></circle>
+<circle cx="92" cy="26" r="8.2" fill="#14213D"></circle>
+<circle cx="164" cy="26" r="8.8" fill="#14213D"></circle>
+<circle cx="238" cy="26" r="10.3" fill="#14213D"></circle>
+<circle cx="322" cy="26" r="13.6" fill="#2F5BFF"></circle>
+<text x="22" y="62" text-anchor="middle" font-family="Geist, sans-serif" font-size="12" fill="#14213D">Pawn 1</text>
+<text x="92" y="62" text-anchor="middle" font-family="Geist, sans-serif" font-size="12" fill="#14213D">Knight 2.7</text>
+<text x="164" y="62" text-anchor="middle" font-family="Geist, sans-serif" font-size="12" fill="#14213D">Bishop 3.1</text>
+<text x="238" y="62" text-anchor="middle" font-family="Geist, sans-serif" font-size="12" fill="#14213D">Rook 4.2</text>
+<text x="322" y="62" text-anchor="middle" font-family="Geist, sans-serif" font-size="12" fill="#14213D">Queen 7.4</text>
+</svg>
+<div style="display: flex; gap: 10px">
+<button style="flex: 1 1 0; height: 54px; font: inherit; font-size: 16px; font-weight: 500; border-radius: 999px; border: 1px solid #14213D; background: #14213D; color: #FFFFFF">Play White</button>
+<button style="flex: 1 1 0; height: 54px; font: inherit; font-size: 16px; font-weight: 500; border-radius: 999px; border: 1px solid #C9CED8; background: #FFFFFF; color: #14213D">Play Black</button>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #5B6478">
+<span style="padding: 6px 10px; border-radius: 999px; background: #E9ECF2">In your browser</span>
+<span style="padding: 6px 10px; border-radius: 999px; background: #E9ECF2">85,500 self-play games</span>
+<span style="padding: 6px 10px; border-radius: 999px; background: #E9ECF2">Open source</span>
+</div>
+</section>
+
+<section style="padding: 40px 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="font-size: 13px; color: #2F5BFF; font-weight: 500">The one law</div>
+<h2 style="margin: 0; font-size: 32px; font-weight: 300; letter-spacing: -0.035em; line-height: 1.08">Pull follows the moves.</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.5; color: #2A3550">A piece pulls only where it could move, and stops at the first piece in its way.</p>
+<div style="align-self: center; padding: 18px; background: #FFFFFF; border-radius: 18px; box-shadow: 0 10px 40px rgba(20, 33, 61, 0.08)">
+<dc-import name="BoardHi" fen="8/8/8/8/3P4/8/3R4/8" tint="" marks="...................................h.......h....hhh.hhhh...h...." theme="mission" size="{{mid}}" hint-size="260px,260px"></dc-import>
+</div>
+</section>
+
+<section style="padding: 40px 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="font-size: 13px; color: #2F5BFF; font-weight: 500">Learned, not told</div>
+<h2 style="margin: 0; font-size: 32px; font-weight: 300; letter-spacing: -0.035em; line-height: 1.08">It found the piece values by itself.</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.5; color: #2A3550">Every piece started equal. Players say <b style="font-weight: 600">3, 3, 5, 9</b>. It found <b style="font-weight: 600">2.6, 3.3, 4.4, 8.2</b>.</p>
+<div style="padding: 18px 14px 10px; background: #FFFFFF; border-radius: 18px; box-shadow: 0 10px 40px rgba(20, 33, 61, 0.08)">
+<svg width="330" height="180" viewBox="-10 -10 640 300" role="img" aria-label="Piece weights over 30 training rounds, from all equal to queen 8.2, rook 4.4, bishop 3.3, knight 2.6">
+<polyline fill="none" stroke="#2F5BFF" stroke-width="4" stroke-linecap="round" points="0.0,169.8 17.3,163.9 34.7,157.9 52.0,151.9 69.3,146.0 86.7,140.1 104.0,134.2 121.3,128.4 138.7,122.7 156.0,117.0 173.3,111.5 190.7,106.0 208.0,100.7 225.3,95.4 242.7,90.3 260.0,85.2 277.3,80.2 294.7,75.4 312.0,70.7 329.3,66.2 346.7,61.9 364.0,57.8 381.3,53.8 398.7,50.0 416.0,46.4 433.3,43.0 450.7,39.8 468.0,36.8 485.3,34.0 502.7,31.3 520.0,28.8"></polyline>
+<polyline fill="none" stroke="#14213D" stroke-width="4" stroke-linecap="round" points="0.0,169.8 17.3,166.1 34.7,162.4 52.0,158.7 69.3,155.0 86.7,151.4 104.0,148.2 121.3,145.2 138.7,142.2 156.0,139.6 173.3,138.0 190.7,136.8 208.0,136.3 225.3,136.5 242.7,137.2 260.0,138.6 277.3,140.3 294.7,142.2 312.0,144.3 329.3,146.7 346.7,149.3 364.0,151.9 381.3,154.4 398.7,156.9 416.0,159.4 433.3,161.7 450.7,163.7 468.0,165.7 485.3,167.1 502.7,168.4 520.0,169.3"></polyline>
+<polyline fill="none" stroke="#14213D" stroke-width="4" stroke-linecap="round" points="0.0,169.8 17.3,172.4 34.7,175.0 52.0,177.6 69.3,180.2 86.7,182.8 104.0,185.3 121.3,187.8 138.7,190.3 156.0,192.6 173.3,194.8 190.7,196.9 208.0,198.9 225.3,200.7 242.7,202.4 260.0,203.9 277.3,205.1 294.7,206.1 312.0,206.9 329.3,207.6 346.7,208.1 364.0,208.5 381.3,208.9 398.7,209.1 416.0,209.3 433.3,209.5 450.7,209.7 468.0,210.0 485.3,210.5 502.7,211.0 520.0,211.8"></polyline>
+<polyline fill="none" stroke="#14213D" stroke-width="4" stroke-linecap="round" stroke-opacity="0.55" points="0.0,169.8 17.3,172.4 34.7,175.0 52.0,177.6 69.3,180.2 86.7,182.8 104.0,185.3 121.3,187.8 138.7,190.3 156.0,192.8 173.3,195.2 190.7,197.6 208.0,200.1 225.3,202.5 242.7,204.9 260.0,207.2 277.3,209.6 294.7,212.0 312.0,214.3 329.3,216.6 346.7,218.8 364.0,220.9 381.3,223.0 398.7,225.0 416.0,226.9 433.3,228.7 450.7,230.5 468.0,232.1 485.3,233.6 502.7,234.9 520.0,236.0"></polyline>
+<circle cx="0" cy="169.8" r="8" fill="#14213D"></circle>
+<text x="534" y="38" font-family="Geist, sans-serif" font-size="26" fill="#2F5BFF">Q</text>
+<text x="534" y="178" font-family="Geist, sans-serif" font-size="26" fill="#14213D">R</text>
+<text x="534" y="216" font-family="Geist, sans-serif" font-size="26" fill="#14213D">B</text>
+<text x="534" y="250" font-family="Geist, sans-serif" font-size="26" fill="#5B6478">N</text>
+</svg>
+</div>
+</section>
+
+<section style="padding: 40px 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="font-size: 13px; color: #2F5BFF; font-weight: 500">The Law Ledger</div>
+<h2 style="margin: 0; font-size: 32px; font-weight: 300; letter-spacing: -0.035em; line-height: 1.08">Every law had to earn its place.</h2>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 16px rgba(20, 33, 61, 0.05)"><span style="font-size: 15px">Pull follows the moves</span><span style="font-size: 12px; color: #FFFFFF; background: #14213D; border-radius: 999px; padding: 4px 10px">Kept</span></div>
+<div style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 16px rgba(20, 33, 61, 0.05)"><span style="font-size: 15px">Control of space</span><span style="font-size: 12px; color: #FFFFFF; background: #14213D; border-radius: 999px; padding: 4px 10px">Kept</span></div>
+<div style="background: #FFFFFF; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 16px rgba(20, 33, 61, 0.05)"><span style="font-size: 15px">Defenders hold pieces</span><span style="font-size: 12px; color: #FFFFFF; background: #2F5BFF; border-radius: 999px; padding: 4px 10px">Came back</span></div>
+<div style="background: #EEF0F4; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center"><span style="font-size: 15px; color: #2A3550">Captures absorb weight</span><span style="font-size: 12px; color: #5B6478; border: 1px solid #C9CED8; border-radius: 999px; padding: 3px 10px">Rejected</span></div>
+<div style="background: #EEF0F4; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center"><span style="font-size: 15px; color: #2A3550">A king torn apart</span><span style="font-size: 12px; color: #5B6478; border: 1px solid #C9CED8; border-radius: 999px; padding: 3px 10px">Rejected</span></div>
+</div>
+<a href="#" style="font-size: 15px; color: #2F5BFF; text-decoration: none">Play a rejected universe →</a>
+</section>
+
+<section style="margin: 16px; padding: 28px 22px; border-radius: 24px; background: #14213D; color: #F6F7F9; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 28px; font-weight: 300; letter-spacing: -0.03em">Open source, all of it.</h2>
+<a href="#" style="height: 52px; display: flex; align-items: center; justify-content: center; font-size: 15px; text-decoration: none; background: #F6F7F9; color: #14213D; border-radius: 999px">Star on GitHub · [STARS]</a>
+<a href="#" style="height: 48px; display: flex; align-items: center; justify-content: center; font-size: 15px; text-decoration: none; border: 1px solid rgba(246, 247, 249, 0.4); color: #F6F7F9; border-radius: 999px">Download the engine</a>
+</section>
+
+<footer style="padding: 16px 16px 32px; font-size: 12px; color: #5B6478; line-height: 1.7">Made by Ripuranjan Baruah · also building Gambits<br><a href="#" style="color: #5B6478">Lab</a> · <a href="#" style="color: #5B6478">GitHub</a> · <a href="#" style="color: #5B6478">Cite</a></footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2780}}'>
+class Component extends DCLogic {
+  renderVals() { return { full: 358, mid: 260 }; }
+}
+</script>
+</body>
+</html>

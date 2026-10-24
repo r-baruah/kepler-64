@@ -169,7 +169,7 @@ Same budget, same move on every device (the search is deterministic for a given 
 
 ## 8c. Where the universe shows (2026-10-25)
 Meaning, not decoration: no starfields, glow or space jargon.
-- **The constants of this universe:** a small plate under the board with the live universe's learned values (piece weights in pawns, light speed in moves). It changes with the universe picker.
+- **The weights of this universe:** under the board, each piece drawn as a body sized by its learned weight (area proportional to weight, pawn = 1), lined up on one thin orbit line, with the value beneath; plus one plain line on how far pull reaches. It changes with the universe picker.
 - **The universe's age:** total self-play games in the current universe's lineage (gen-004: 5,500 + 40,000 + 40,000 = 85,500), from the generation files.
 - Physics words only where exact: "universe", "light cones", "light speed".
 - One ornament: the planet-and-ring mark.
