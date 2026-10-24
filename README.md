@@ -1,3 +1,5 @@
+> **Kepler-64 v1 is being rebuilt from the ground up**: a new engine in Rust where the rules of chess shape the field itself. Work in progress lives on the [`v1` branch](https://github.com/r-baruah/kepler-64/tree/v1) (start at `docs/v1/`). This page describes v0.
+
 <div align="center">
 
 # 🪐 Kepler-64
@@ -292,22 +294,11 @@ Yes — that's the whole philosophy. The [Web Observatory](https://r-baruah.gith
 
 ---
 
-## 👥 Authors & Contributors
+## 👤 Author
 
-**Kepler-64** is an open-source project created and maintained by:
+**Kepler-64** is created and maintained by **Ripuranjan Baruah** ([@r-baruah](https://github.com/r-baruah)).
 
-- **Ripuranjan Baruah** ([@r-baruah](https://github.com/r-baruah)) — *Original Creator & Lead Architect*
-- **Ray** — *Live preview enhancements & UI optimizations*
-
-<div align="center">
-  <br />
-  <a href="https://github.com/r-baruah/kepler-64/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=r-baruah/kepler-64" alt="Contributors" />
-  </a>
-  <br />
-</div>
-
-Contributions, research discussions, and improvements are always welcome via [GitHub Issues](https://github.com/r-baruah/kepler-64/issues) and [Pull Requests](https://github.com/r-baruah/kepler-64/pulls)!
+Research discussions and ideas are always welcome via [GitHub Issues](https://github.com/r-baruah/kepler-64/issues) and [Pull Requests](https://github.com/r-baruah/kepler-64/pulls)!
 
 ---
 
