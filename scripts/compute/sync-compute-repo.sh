@@ -8,8 +8,11 @@ set -euo pipefail
 src="$(cd "$(dirname "$0")/../.." && pwd)/engine"
 dst="${1:?usage: $0 <compute-repo-checkout>}"
 mkdir -p "$dst/engine"
+# Only sources and data: every build directory (target, target-*) and generated
+# packages (pkg/) stay local.
 rsync -a --delete \
-  --exclude 'target/' --exclude 'target-train/' --exclude 'runs/' --exclude 'results/' \
+  --exclude 'target/' --exclude 'target-*/' --exclude 'pkg/' --exclude 'node_modules/' \
+  --exclude 'runs/' --exclude 'results/' \
   "$src/" "$dst/engine/"
 echo "synced engine/ from $(git -C "$src" rev-parse --short HEAD) into $dst/engine"
 git -C "$src" rev-parse HEAD > "$dst/ENGINE_COMMIT"
