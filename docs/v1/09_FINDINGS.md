@@ -95,3 +95,8 @@ Rules:
   - **Leaf fidelity:** the replayed PV leaf's static eval differs from the root search score by more than 0.5 ku in 11% of plies (mean 0.25 ku). Those are mid-exchange positions, a further source of noise.
 - **Evidence:** `engine/crates/kepler-core/examples/tdleaf_diag.rs` on `selfplay --seed 99 --games 200 --depth 3`.
 - **Consequence:** fixes before any rerun: a fitted or learned scale, capped games excluded from TD targets, and a quiet (quiescence) leaf.
+
+### F12 · Results are bit-identical across machines (2026-10-24) · confirmed
+- **What:** the three determinism reference units (a TDLeaf shard, an SPRT shard and an evolve shard) produced the same `result_hash` on the maintainer's laptop (AMD Ryzen 5 5500U, Fedora) and on a GitHub Actions runner (AMD EPYC 7763, Ubuntu): `b1f56a3e30f1eb9c`, `d7c71a0b84c5142b`, `da3f1b02cbf711c9`. 1-thread and 3-thread runs also match.
+- **Why it matters:** work units from any machine can be merged without changing a single bit. A mismatch always means a bug or a bad worker, never noise.
+- **Evidence:** `engine/data/determinism/reference.json`; workflow run 40077939725 in `r-baruah/kepler-64-compute`; rules D1–D8 in `08_DISTRIBUTED_COMPUTE.md` §3a.

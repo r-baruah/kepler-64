@@ -109,6 +109,8 @@ The local `tdleaf` command runs the same shard and reduce code in-process. A loc
   4. Trigger the next round (`workflow_dispatch` with the round number) until `--rounds` is reached or a stop file is committed.
 - **Expected speed** at depth 4, 2,000 games per round, K = 20: about 2–3 min of play plus about 2 min of job overhead per round. That's roughly 1.5–2 h for a 20-round generation.
 - **Usage rule:** runs are purposeful (a generation, a ledger, a ladder), started by the maintainer, never scheduled to run continuously. The workload is testing and tuning the software in that repository.
+- **Runbook:** step-by-step instructions (start, watch, stop, resume, bring results home) are in [`RUNBOOK.md`](https://github.com/r-baruah/kepler-64-compute/blob/main/RUNBOOK.md) in the compute repo.
+- **Cross-machine determinism verified** on 2026-10-24 (findings F12).
 - **Results** come back here by downloading the reduced files and committing them, with a link to the workflow run in the result's JSON.
 
 ## 6. Backend 2: the maintainer's mesh orchestrator (planned)
