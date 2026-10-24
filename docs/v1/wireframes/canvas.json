@@ -1,0 +1,30 @@
+{"v":3,"createdOnFiles":{"v":1,"at":"2026-10-25T10:00:00Z"},"title":"Kepler-64 Play wireframes","launch":{"view":"canvas"},"pages":[],
+"boards":{
+"Main.dc.html":{"x":0,"y":300,"w":1280,"h":800,"title":"1 · First visit"},
+"YourMove.dc.html":{"x":1360,"y":300,"w":1280,"h":800,"title":"2 · Your move (light cones on)"},
+"Thinking.dc.html":{"x":2720,"y":300,"w":1280,"h":800,"title":"3 · Kepler thinking"},
+"Moved.dc.html":{"x":4080,"y":300,"w":1280,"h":800,"title":"4 · Kepler moved"},
+"KingPull.dc.html":{"x":5440,"y":300,"w":1280,"h":800,"title":"5 · King under heavy pull"},
+"GameOver.dc.html":{"x":0,"y":1520,"w":1280,"h":800,"title":"6 · Game over"},
+"EndCard.dc.html":{"x":1360,"y":1520,"w":1280,"h":800,"title":"7 · End-of-game card"},
+"Universe.dc.html":{"x":2720,"y":1520,"w":1280,"h":800,"title":"8 · Universe picker"},
+"Explain.dc.html":{"x":4080,"y":1520,"w":1280,"h":800,"title":"9 · How does this work? (card 2 of 4)"},
+"Loading.dc.html":{"x":5440,"y":1520,"w":1280,"h":800,"title":"11 · Engine loading"},
+"NoWasm.dc.html":{"x":6800,"y":1520,"w":1280,"h":800,"title":"12 · WebAssembly unavailable"},
+"Shared.dc.html":{"x":8160,"y":1520,"w":1280,"h":800,"title":"13 · Shared game /g/<code>"},
+"PhoneFirst.dc.html":{"x":0,"y":2740,"w":390,"h":844,"title":"10a · Phone: first visit"},
+"PhoneThinking.dc.html":{"x":470,"y":2740,"w":390,"h":844,"title":"10b · Phone: Kepler thinking"},
+"PhoneEnd.dc.html":{"x":940,"y":2740,"w":390,"h":844,"title":"10c · Phone: end-of-game card"},
+"PhoneUniverse.dc.html":{"x":1410,"y":2740,"w":390,"h":844,"title":"10d · Phone: universe picker"},
+"Board.dc.html":{"x":1880,"y":2740,"w":480,"h":480,"title":"Component: board with the computed field"}
+},
+"order":["Main.dc.html","YourMove.dc.html","Thinking.dc.html","Moved.dc.html","KingPull.dc.html","GameOver.dc.html","EndCard.dc.html","Universe.dc.html","Explain.dc.html","Loading.dc.html","NoWasm.dc.html","Shared.dc.html","PhoneFirst.dc.html","PhoneThinking.dc.html","PhoneEnd.dc.html","PhoneUniverse.dc.html","Board.dc.html"],
+"notes":{
+"t1":{"x":0,"y":0,"text":"Play: the main flow (desktop)","kind":"title1","maxW":6720},
+"t2":{"x":0,"y":1220,"text":"Play: game over, overlays and edge states (desktop)","kind":"title1","maxW":9440},
+"t3":{"x":0,"y":2440,"text":"Play on a phone","kind":"title1","maxW":2360},
+"legend":{"x":-560,"y":300,"w":460,"size":"m","fill":"gray","text":"How to read these wireframes\n\nLow fidelity: layout, content and states only. Colours, fonts and the exact look come in stage D.\n\nThe square tints are the real field computed by the gen-004 engine for each position: blue = White pulls harder there, orange = Black does, stronger tint = bigger difference. The hue pair is a placeholder.\n\nPieces are drawn as lettered discs (K Q R B N P; white discs = White).\n\nEvery number shown is real (from the engine or a committed result) or a [PLACEHOLDER] that the game fills in."},
+"n5":{"x":6800,"y":300,"w":420,"size":"s","fill":"orange","text":"State 5 has no event: the readout bar just fills. No percentage, no red zone, no \"torn apart\" moment (decision log 2026-10-25)."},
+"n7":{"x":9520,"y":1520,"w":420,"size":"s","fill":"orange","text":"Moments are computed from the game: where Kepler's score turned, the biggest capture swing, the biggest jump in pull on a king. Each opens that position."}
+},
+"designSystems":[]}

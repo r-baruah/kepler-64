@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play: engine loading</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1a1a1a}a:hover{color:#555}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; background: #fafafa; color: #1a1a1a; font-family: system-ui, sans-serif; display: flex; flex-direction: column">
+<header style="height: 64px; box-sizing: border-box; padding: 0 32px; border-bottom: 1px solid #d0d0d0; display: flex; align-items: center; gap: 24px">
+<div style="font-weight: 700; font-size: 20px">Kepler-64</div>
+<div style="color: #555; font-size: 15px; flex-grow: 1">A tiny universe that learned to play chess.</div>
+<nav style="display: flex; gap: 20px; font-size: 15px"><a href="#">Play</a><a href="#">Watch</a><a href="#">Lab</a></nav>
+<a href="#" style="border: 1px solid #1a1a1a; border-radius: 6px; padding: 8px 14px; text-decoration: none; font-size: 14px">Star on GitHub · [STARS]</a>
+</header>
+<main style="flex-grow: 1; display: flex; gap: 40px; padding: 32px; box-sizing: border-box">
+<dc-import name="Board" fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR" tint="" marks="" size="{{boardSize}}" field="{{no}}" hint-size="640px,640px"></dc-import>
+<section style="flex-grow: 1; display: flex; flex-direction: column; gap: 20px">
+<div style="border: 1px solid #c8c8c8; border-radius: 8px; padding: 20px; background: #ffffff; display: flex; flex-direction: column; gap: 12px">
+<div style="font-size: 20px; font-weight: 600">Kepler is waking up</div>
+<div style="height: 8px; background: #e3e3e3; border-radius: 4px"><div style="width: 40%; height: 8px; background: #1a1a1a; border-radius: 4px"></div></div>
+<div style="font-size: 14px; color: #444; line-height: 1.5">Loading the engine into your browser (about 300 KB). It runs entirely on your device: nothing is sent to a server.</div>
+<div style="font-size: 14px; color: #444">You can already choose a side or make your first move.</div>
+<div style="display: flex; gap: 12px">
+<button style="flex-grow: 1; height: 48px; font: inherit; font-size: 16px; border-radius: 6px; border: 1px solid #1a1a1a; background: #1a1a1a; color: #ffffff">Play White</button>
+<button style="flex-grow: 1; height: 48px; font: inherit; font-size: 16px; border-radius: 6px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a">Play Black</button>
+</div>
+</div>
+<div style="font-size: 14px; color: #555">The field appears on the board once the engine has loaded, because the engine computes it.</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { no: false, boardSize: 640 }; }
+}
+</script>
+</body>
+</html>

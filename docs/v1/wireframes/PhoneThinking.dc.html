@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone: Kepler thinking</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1a1a1a}a:hover{color:#555}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #fafafa; color: #1a1a1a; font-family: system-ui, sans-serif; display: flex; flex-direction: column">
+<header style="height: 52px; box-sizing: border-box; padding: 0 16px; border-bottom: 1px solid #d0d0d0; display: flex; align-items: center; gap: 12px">
+<div style="font-weight: 700; font-size: 18px; flex-grow: 1">Kepler-64</div>
+<a href="#" style="height: 44px; padding: 0 12px; border: 1px solid #1a1a1a; border-radius: 6px; display: flex; align-items: center; text-decoration: none; font-size: 13px">Star · [STARS]</a>
+<button aria-label="Menu" style="width: 44px; height: 44px; font: inherit; border: 1px solid #9a9a9a; border-radius: 6px; background: #ffffff">=</button>
+</header>
+<div style="padding: 10px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 13px">
+<div style="display: flex; justify-content: space-between"><span>Black's king: enemy 1.1 · own 21.4</span></div>
+<div style="height: 6px; background: #e3e3e3; border-radius: 3px"><div style="width: 5%; height: 6px; background: #555; border-radius: 3px"></div></div>
+</div>
+<div style="padding: 0 16px">
+<dc-import name="Board" fen="rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R" tint=".bbbbbb.BbbBBbbB.bBBbBbbbWbwb.bbwbwbwbbb.wwWwWw.WwWWWwWw.wwwWWW." marks="" size="{{boardSize}}" field="{{yes}}" hint-size="358px,358px"></dc-import>
+</div>
+<div style="padding: 10px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 13px">
+<div style="display: flex; justify-content: space-between"><span>Your king: enemy 1.9 · own 25.6</span></div>
+<div style="height: 6px; background: #e3e3e3; border-radius: 3px"><div style="width: 7%; height: 6px; background: #555; border-radius: 3px"></div></div>
+</div>
+<div style="margin: 4px 16px; border: 2px solid #1a1a1a; border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 12px; background: #ffffff">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 14px; font-weight: 600">Kepler is thinking · depth [DEPTH]</div>
+<div style="height: 6px; background: #e3e3e3; border-radius: 3px"><div style="width: 55%; height: 6px; background: #1a1a1a; border-radius: 3px"></div></div>
+</div>
+<button style="height: 44px; padding: 0 12px; font: inherit; font-size: 13px; border-radius: 6px; border: 1px solid #1a1a1a; background: #ffffff">Move now</button>
+</div>
+<div style="padding: 8px 16px; font-size: 14px; white-space: nowrap; overflow-x: auto; font-variant-numeric: tabular-nums">1. e4 e5 2. Nf3 ...</div>
+<nav style="margin-top: auto; height: 64px; border-top: 1px solid #d0d0d0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); font-size: 12px">
+<button style="font: inherit; border: none; background: none">New</button>
+<button style="font: inherit; border: none; background: none">Undo</button>
+<button style="font: inherit; border: none; background: none">Flip</button>
+<button style="font: inherit; border: none; background: none">Field</button>
+<button style="font: inherit; border: none; background: none">Universe</button>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return { yes: true, boardSize: 358 }; }
+}
+</script>
+</body>
+</html>

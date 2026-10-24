@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play: WebAssembly unavailable</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1a1a1a}a:hover{color:#555}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; background: #fafafa; color: #1a1a1a; font-family: system-ui, sans-serif; display: flex; flex-direction: column">
+<header style="height: 64px; box-sizing: border-box; padding: 0 32px; border-bottom: 1px solid #d0d0d0; display: flex; align-items: center; gap: 24px">
+<div style="font-weight: 700; font-size: 20px">Kepler-64</div>
+<div style="color: #555; font-size: 15px; flex-grow: 1">A tiny universe that learned to play chess.</div>
+<nav style="display: flex; gap: 20px; font-size: 15px"><a href="#">Play</a><a href="#">Watch</a><a href="#">Lab</a></nav>
+<a href="#" style="border: 1px solid #1a1a1a; border-radius: 6px; padding: 8px 14px; text-decoration: none; font-size: 14px">Star on GitHub · [STARS]</a>
+</header>
+<main style="flex-grow: 1; display: flex; gap: 40px; padding: 32px; box-sizing: border-box">
+<dc-import name="Board" fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR" tint="" marks="" size="{{boardSize}}" field="{{no}}" hint-size="640px,640px"></dc-import>
+<section style="flex-grow: 1; display: flex; flex-direction: column; gap: 20px">
+<div style="border: 2px solid #1a1a1a; border-radius: 8px; padding: 22px; background: #ffffff; display: flex; flex-direction: column; gap: 12px">
+<div style="font-size: 20px; font-weight: 700">Kepler can't run in this browser</div>
+<div style="font-size: 15px; line-height: 1.55; color: #333">Kepler's engine needs WebAssembly, which is turned off or not supported here. This is common in some privacy modes and very old browsers.</div>
+<div style="font-size: 15px; font-weight: 600; margin-top: 4px">What you can still do</div>
+<a href="#" style="font-size: 15px">Watch real games Kepler played</a>
+<a href="#" style="font-size: 15px">Read how it works (Lab)</a>
+<a href="#" style="font-size: 15px">Download Kepler for a desktop chess app (UCI engine)</a>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { no: false, boardSize: 640 }; }
+}
+</script>
+</body>
+</html>

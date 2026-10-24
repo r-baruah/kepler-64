@@ -32,7 +32,7 @@ Lessons from earlier versions:
 
 Ordered by strength of evidence and of hook. Every line has a committed result file behind it (`09_FINDINGS.md`).
 
-1. **Rule-shaped space.** Pull travels only along the lines a piece can legally move and stops at the first piece in the way. This law is worth **+330 Elo** over counting material alone (F16). It's the signature visual: the field layer is the hero of the site.
+1. **Rule-shaped space.** Pull travels only along the lines a piece can legally move and stops at the first piece in the way. Playing with the field (all its terms together) is worth **+330 Elo** over counting material alone (F16). It's the signature visual: the field layer is the hero of the site.
 2. **The universe found the piece values itself.** Starting with every piece equal, two independent self-play runs sorted them queen > rook > bishop > knight at nearly the human ratios (F20, F24).
 3. **Laws have to earn their place.** The Law Ledger keeps the field, spreading, held space and (at Gen 3) binding energy; it rejected accretion and both versions of a Roche limit (F16, F26, F27, F35). Rejected laws can be switched back on: alternate universes.
 4. **It got stronger by playing itself:** Gen 0 → 4 in four accepted steps (+132, +81, +53, +30, engine vs engine).

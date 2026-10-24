@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play: king under heavy pull</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1a1a1a}a:hover{color:#555}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; background: #fafafa; color: #1a1a1a; font-family: system-ui, sans-serif; display: flex; flex-direction: column">
+<header style="height: 64px; box-sizing: border-box; padding: 0 32px; border-bottom: 1px solid #d0d0d0; display: flex; align-items: center; gap: 24px">
+<div style="font-weight: 700; font-size: 20px">Kepler-64</div>
+<div style="color: #555; font-size: 15px; flex-grow: 1">A tiny universe that learned to play chess.</div>
+<nav style="display: flex; gap: 20px; font-size: 15px"><a href="#">Play</a><a href="#">Watch</a><a href="#">Lab</a></nav>
+<a href="#" style="border: 1px solid #1a1a1a; border-radius: 6px; padding: 8px 14px; text-decoration: none; font-size: 14px">Star on GitHub · [STARS]</a>
+</header>
+<main style="flex-grow: 1; display: flex; gap: 40px; padding: 32px; box-sizing: border-box">
+<dc-import name="Board" fen="r1bq1rk1/ppp2ppp/2n2n2/3pp1N1/2B1P2Q/8/PPPP1PPP/RNB1K2R" tint=".BBbBBBbBBbBBb...bbBbbbwbwbbbbwwwb.bww..wWWwwwWwWwwWwWwW.w.wwWw." marks="" size="{{boardSize}}" field="{{yes}}" hint-size="640px,640px"></dc-import>
+<section style="flex-grow: 1; display: flex; flex-direction: column; gap: 20px">
+<div style="border: 1px solid #c8c8c8; border-radius: 8px; padding: 16px 20px; background: #ffffff; display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 16px; font-weight: 600">Kepler · Champion (Gen 4) · Default</div>
+<div style="font-size: 14px; color: #333">Thinking · depth [DEPTH] reached</div>
+</div>
+<div style="border: 2px solid #1a1a1a; border-radius: 8px; padding: 16px 20px; background: #ffffff; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<div style="display: flex; justify-content: space-between; font-weight: 600"><span>Pull on Black's king</span><span>enemy 5.9 · own 15.5</span></div>
+<div style="height: 12px; background: #e3e3e3; border-radius: 6px"><div style="width: 28%; height: 12px; background: #1a1a1a; border-radius: 6px"></div></div>
+<div style="color: #444; line-height: 1.5">Your knight, bishop and queen pull on the squares around Black's king. The bar shows enemy pull against its own side's.</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<div style="display: flex; justify-content: space-between"><span>Pull on your king</span><span>enemy 1.4 · own 22.2</span></div>
+<div style="height: 8px; background: #e3e3e3; border-radius: 4px"><div style="width: 6%; height: 8px; background: #555; border-radius: 4px"></div></div>
+</div>
+<div style="border-top: 1px solid #d0d0d0; padding-top: 12px; font-size: 15px; line-height: 1.7; font-variant-numeric: tabular-nums">[MOVE LIST] ... 7. Qh4</div>
+<div style="margin-top: auto; display: flex; gap: 8px; flex-wrap: wrap">
+<button style="height: 44px; padding: 0 14px; font: inherit; font-size: 14px; border-radius: 6px; border: 1px solid #9a9a9a; background: #ffffff">New game</button>
+<button style="height: 44px; padding: 0 14px; font: inherit; font-size: 14px; border-radius: 6px; border: 1px solid #9a9a9a; background: #ffffff">Flip board</button>
+<button style="height: 44px; padding: 0 14px; font: inherit; font-size: 14px; border-radius: 6px; border: 1px solid #9a9a9a; background: #ffffff">Field: Pull</button>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { yes: true, boardSize: 640 }; }
+}
+</script>
+</body>
+</html>

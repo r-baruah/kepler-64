@@ -68,7 +68,7 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 
 ## M5 · Website: Play first
 Plan and stages are in `06_WEB_PLAN.md`. Design follows the staged check-ins there.
-- [ ] Stage A (understand) and stage B (plan) written into `06_WEB_PLAN.md`
+- [x] Stage A (understand) and stage B (plan) written into `06_WEB_PLAN.md` (2026-10-25)
 - [ ] Stage C: low-fi wireframes approved by the maintainer
 - [ ] Stage D: visual build of Play (board, pull meters, field layer, universe picker, end-of-game moment, share link, Star)
 - [ ] Hosted on Vercel at the chosen domain. Soft launch to 5–10 cold testers, findings written down
