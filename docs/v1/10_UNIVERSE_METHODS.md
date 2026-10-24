@@ -95,6 +95,17 @@ None of these is active. Each needs a spec change, then must earn its place in t
 - **Ledger row:** `μ_dark = 0`.
 - **Status:** idea (absurd but testable; cost: one extra field pass).
 
+### L11 · Tidal load: the enemy's field landing on the king's body (Roche redesign)
+- **Source:** the energy of an extended body in an external field is the sum of the field over the body. A body is torn apart (the Roche limit) by the external field acting across it, not by the ratio of totals spec-1 uses.
+- **Mechanism:** for king `K` of colour `C` with body `S_K` (unchanged from L5):
+  `U_K = Σ_{s∈S_K} Φ_{¬C}(s)`, and `T_tide = lambda_tide · (U_{K_B} − U_{K_W})`, with `lambda_tide` learned in [0, 2].
+  Linear, with no threshold and no shape constants, so its gradient is never stuck at weight 0 (F30). The spec-1 L5 term stays as it is; the two can be tested separately or together.
+- **Evidence for trying it:** F31. The enemy pull on the king's body carries information the rest of the evaluation lacks; the spec-1 denominator and gate waste it. An outcome fit puts the weight near 0.34 ku per unit of pull.
+- **Fixes:** the Roche limit not earning its place (F14, F19, F27), so that "a king is torn apart" can be backed by a working law.
+- **Honesty check (§9):** it uses only the field `Φ` and the L5 body, both already in the spec. It adds no new chess concept. It is the L5 slot's king danger, measured more directly.
+- **Ledger row:** `lambda_tide = 0` (off).
+- **Status:** idea, measured (F31). Coding waits until the attribution runs finish (they rebuild the engine every round); CI runs wait for the maintainer's go.
+
 ### Note: pawn structure may already be in the laws
 Pawns only pull diagonally forward, so pawns defend each other through L4a binding. An isolated pawn gets no friendly pull and is "unbound". Doubled pawns block each other's field. If binding is kept (the F10 run zeroed it through an artefact, not evidence), pawn structure should partly emerge. Check this in ladder game reviews before adding anything.
 

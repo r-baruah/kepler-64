@@ -250,3 +250,28 @@ Rules:
 - **Caveats:**
   - The F21 caveats about UCI_Elo still apply: it is not a human rating, and claims must name the setup.
   - Part of the gain over gen-002 is the crash fix: gen-002 lost 6–9 games per rung to the F22 bug. Even counting all of them as wins, gen-002 would score about 43% at 2100 against gen-003's 53%.
+
+### F30 · Why training can never bring back a law whose weight reached 0 (2026-10-24) · confirmed (from the gradients)
+- **What:** in both equal-mass control runs the Roche weight `beta` hit its bound of 0 by round 16, and from then on the gradients of `rho` and `k_roche` (the Roche limit's shape constants) are **exactly 0.0** in every round (`grad_avg` in `engine/results/control-equal-masses-{a,b}/round-030.json`).
+- **Why:** `T_roche = beta · (g_B − g_W)`. With `beta = 0` the term vanishes, so its shape constants have no effect on the evaluation and TDLeaf gets no signal to improve them. Once a law's weight is 0, gradient training cannot rediscover a better shape for it.
+- **Meaning:** this is a better explanation for F14 than the guesses listed there. The weight decides first, while the shape is still close to the Gen 0 guess, and then the shape is frozen. The weight itself can still come back (its own gradient is `g_B − g_W`, not 0), as it did in Gen 3 (F25), but only with the old shape, and at Gen 3 that still didn't help (F27).
+- **Consequence for any law redesign:** the shape constants of a new law need either a signal at weight 0 or tuning without gradients (natural selection, T3).
+
+### Pre-registered: the temperature attribution test (2026-10-24) · running
+Written before any result exists.
+- **Question:** did Gen 1's jump (F13) come from learning the temperature (T1), or from the other fixes (quiet leaves T5, capped games dropped T6)?
+- **Runs** (`r-baruah/kepler-64-compute`, all from `engine/data/ablations/gen-000-T6.json`, identical seed 7, 11 rounds × 500 games, depth 3, lr 0.01, quiet leaves and capped-drop in all three):
+  - `attrib-T-learned`: temperature starts at 6 and is learned (the Gen 1 recipe).
+  - `attrib-T-fixed6`: temperature fixed at 6.
+  - `attrib-T-fixed4`: temperature fixed at 4 (the failed F10 run's scale).
+- **Deciding comparison:** an SPRT of `attrib-T-learned` against `attrib-T-fixed6` head to head (4,000 games, depth 4, elo0 0, elo1 10). H1 means learning the temperature helps beyond picking a good fixed value. H0 means a good fixed value does as well, and the claim "the universe needed a temperature" must not be made.
+- **Secondary, descriptive only:** each arm against gen-000, and fixed 4 against fixed 6 (how much the scale alone matters).
+
+### F31 · Why the Roche limit fails: its denominator, not its idea (2026-10-24) · measured
+- **What:** replaying the 1,000 gen-003 ladder games (evaluation only) and logging both kings' Roche quantities on every ply:
+  - The spec-1 index `eta` separates kings that are about to be mated from all others very well (AUC 0.93 overall, 0.90 when material is level).
+  - But once the rest of Kepler's evaluation is held fixed, `eta` adds little (AUC 0.54–0.62). Its numerator alone, the **enemy pull on the king's body**, adds more (0.58–0.72). The king's own support on its body adds nothing, because L4a and L4b already count it.
+  - On held-out games, adding that enemy pull to the score improves outcome prediction **about 5.6 times as much** as the spec-1 Roche term does.
+- **Evidence:** `engine/results/roche-probe-gen003.md`, scripts in `scripts/research/roche/`.
+- **Meaning:** "a king is in danger when enemy pull lands on its body" is right. Dividing by the king's own support and passing the result through a sigmoid threshold (spec-1) dilutes it and gives it shape constants that freeze at weight 0 (F30).
+- **Caveat:** prediction is not strength (F10). This motivates law candidate L11 (`10_UNIVERSE_METHODS.md`); only its Ledger SPRT decides.
