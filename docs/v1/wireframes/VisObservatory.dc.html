@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Concept 1: Observatory</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#E9E4DA}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; background: radial-gradient(ellipse at 50% 42%, #101830 0%, #0A0F1E 45%, #05070D 100%); color: #E9E4DA; font-family: Manrope, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; position: relative">
+<header style="width: 100%; height: 56px; box-sizing: border-box; padding: 0 32px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid rgba(160, 175, 210, 0.14)">
+<div style="font-weight: 700; font-size: 15px; letter-spacing: 0.22em">KEPLER-64</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8E98AE; letter-spacing: 0.08em; flex-grow: 1">A TINY UNIVERSE THAT LEARNED TO PLAY CHESS</div>
+<nav style="display: flex; gap: 22px; font-size: 14px"><a href="#" style="text-decoration: none; border-bottom: 1px solid #FFC478; padding-bottom: 2px">Play</a><a href="#" style="text-decoration: none">Watch</a><a href="#" style="text-decoration: none">Lab</a></nav>
+<a href="#" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; text-decoration: none; border: 1px solid rgba(233, 228, 218, 0.4); border-radius: 999px; padding: 7px 14px">★ STAR · [STARS]</a>
+</header>
+<div style="position: absolute; left: 32px; top: 104px; width: 220px; display: flex; flex-direction: column; gap: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8E98AE; letter-spacing: 0.06em">
+<div>FIELD · PULL</div>
+<div style="display: flex; align-items: center; gap: 10px; color: #C9C2B4"><span style="width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 236, 204, 0.85), rgba(255, 236, 204, 0))"></span>STARLIGHT · WHITE PULLS HARDER</div>
+<div style="display: flex; align-items: center; gap: 10px; color: #C9C2B4"><span style="width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, rgba(139, 122, 255, 0.9), rgba(139, 122, 255, 0))"></span>NEBULA · BLACK PULLS HARDER</div>
+<div style="color: #6F7A92; line-height: 1.6; font-family: Manrope, sans-serif; font-size: 12px; letter-spacing: 0">Every piece pulls along the lines it can move and stops at the first piece in the way.</div>
+<a href="#" style="font-family: Manrope, sans-serif; font-size: 13px; letter-spacing: 0">How it works</a>
+</div>
+<div style="position: absolute; right: 32px; top: 104px; width: 200px; display: flex; flex-direction: column; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #C9C2B4">
+<div style="font-size: 11px; color: #8E98AE; letter-spacing: 0.06em">MOVES</div>
+<div style="display: grid; grid-template-columns: 24px 1fr 1fr; row-gap: 6px"><span style="color: #6F7A92">1</span><span>e4</span><span>e5</span><span style="color: #6F7A92">2</span><span>Nf3</span><span style="color: #FFC478">Nc6</span></div>
+<div style="margin-top: 14px; font-size: 11px; color: #8E98AE; letter-spacing: 0.06em">KEPLER'S VIEW</div>
+<div style="font-size: 22px; color: #E9E4DA">+0.45 <span style="font-size: 12px; color: #8E98AE">KU</span></div>
+<div style="font-family: Manrope, sans-serif; font-size: 12px; color: #6F7A92; line-height: 1.5">Kepler units: one pawn's weight. Positive is good for Kepler.</div>
+</div>
+<div style="margin-top: 16px; width: 540px; height: 30px; display: flex; justify-content: space-between; align-items: center">
+<div style="display: flex; align-items: baseline; gap: 10px"><span style="font-weight: 600; font-size: 14px">Kepler</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8E98AE">GEN 4 · DEFAULT</span></div>
+<div style="display: flex; align-items: center; gap: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8E98AE">PULL ON KING <span style="color: #E9E4DA">0.7 / 21.1</span><span style="width: 90px; height: 3px; background: rgba(160, 175, 210, 0.2); display: inline-block"><span style="display: block; width: 3%; height: 3px; background: #8B7AFF; box-shadow: 0 0 8px #8B7AFF"></span></span></div>
+</div>
+<dc-import name="BoardHi" fen="r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R" tint=".BBbbbB.BBbBBbbBwbbBbBbbbWbwb.bbwbwbwbbb.wwWwWw.WwWWWwWw.wwwWWW." marks=".l.h....h...h.....l.....h...h....h.h............................" theme="observatory" size="{{boardSize}}" hint-size="540px,540px"></dc-import>
+<div style="width: 540px; height: 30px; display: flex; justify-content: space-between; align-items: center; margin-top: 4px">
+<div style="display: flex; align-items: baseline; gap: 10px"><span style="font-weight: 600; font-size: 14px">You</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #FFC478">YOUR MOVE</span></div>
+<div style="display: flex; align-items: center; gap: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8E98AE">PULL ON KING <span style="color: #E9E4DA">2.2 / 25.6</span><span style="width: 90px; height: 3px; background: rgba(160, 175, 210, 0.2); display: inline-block"><span style="display: block; width: 8%; height: 3px; background: #FFECCC; box-shadow: 0 0 8px #FFECCC"></span></span></div>
+</div>
+<div style="width: 640px; margin-top: 6px; text-align: center; font-size: 15px; line-height: 1.5; color: #D6D0C4"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #FFC478; letter-spacing: 0.06em">2… NC6 </span> Kepler's knight now pulls on 8 squares, including e5, where it holds its own pawn, and d4.</div>
+<nav aria-label="Game controls" style="margin-top: 12px; display: flex; gap: 2px; border: 1px solid rgba(160, 175, 210, 0.22); border-radius: 999px; padding: 4px; background: rgba(10, 14, 26, 0.7)">
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #E9E4DA; border: none; border-radius: 999px; background: none">New game</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #E9E4DA; border: none; border-radius: 999px; background: none">Undo</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #E9E4DA; border: none; border-radius: 999px; background: none">Flip</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #05070D; border: none; border-radius: 999px; background: #E9E4DA">Field: Pull</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #E9E4DA; border: none; border-radius: 999px; background: none">Universe</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #E9E4DA; border: none; border-radius: 999px; background: none">Level</button>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { boardSize: 540 }; }
+}
+</script>
+</body>
+</html>

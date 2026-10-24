@@ -32,3 +32,14 @@ The maintainer found rows 1–3 close to the conventional chess-site layout (boa
 | `AltNarrate.dc.html`, `AltNarratePhone.dc.html` | B · The universe narrates: board plus a plain-words commentary of what the field did on each move, every line a fact from the engine's breakdown |
 
 Both use a colour-free field (White's pull lights squares, Black's pull shades them): `Board.dc.html` `palette="light"`.
+
+## Visual concepts (2026-10-25, second review)
+
+The maintainer asked for a space-themed, hypermodern, professional look, shown on one key screen before drawing every state. Two concepts, Play mid-game, desktop and phone (layout A with B's one-line commentary):
+
+| files | concept |
+|---|---|
+| `VisObservatory*.dc.html` | 1 · Observatory: dark night-sky ground, lit-plate board, hairline instrument panels, monospace labels; the field as light (starlight for White, violet nebula for Black). Manrope + IBM Plex Mono |
+| `VisMission*.dc.html` | 2 · Mission: bright, precise, one electric-blue accent; the field as a scientific dot plate (solid dots for White, rings for Black, size = strength). Geist + Geist Mono |
+
+`BoardHi.dc.html` draws both themes from the same computed field.

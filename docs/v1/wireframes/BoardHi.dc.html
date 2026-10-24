@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Board, visual concepts</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div role="img" aria-label="{{label}}" style="{{frameStyle}}">
+<sc-for list="{{squares}}" as="sq" hint-placeholder-count="64">
+<div style="{{sq.style}}">
+<div style="{{sq.fieldStyle}}"></div>
+<sc-if value="{{sq.hasMark}}" hint-placeholder-val="{{false}}">
+<div style="{{sq.markStyle}}"></div>
+</sc-if>
+<sc-if value="{{sq.hasPiece}}" hint-placeholder-val="{{false}}">
+<div style="{{sq.pieceStyle}}">{{sq.glyph}}</div>
+</sc-if>
+<sc-if value="{{sq.hasRank}}" hint-placeholder-val="{{false}}">
+<div style="{{sq.coordStyleL}}">{{sq.rank}}</div>
+</sc-if>
+<sc-if value="{{sq.hasFile}}" hint-placeholder-val="{{false}}">
+<div style="{{sq.coordStyleR}}">{{sq.file}}</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"fen":{"editor":"text","default":"r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R"},"tint":{"editor":"text","default":".BBbbbB.BBbBBbbBwbbBbBbbbWbwb.bbwbwbwbbb.wwWwWw.WwWWWwWw.wwwWWW."},"marks":{"editor":"text","default":""},"size":{"editor":"int","default":560,"min":200,"max":800},"theme":{"editor":"enum","options":["observatory","mission"],"default":"observatory"},"$preview":{"width":560,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const size = this.props.size ?? 560;
+    const theme = this.props.theme ?? 'observatory';
+    const obs = theme === 'observatory';
+    const fen = this.props.fen ?? 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R';
+    const tint = (this.props.tint ?? '').padEnd(64, '.');
+    const marks = (this.props.marks ?? '').padEnd(64, '.');
+    const cells = [];
+    for (const row of fen.split('/')) for (const ch of row) {
+      if (/[1-8]/.test(ch)) { for (let i = 0; i < +ch; i++) cells.push(''); } else cells.push(ch);
+    }
+    const G = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟︎' };
+    const cs = size / 8;
+    const strength = { W: 1, w: 0.45, B: 1, b: 0.45 };
+    const squares = cells.map((p, i) => {
+      const r = Math.floor(i / 8), f = i % 8, dark = (r + f) % 2 === 1;
+      const t = tint[i], m = marks[i], s = strength[t] || 0, white = t === 'W' || t === 'w';
+      let bg, fieldStyle, markStyle = '', pieceStyle = '';
+      if (obs) {
+        bg = dark ? '#121826' : '#182034';
+        const c = white ? '255, 236, 204' : '139, 122, 255';
+        fieldStyle = s ? `position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(${c}, ${0.42 * s}) 0%, rgba(${c}, ${0.10 * s}) 60%, rgba(${c}, 0) 100%)` : 'display: none';
+        if (m === 'l') markStyle = 'position: absolute; inset: 0; box-shadow: inset 0 0 0 1.5px rgba(255, 196, 120, 0.85)';
+        if (m === 'h') markStyle = 'position: absolute; inset: 22%; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.55)';
+        pieceStyle = `position: relative; font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", "DejaVu Sans", serif; font-size: ${Math.round(cs * 0.74)}px; line-height: 1; ${p && p === p.toUpperCase() ? 'color: #F3EEE4; -webkit-text-stroke: 1px #0A0D14; text-shadow: 0 0 14px rgba(255, 236, 204, 0.35)' : 'color: #05070C; -webkit-text-stroke: 1px #8C96AC; text-shadow: 0 0 10px rgba(139, 122, 255, 0.35)'}`;
+      } else {
+        bg = dark ? '#E9ECF1' : '#FFFFFF';
+        const d = Math.round(cs * (0.12 + 0.2 * s));
+        fieldStyle = s ? `position: absolute; left: 50%; top: 50%; width: ${d}px; height: ${d}px; margin: -${d / 2}px 0 0 -${d / 2}px; border-radius: 50%; ${white ? 'background: #14213D' : 'border: 1.5px solid #14213D; box-sizing: border-box'}; opacity: 0.22` : 'display: none';
+        if (m === 'l') markStyle = 'position: absolute; inset: 0; box-shadow: inset 0 0 0 2px #2F5BFF';
+        if (m === 'h') markStyle = 'position: absolute; inset: 0; background: rgba(47, 91, 255, 0.10)';
+        pieceStyle = `position: relative; font-family: "Noto Sans Symbols 2", "Segoe UI Symbol", "DejaVu Sans", serif; font-size: ${Math.round(cs * 0.74)}px; line-height: 1; ${p && p === p.toUpperCase() ? 'color: #FFFFFF; -webkit-text-stroke: 1.3px #14213D' : 'color: #14213D; -webkit-text-stroke: 1px #14213D'}`;
+      }
+      const coord = obs ? 'color: rgba(200, 210, 230, 0.55); font-family: "IBM Plex Mono", monospace' : 'color: #7A8499; font-family: "Geist Mono", monospace';
+      return {
+        style: `position: relative; background: ${bg}; display: flex; align-items: center; justify-content: center; overflow: hidden`,
+        fieldStyle, markStyle, hasMark: !!markStyle,
+        hasPiece: !!p, glyph: p ? G[p.toLowerCase()] : '', pieceStyle,
+        hasRank: f === 0, rank: String(8 - r), hasFile: r === 7, file: 'abcdefgh'[f],
+        coordStyleL: `position: absolute; left: 4px; top: 3px; font-size: 10px; ${coord}`,
+        coordStyleR: `position: absolute; right: 4px; bottom: 2px; font-size: 10px; ${coord}`,
+      };
+    });
+    const frameStyle = `width: ${size}px; height: ${size}px; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); box-sizing: border-box; ${obs ? 'border: 1px solid rgba(160, 175, 210, 0.28); box-shadow: 0 0 0 6px rgba(18, 24, 38, 0.6), 0 30px 80px rgba(0, 0, 0, 0.55)' : 'border: 1px solid #14213D'}`;
+    return { squares, frameStyle, label: 'Chess board, position ' + fen };
+  }
+}
+</script>
+</body>
+</html>
