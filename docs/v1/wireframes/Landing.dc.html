@@ -36,13 +36,23 @@ a{color:#14213D}a:hover{color:#2F5BFF}
 </div>
 <div style="display: flex; gap: 28px; margin-top: 18px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478; line-height: 1.5">
 <div><div style="font-family: Geist, sans-serif; font-size: 22px; font-weight: 400; color: #14213D">In your browser</div>no account, nothing to install</div>
-<div><div style="font-family: Geist, sans-serif; font-size: 22px; font-weight: 400; color: #14213D">4 generations</div>each one stronger than the last</div>
+<div><div style="font-family: Geist, sans-serif; font-size: 22px; font-weight: 400; color: #14213D">85,500 games</div>of self-play, across 4 generations</div>
 <div><div style="font-family: Geist, sans-serif; font-size: 22px; font-weight: 400; color: #14213D">Open source</div>every result on GitHub</div>
 </div>
 </div>
 <div style="display: flex; flex-direction: column; gap: 10px; align-items: center">
-<dc-import name="BoardHi" fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR" tint=".bbbBbb.BbBBBbbBbbbbbbbb................wwwwwwwwWwWWWwwW.wwwWww." marks="" theme="mission" size="{{hero}}" hint-size="560px,560px"></dc-import>
-<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478">THIS BOARD IS LIVE · DOTS = WHITE'S PULL · RINGS = BLACK'S PULL</div>
+<dc-import name="BoardHi" fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR" tint=".bbbBbb.BbBBBbbBbbbbbbbb................wwwwwwwwWwWWWwwW.wwwWww." marks="" theme="mission" size="{{hero}}" hint-size="490px,490px"></dc-import>
+<div style="width: 490px; box-sizing: border-box; border: 1px solid #DCE0E7; border-radius: 10px; background: #FFFFFF; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; font-family: 'Geist Mono', monospace; font-size: 10px; color: #5B6478"><span>THE CONSTANTS OF THIS UNIVERSE · GEN 4</span><a href="#" style="color: #2F5BFF; text-decoration: none">CHANGE UNIVERSE</a></div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+<div><div style="font-size: 20px; font-weight: 300">2.72</div><div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #5B6478">KNIGHT</div></div>
+<div><div style="font-size: 20px; font-weight: 300">3.12</div><div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #5B6478">BISHOP</div></div>
+<div><div style="font-size: 20px; font-weight: 300">4.24</div><div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #5B6478">ROOK</div></div>
+<div><div style="font-size: 20px; font-weight: 300">7.39</div><div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #5B6478">QUEEN</div></div>
+<div><div style="font-size: 20px; font-weight: 300">2 <span style="font-size: 12px">moves</span></div><div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #5B6478">LIGHT SPEED</div></div>
+</div>
+<div style="font-family: 'Geist Mono', monospace; font-size: 10px; color: #5B6478">WEIGHTS IN PAWNS · LEARNED BY SELF-PLAY · DOTS ON THE BOARD = WHITE'S PULL, RINGS = BLACK'S</div>
+</div>
 </div>
 </section>
 
@@ -126,7 +136,7 @@ a{color:#14213D}a:hover{color:#2F5BFF}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":3080}}'>
 class Component extends DCLogic {
-  renderVals() { return { hero: 560, mid: 400 }; }
+  renderVals() { return { hero: 490, mid: 400 }; }
 }
 </script>
 </body>

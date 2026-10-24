@@ -167,6 +167,13 @@ Same budget, same move on every device (the search is deterministic for a given 
 - The README tells the same three beats in the same order.
 - Checked before launch with the cold testers: half see the board-only version, half the hero; the question is "What does this engine do differently?". The version with more correct answers ships. After launch, privacy-friendly analytics track two numbers: games started per visit, and visits reaching section 2.
 
+## 8c. Where the universe shows (2026-10-25)
+Meaning, not decoration: no starfields, glow or space jargon.
+- **The constants of this universe:** a small plate under the board with the live universe's learned values (piece weights in pawns, light speed in moves). It changes with the universe picker.
+- **The universe's age:** total self-play games in the current universe's lineage (gen-004: 5,500 + 40,000 + 40,000 = 85,500), from the generation files.
+- Physics words only where exact: "universe", "light cones", "light speed".
+- One ornament: the planet-and-ring mark.
+
 ## 9. Resolved and open
 - Resolved: domain; hero; king readout; levels; presets; share format (no server storage); moment card is both link and image; piece set.
 - Open for stage D: fonts, exact colours (tokens, light and dark), the field's hue pair.
