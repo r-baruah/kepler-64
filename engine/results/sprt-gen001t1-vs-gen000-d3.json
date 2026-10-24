@@ -1,0 +1,52 @@
+{
+  "bounds": {
+    "lower": -2.9444389791664403,
+    "upper": 2.9444389791664403
+  },
+  "config": {
+    "a": {
+      "file": "results/gen001-t1-candidate.json",
+      "generation": 1
+    },
+    "alpha": 0.05,
+    "b": {
+      "file": "data/generations/gen-000.json",
+      "generation": 0
+    },
+    "beta": 0.05,
+    "created": "2026-10-24T08:58:06Z",
+    "depth": 3,
+    "elo0": 0.0,
+    "elo1": 10.0,
+    "explore_plies": 6,
+    "max_games": 1200,
+    "max_plies": 300,
+    "min_games": 100,
+    "movetime_ms": null,
+    "note": "result is for A versus B; pentanomial = pairs scoring 0, 0.5, 1, 1.5, 2 for A",
+    "openings": "data/openings/balanced-200.epd",
+    "seed": 1
+  },
+  "elo": {
+    "estimate": 180.6268600989097,
+    "hi95": 245.83154379060872,
+    "lo95": 125.418244022608,
+    "reliable": false
+  },
+  "games": 134,
+  "llr": 2.959667739275625,
+  "pentanomial": [
+    1,
+    4,
+    24,
+    6,
+    32
+  ],
+  "result": "H1",
+  "seconds": 43.957570481,
+  "wdl": {
+    "d": 10,
+    "l": 30,
+    "w": 94
+  }
+}

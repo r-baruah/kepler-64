@@ -51,7 +51,7 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress · `[-]` dropped (say why)
 - [ ] SPRT runner (pentanomial)
 - [-] Light Gen 1 via TDLeaf (fixed scale): rejected by SPRT, Elo −80 (`results/gen001-light.md`, findings F10–F11)
 - [~] Training fixes and universe-inspired methods coded (T1 temperature, T2 mass conservation, T3/T4 natural selection with cooling, T5 quiet leaves, T6 capped games; `10_UNIVERSE_METHODS.md`). Runs wait for the maintainer's go
-- [ ] Gen 1 accepted by SPRT vs Gen 0
+- [x] Gen 1 accepted by SPRT vs Gen 0: +181 Elo at depth 3, +132 at depth 4 over 400 games each (`results/gen001.md`)
 - [ ] Law Ledger at Gen 1, every row of `04_TRAINING_AND_GATES.md` §5 (results committed)
 - [ ] Spec updated if any law is cut (new spec id, decision log)
 - [ ] v1 beats material-only by SPRT (the honesty gate)

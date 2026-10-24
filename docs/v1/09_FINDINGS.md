@@ -100,3 +100,23 @@ Rules:
 - **What:** the three determinism reference units (a TDLeaf shard, an SPRT shard and an evolve shard) produced the same `result_hash` on the maintainer's laptop (AMD Ryzen 5 5500U, Fedora) and on a GitHub Actions runner (AMD EPYC 7763, Ubuntu): `b1f56a3e30f1eb9c`, `d7c71a0b84c5142b`, `da3f1b02cbf711c9`. 1-thread and 3-thread runs also match.
 - **Why it matters:** work units from any machine can be merged without changing a single bit. A mismatch always means a bug or a bad worker, never noise.
 - **Evidence:** `engine/data/determinism/reference.json`; workflow run 40077939725 in `r-baruah/kepler-64-compute`; rules D1–D8 in `08_DISTRIBUTED_COMPUTE.md` §3a.
+
+### F13 · Learning by playing itself made the engine stronger: Gen 1 (2026-10-24) · confirmed
+- **What:** 11 TDLeaf rounds (5,500 self-play games, depth 3, 35 minutes on the laptop) with the universe-inspired fixes (learned temperature, quiet leaves, capped games dropped) produced Gen 1. Against Gen 0 over 400 fixed games: **+181 Elo [+146, +219] at depth 3 and +132 [+98, +168] at depth 4.**
+- **Contrast with F10:** the same method with a fixed temperature collapsed and lost 80 Elo. The learned temperature started at 6 and cooled to 3.7: the universe grew more confident as it learned.
+- **Evidence:** `engine/results/gen001.md`, `engine/data/generations/gen-001.json`.
+- **Caveat:** engine vs engine at fixed depth. Not a rating. The ladder (M4) measures strength against calibrated opponents.
+
+### F14 · Training switches the Roche limit off (2026-10-24) · observed, twice
+- **What:** in both TDLeaf runs (fixed and learned temperature), `beta`, the weight of a breaking king (law L5), went steadily to 0. **Gen 1 plays without the Roche limit.** Its king safety comes only from binding energy and held space.
+- **Why it matters:** "a king is torn apart when the enemy's pull outweighs its defenders" is central to the public story. If the law contributes nothing, the story must not claim it drives play.
+- **Possible causes, untested:**
+  - the gauge rarely fires (about 1% of positions at Gen 0), so it carries little signal;
+  - its sharp threshold gives little gradient;
+  - it duplicates what binding and space already capture;
+  - or king danger is simply better handled by search.
+- **Next:** the Law Ledger row L5 (SPRT with `beta = 0` vs `beta > 0`), and a look at whether a smoother or differently normalised Roche index survives.
+
+### F15 · The bishop pulls ahead of the knight (2026-10-24) · observed, not a discovery
+- **What:** in the Gen 1 run, the bishop's mass rose steadily, 3.00 → 3.63, faster than the knight's (3.00 → 3.15). The queen rose 9.00 → 10.58 and the rook 5.00 → 5.29. This matches the common human view that a bishop is worth a little more than a knight.
+- **Caveat:** the run started from human values (3/3/5/9) and the masses were still moving when it stopped. Only the equal-mass control run (Q1) can show whether the universe *discovers* this ordering.
