@@ -3,6 +3,7 @@
 	import Board from '$lib/components/Board.svelte';
 	import Dock from '$lib/components/Dock.svelte';
 	import Header from '$lib/components/Header.svelte';
+	import Landing from '$lib/components/Landing.svelte';
 	import KingReadout from '$lib/components/KingReadout.svelte';
 	import MoveList from '$lib/components/MoveList.svelte';
 	import Sheet from '$lib/components/Sheet.svelte';
@@ -60,7 +61,7 @@
 	<meta name="description" content="A tiny universe that learned to play chess. Play against it in your browser." />
 </svelte:head>
 
-<Header />
+<Header onhome={() => game.goHome()} />
 
 <main class="stage" data-mode={game.mode}>
 	<!-- Hero text: the landing's first screen. Hidden once a game starts. -->
@@ -192,6 +193,15 @@
 		<div class="strength">Strength at this level: not measured yet</div>
 	</aside>
 </main>
+
+{#if !play}
+	<Landing
+		landing={data.facts.landing}
+		ready={game.status === 'ready'}
+		generationUrl={game.preset.file}
+		onplayrejected={() => (game.sheet = 'universe')}
+	/>
+{/if}
 
 {#if game.sheet === 'new'}
 	<Sheet title="New game" onclose={() => (game.sheet = null)}>

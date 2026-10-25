@@ -213,6 +213,21 @@ export class GameStore {
 		if (this.turnSide !== this.human) await this.keplerMove(ep);
 	}
 
+	/** True while a game has moves and is not finished. */
+	get inProgress(): boolean {
+		return this.mode === 'play' && this.history.length > 0 && !this.over;
+	}
+
+	/** Back to the landing (Play at rest) on a fresh board. Asks first if a game is in progress. */
+	async goHome() {
+		if (this.mode !== 'play') return;
+		if (this.inProgress && typeof confirm === 'function' && !confirm('Leave this game and go back to the start page?')) return;
+		this.mode = 'rest';
+		this.sheet = null;
+		if (this.status === 'nowasm') return;
+		await this.loadPreset();
+	}
+
 	private async waitReady() {
 		while (this.status === 'loading') await new Promise((r) => setTimeout(r, 50));
 	}

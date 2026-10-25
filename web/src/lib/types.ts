@@ -109,7 +109,26 @@ export interface LevelFacts {
 	about: string;
 }
 
+export interface LedgerCard {
+	id: string;
+	verdict: 'kept' | 'back' | 'rejected' | 'rejected-twice';
+	title: string;
+	note: string;
+	evidence: string[];
+}
+
+/** Piece weights in the order n, b, r, q. */
+export type Masses = [number, number, number, number];
+
+export interface LandingFacts {
+	chart: { pieces: ['n', 'b', 'r', 'q']; start: Masses; runs: { a: Masses[]; b: Masses[] }; games: number };
+	/** Run a's final weights rounded to one decimal. */
+	found: { n: number; b: number; r: number; q: number };
+	ledger: LedgerCard[];
+}
+
 export interface SiteFacts {
+	landing: LandingFacts;
 	championId: string;
 	selfPlayGames: number;
 	lineage: { generation: number; games: number; source: string | null }[];

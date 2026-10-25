@@ -26,6 +26,53 @@ export const LINEAGE_RESULTS = {
 	4: 'results/gen004-tide-a/candidate.json'
 };
 
+/** Law Ledger cards on the landing. Each names the committed result files that back its verdict. */
+export const LEDGER_CARDS = [
+	{ id: 'field', verdict: 'kept', title: 'Pull follows the moves', note: 'Beats counting pieces alone, by far', evidence: ['results/ledger-gen001', 'results/ledger-gen001.md'] },
+	{ id: 'space', verdict: 'kept', title: 'Squares belong to the stronger pull', note: 'Control of space', evidence: ['results/ledger-gen001.md'] },
+	{ id: 'binding', verdict: 'back', title: 'Defenders hold pieces together', note: 'Cut at first, useful later', evidence: ['results/ledger-gen003-bind0.json'] },
+	{ id: 'accretion', verdict: 'rejected', title: 'Captures absorb weight', note: 'Better switched off', evidence: ['results/ledger-gen001.md'] },
+	{ id: 'king', verdict: 'rejected-twice', title: 'A king torn apart by pull', note: 'Two designs, neither helped', evidence: ['results/ledger-gen003-roche0.json', 'results/ledger-gen004tide-tide0.json'] }
+];
+
+/** The piece-weight chart: the equal-masses start, then 30 rounds of two independent runs. */
+const CHART_RUNS = { a: 'results/control-equal-masses-a', b: 'results/control-equal-masses-b' };
+const CHART_START = 'data/ablations/start-equal-masses.json';
+const CHART_ROUNDS = 30;
+const PIECES = ['n', 'b', 'r', 'q'];
+
+function pieceMasses(c) {
+	return PIECES.map((k) => {
+		if (!Number.isFinite(c?.[`m_${k}`])) throw new Error(`sync-data: constant m_${k} missing`);
+		return c[`m_${k}`];
+	});
+}
+
+function computeLanding(engineRoot) {
+	const start = pieceMasses(readJson(join(engineRoot, CHART_START)).constants);
+	const runs = {};
+	let games = 0;
+	for (const [name, dir] of Object.entries(CHART_RUNS)) {
+		const series = [start];
+		for (let r = 1; r <= CHART_ROUNDS; r++) {
+			const doc = readJson(join(engineRoot, dir, `round-${String(r).padStart(3, '0')}.json`));
+			series.push(pieceMasses(doc.constants));
+			if (name === 'a') {
+				if (!Number.isFinite(doc.games)) throw new Error(`sync-data: round ${r} has no games`);
+				games += doc.games;
+			}
+		}
+		runs[name] = series;
+	}
+	const last = runs.a[CHART_ROUNDS];
+	const found = Object.fromEntries(PIECES.map((k, i) => [k, Math.round(last[i] * 10) / 10]));
+	const cards = LEDGER_CARDS.map((c) => {
+		for (const e of c.evidence) need(join(engineRoot, e));
+		return { ...c };
+	});
+	return { chart: { pieces: PIECES, start, runs, games }, found, ledger: cards };
+}
+
 const CHAMPION_FILE = 'generations/gen-004.json';
 
 function need(path) {
@@ -143,6 +190,7 @@ export function computeFacts(engineRoot = join(REPO_ROOT, 'engine'), planPath = 
 		lineage,
 		presets,
 		levels,
+		landing: computeLanding(engineRoot),
 		defaultLevel: 'default'
 	};
 }

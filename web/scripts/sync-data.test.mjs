@@ -46,6 +46,24 @@ describe('site facts', () => {
 			['strong', 1500000]
 		]);
 	});
+
+	it('reads the piece-weight chart and the ledger cards', () => {
+		const { chart, found, ledger } = facts.landing;
+		expect(chart.runs.a).toHaveLength(31);
+		expect(chart.runs.b).toHaveLength(31);
+		expect(chart.start).toEqual([4.4286, 4.4286, 4.4286, 4.4286]);
+		expect(chart.runs.a[0]).toEqual(chart.start);
+		expect(found).toEqual({ n: 2.6, b: 3.3, r: 4.4, q: 8.2 });
+		expect(chart.games).toBe(60000);
+		expect(ledger.map((c) => [c.id, c.verdict])).toEqual([
+			['field', 'kept'],
+			['space', 'kept'],
+			['binding', 'back'],
+			['accretion', 'rejected'],
+			['king', 'rejected-twice']
+		]);
+		for (const c of ledger) for (const e of c.evidence) expect(existsSync(join(engine, e))).toBe(true);
+	});
 });
 
 describe('missing sources fail the build', () => {
@@ -59,6 +77,12 @@ describe('missing sources fail the build', () => {
 			expect(() => computeFacts(dir, plan)).toThrow(/missing source file/);
 			cpSync(join(engine, 'results/gen003-tdleaf-a/candidate.json'), join(dir, 'results/gen003-tdleaf-a/candidate.json'));
 			rmSync(join(dir, 'data/ablations/gen004-tidal.json'));
+			expect(() => computeFacts(dir, plan)).toThrow(/missing source file/);
+			cpSync(join(engine, 'data/ablations/gen004-tidal.json'), join(dir, 'data/ablations/gen004-tidal.json'));
+			rmSync(join(dir, 'results/ledger-gen003-bind0.json'));
+			expect(() => computeFacts(dir, plan)).toThrow(/missing source file/);
+			cpSync(join(engine, 'results/ledger-gen003-bind0.json'), join(dir, 'results/ledger-gen003-bind0.json'));
+			rmSync(join(dir, 'results/control-equal-masses-b/round-017.json'));
 			expect(() => computeFacts(dir, plan)).toThrow(/missing source file/);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });

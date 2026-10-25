@@ -35,6 +35,10 @@ The engine runs in a Web Worker (`src/lib/engine/engine.worker.ts`). Search is s
 
 Geist and Geist Mono are self-hosted in `static/fonts/` (SIL Open Font License 1.1, licence texts alongside). Pieces are the cburnett set under the BSD licence; sources and licence text in `static/pieces/LICENSE.md`.
 
+## Landing
+
+Below the hero (shown only at rest): the one law (demo board; the rook's squares come from a second engine worker started once the page engine is ready), the piece-weight chart and the Law Ledger cards (data and evidence paths from `sync-data.mjs`, build fails if a file is missing), the open-source band and footer. The header name returns to the landing (asks first if a game is in progress).
+
 ## Not in this pass
 
-Landing sections below the hero, sharing (`/g`, OG images), Watch, Lab, Explore, the explanation cards, the GitHub star count, keyboard play, the end-of-game moments card.
+Sharing (`/g`, OG images), Watch, Lab, Explore, the explanation cards, the GitHub star count, keyboard play, the end-of-game moments card.
