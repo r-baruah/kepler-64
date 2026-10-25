@@ -1,324 +1,245 @@
-> **Kepler-64 v1 is being rebuilt from the ground up**: a new engine in Rust where the rules of chess shape the field itself. Work in progress lives on the [`v1` branch](https://github.com/r-baruah/kepler-64/tree/v1) (start at `docs/v1/`). This page describes v0.
+# Kepler-64
 
-<div align="center">
+**A tiny universe that learned to play chess.**
 
-# 🪐 Kepler-64
-### *We didn't teach a computer chess. We built a tiny universe — and let gravity figure out the game.*
+Kepler-64 is a chess engine with no chess knowledge in it. We gave chess its own physics, built natively for the board and modelled on real physics. Every piece has a mass and pulls along the lines it can legally move. The pull stops at the first piece in the way and reaches at most 2 moves, which is this universe's speed of light. About a dozen constants (the piece masses, how fast pull fades, the weight of each law) were learned by playing itself. Nothing else about chess is written in.
 
-> *"Richard Feynman once said that figuring out the laws of physics is like watching a chess game without knowing the rules — you observe long enough, and you start to deduce the laws underneath.*  
-> *Kepler-64 does the exact opposite: It already knows the rules of chess. It's the universe that has to figure out how to play."*
+- **It still plays.** Gen 3 scored 53% against Stockfish 19 limited to its 2100 setting, at 30 s + 0.3 s per move, over 200 games. [The full ladder is below](#it-knows-space-not-chess).
+- **Every law has to earn its place.** Each one is switched off and tested over thousands of games. Laws taken straight from astrophysics, like a Roche limit that tears a king apart, made the engine weaker and were rejected. They live on as alternate universes you can play.
+- **Every number is checkable.** Each result on this page comes from a committed file in [`engine/results/`](engine/results/), and the training and test work units give identical results on different machines.
 
-Every chess piece has **mass**. Every piece **pulls** on every other piece. Attacks are gravitational fields. Captures are **absorbed into your body**. And you don't checkmate the enemy King — you get close enough that the **tidal forces tear it apart**, exactly like a moon shredded by Jupiter.
+<!-- TODO (maintainer): kepler.ripuranjan.com is not live yet. Confirm the URL before launch. -->
+**[Play in the browser](https://kepler.ripuranjan.com)** · [Law Ledger](#every-law-has-to-earn-its-place) · [Findings](docs/v1/09_FINDINGS.md) · [Open problems](docs/v1/11_OPEN_PROBLEMS.md)
 
-Here's the twist: **nobody wrote any chess rules into this engine.** No opening books, no "knights belong on outposts," no grandmaster data. Just the laws of physics — and then gradient descent tuned the constants of that universe (how strong gravity is, how fast its influence travels, when a King collapses) until the physics started playing real chess.
+<!-- TODO (maintainer): add a 1600x900 light-mode screenshot of the landing hero as docs/v1/img/hero.png, then uncomment:
+![The Kepler-64 board with each side's pull drawn on the squares](docs/v1/img/hero.png)
+-->
 
-[![Live Observatory](https://img.shields.io/badge/🔭_Live_Observatory-Deploy-2448b8?style=for-the-badge)](https://r-baruah.github.io/kepler-64/)
-[![Tests](https://img.shields.io/badge/tests-140%20passing-16a34a?style=for-the-badge)](#testing--verification)
-[![NotebookLM](https://img.shields.io/badge/NotebookLM-Podcast%20%26%20Video-4285F4?style=for-the-badge&logo=google&logoColor=white)](#-watch--listen--deep-dive-overview)
-[![Kaggle GPU](https://img.shields.io/badge/Kaggle-Free%20T4%20Notebook-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](notebooks/kaggle_gate.ipynb)
-[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![JAX](https://img.shields.io/badge/JAX-differentiable-f06426?style=for-the-badge&logo=google)](https://github.com/google/jax)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
+## It knows space, not chess.
 
-[**🔭 Explore the Live Observatory**](https://r-baruah.github.io/kepler-64/) • [**🎧 Video & Podcast Deep Dives**](#-watch--listen--deep-dive-overview) • [**📖 Read the Book**](Kepler-64_Book/PRELUDE.md) • [**🚀 Try It Yourself**](#-try-it-in-3-lines) • [**♟️ Play via UCI**](#-play-in-any-chess-gui-uci)
+**Not in the evaluation:**
+- piece-square tables
+- king-safety rules
+- pawn-structure rules
+- an opening book
+- endgame tablebases
+- a neural network trained on chess games
 
-*If a universe where orbital mechanics outplays pawn structures sounds fun, a ⭐ helps other curious people find it.*
+**In the evaluation:** one field, about a dozen learned numbers, and the rules of chess, which decide where pull can travel. The search around it is a standard alpha-beta search (iterative deepening, PVS, quiescence, transposition table, null move, LMR). Search techniques are allowed because they say nothing about what a position is worth.
 
-</div>
+**How it plays.** Gen 3, the generation that has been measured, against Stockfish 19 with `UCI_LimitStrength` at each `UCI_Elo` setting, 30 s + 0.3 s per game, 200 games per rung (100 openings, both colours). Source: [`engine/results/ladder-gen003.json`](engine/results/ladder-gen003.json).
 
----
-
-## 🌌 The Idea in 30 Seconds
-
-**1. Pieces become planets.** ♙ Pawn = 1 unit of mass, ♗ Bishop = 3, ♖ Rook = 5, ♕ Queen = 9, ♔ King = a whopping 1000. Place them on the 64 squares and they create a real gravitational field — computed with actual Newtonian equations.
-
-**2. Attacks become tides.** One enemy piece near your King is an annoyance. But pieces pulling from *opposite sides at once* stretch the King the way the Moon stretches Earth's oceans. The engine measures that stretching with a **tidal tensor** — and when it crosses the critical threshold (the same Roche limit that shreds moons around Jupiter), the King is judged *structurally collapsing*. That's how this universe wins.
-
-**3. Captures feed your mass.** Take a piece and you don't just remove it — you **absorb 80% of its mass**. Your piece gets heavier, its pull stronger… and a King that swallows mass grows more extended and easier to tear apart. Greed has a price written into the laws.
-
-**4. The laws themselves are learned.** This universe has **17 knobs** — the strength of gravity, how soft pieces are, how fast gravitational influence travels, the collapse threshold, and more. Training runs gradient descent *straight through the physics simulation* and tunes every knob until the universe's judgment matches what actually happens in real games.
-
-> **The honest footnote:** this is real physics math running on a board — not a claim that chess *is* astrophysics. It's a deliberately engineered universe whose equations happen to be exactly computable, exactly explainable, and exactly learnable.
-
----
-
-## 🔭 See It Live — No Install Needed
-
-The **[Web Observatory](https://r-baruah.github.io/kepler-64/)** renders the invisible parts of every game right in your browser:
-
-- 🗺️ **Gravitational field contours** warping in real time as pieces move
-- 🔴 **Tidal stress ellipses** on both Kings, stretching along their exact "line of failure"
-- 📈 **Game trajectory timeline** — watch who is physically winning, move by move
-- 📚 **Interactive compendium** explaining every formula on screen
-- 🎞️ **Export animated GIFs** of any game with live physics overlays
-
----
-
-## 🎧 Watch & Listen — Deep Dive Overview
-
-Want to understand the project deeply without wading through code? Check out these deep dives prepared via **Google NotebookLM**:
-
-| Format | Content | Link |
+| Stockfish 19 `UCI_Elo` | Kepler W / D / L | Kepler score |
 |---|---|---|
-| 🎬 **Video Overview** | Fast architectural walkthrough & visual intuition *(10 min)* | [**Watch Video (10:12)**](https://notebook.google.com/notebook/7877cfbe-a6db-422b-a519-480e8fd7d9ab/artifact/2f0aac3a-efa8-42f1-8c5f-501b5b6349bd?utm_source=nlm_web_share&utm_medium=google_oo&utm_campaign=art_share_1&utm_content=&utm_smc=nlm_web_share_google_oo_art_share_1_) |
-| 🎙️ **Deep Dive Podcast** | Detailed conversational breakdown on differentiable gravitational chess *(44 min)* | [**Listen to Podcast (44:34)**](https://notebook.google.com/notebook/7877cfbe-a6db-422b-a519-480e8fd7d9ab/artifact/59aa2aa6-90fe-494e-bbd0-d0c46ee8feb5?utm_source=nlm_web_share&utm_medium=google_oo&utm_campaign=art_share_1&utm_content=&utm_smc=nlm_web_share_google_oo_art_share_1_) |
-| 📓 **Study Notebook** | Full structured knowledge base, concept references, and interactive Q&A notes | [**Open Google NotebookLM**](https://notebook.google.com/notebook/7877cfbe-a6db-422b-a519-480e8fd7d9ab) |
+| 1500 | 174 / 1 / 25 | 87.3% |
+| 1700 | 154 / 6 / 40 | 78.5% |
+| 1900 | 123 / 3 / 74 | 62.3% |
+| 2100 | 103 / 5 / 92 | 52.8% |
+| 2300 | 75 / 10 / 115 | 40.0% |
 
----
+So Gen 3 is roughly level with Stockfish limited to 2100 at this time control, and below it at 2300. `UCI_Elo` is Stockfish's own strength setting, calibrated on its own scale, and it does not correspond to human or FIDE ratings. The current champion (Gen 4) has no ladder yet. The opponent on the website plays Gen 4 with a fixed node budget per move, and its strength has not been measured.
 
-## ✨ The Fun Parts
+## Physics, rebuilt for a chessboard
 
-| Mechanic | In plain words |
+Each idea from real physics has an exact counterpart on the board:
+
+| Real physics | On the chessboard |
 |---|---|
-| 🪐 **Accretion** | Capture a piece → absorb most of its mass. Hoarding captures makes you powerful; a greedy King also grows fragile. |
-| 🌊 **Light-speed gravity** | Influence travels at `c` squares per move (a *learnable* number). Distant threats literally take plies to arrive. |
-| 🏃 **Relativistic pieces** | Move a piece constantly and it gains relativistic mass — kinetic energy is mass even here. |
-| 🌌 **The Multiverse** | Every candidate move is judged across several randomly-varied universes; only plans that survive in *most* realities win. |
-| 🪞 **The Observer** | Optionally, the engine nudges its own constants after each move — the laws co-evolve with the game. |
-| 🕳️ **Event horizons & waves** | Piled-up heavy pieces pay horizon-overlap penalties and radiate away energy — if training decides those laws matter. |
+| Mass | Every piece has a weight (pawn = 1), learned by self-play. |
+| Gravity | A piece pulls along the lines it can legally move, and the pull stops at the first piece in the way. |
+| Light speed | Pull takes moves to arrive. It reaches at most 2 moves away and fades with each extra move. |
+| Field | Each square belongs, softly, to whichever side pulls on it harder. |
+| Exposure | A piece is exposed when the enemy pulls on it harder than its defenders do. |
 
----
+Distance is counted in moves, never in squares: a rook covers its whole open file in one hop, and a bishop behind its own pawn pulls on that pawn and no further. This is a field on the board's move graph, with no Euclidean distance anywhere. Words like "weight", "pull" and "light speed" each name a quantity with a formula. The full laws, constants and invariants are in [`docs/v1/02_LAWS_SPEC.md`](docs/v1/02_LAWS_SPEC.md).
 
-## 🧠 How It Works (the simple version)
+**The learned constants of Home (Gen 4)**, from [`engine/data/generations/gen-004.json`](engine/data/generations/gen-004.json):
 
-1. **Board → masses.** The position becomes 64 numbers: each square's mass (White positive, Black negative).
-2. **Masses → field.** Real Newtonian gravity (softened so nothing explodes) builds a force-and-potential landscape across the whole board.
-3. **Field → danger.** At each King, the engine measures how violently the field *stretches* it — and whether that stretch is crossing the learned collapse threshold.
-4. **Search picks the future.** A classic alpha-beta search tries moves and asks the physics: *which line ends with the enemy King torn apart and mine intact?*
+| Constant | Value | What it means |
+|---|---|---|
+| pawn | 1 | the unit (fixed) |
+| knight `m_n` | 2.7 | knight weight, in pawns |
+| bishop `m_b` | 3.1 | bishop weight |
+| rook `m_r` | 4.2 | rook weight |
+| queen `m_q` | 7.4 | queen weight |
+| `kappa` | 2.63 | how hard the king itself pulls |
+| `alpha` | 0.54 | share of pull kept for each extra move of travel |
+| `sigma` | 0.58 | how much a piece's pull spreads thin over the squares it reaches (0 = none, 1 = conserved flux) |
+| `c` | 2 | light speed: the most moves pull can travel |
+| `lambda_space` | 0.126 | weight of held space (squares owned by the stronger pull) |
+| `lambda_bind` | 0.019 | weight of exposure (enemy pull on a piece against its defenders') |
+| `beta`, `rho`, `k_roche` | 2.75, 1.56, 3.34 | the spec-1 Roche limit: weight, breaking point and sharpness. Training grew the weight, but switching it off makes no measurable difference (see the Ledger) |
+| `f_acc` | 0 | accretion (captures absorbing weight): off |
+| `lambda_tide` | 0 | tidal load on the king (spec-2): off |
 
-<details>
-<summary><b>🔬 The full mathematical pipeline (click to expand)</b></summary>
+All scores are in Kepler units (ku), where 1 ku is the weight of one pawn.
 
-Traditional chess engines evaluate positions using hand-crafted piece-square tables, mobility counts, or neural networks. **Kepler-64 replaces these heuristics with gravitational field calculations:**
+## How it learned
 
-```
-                    ┌─────────────────────────┐
-                    │     64-Square Lattice    │
-                    │   Signed Mass Vector m  │
-                    └────────────┬────────────┘
-                                 │
-                 ┌───────────────┴───────────────┐
-                 ▼                               ▼
-       Plummer Potential Field          King Tidal Tensor (Hessian)
-       Φ(p) = -G ∑ m_j / √(r² + ε²)     A = ∇∇Φ |_{King}  ⟹  λ₁, λ₂
-                 │                               │
-                 └───────────────┬───────────────┘
-                                 ▼
-                    Dimensionless Roche Limit
-                    η = (R_g³ · λ₁) / m_ref²
-                                 │
-                                 ▼
-                     Evaluator Score Vector
-              (Enemy Tide - Own Tide + ΔE_binding + Material)
-```
+**Self-play only.** Training is TDLeaf(λ), the method from KnightCap (Baxter, Tridgell & Weaver, 1998), run here in self-play only: the engine plays itself and nudges each constant so that its evaluation predicts the next positions and the final result better. No human games, no Stockfish labels, no opening book. Stockfish is the examiner, never the teacher.
 
-### 1. The Plummer Potential Field $\Phi(p)$
-Every piece acts as a point mass on the 2D board ($P=1, N=3, B=3, R=5, Q=9, K=1000$). To avoid infinite gravitational forces when pieces are close together, potential is smoothed using the **Plummer kernel**:
+**Every generation has to beat its parent.** A candidate is accepted only by a sequential test (SPRT: elo0 = 0, elo1 = 10, α = β = 0.05, pentanomial model, up to 4,000 games) against the generation it came from. Gains below are engine against engine at fixed depth, 95% interval, from [`engine/data/generations/index.json`](engine/data/generations/index.json):
 
-$$\Phi(p) = -G \sum_{j=1}^{64} \frac{|m_j| \cdot \sigma(c - \lVert p - r_j \rVert)}{\sqrt{\lVert p - r_j \rVert^2 + \varepsilon^2}}$$
+| Gen | What changed | Self-play games | Gain over parent | Evidence |
+|---|---|---|---|---|
+| 0 (First Light) | Hand-set: human piece values 3/3/5/9, law weights from a one-off calibration ([`calibration-gen000.md`](engine/results/calibration-gen000.md)) | 0 | none (the starting point) | [`gen-000.json`](engine/data/generations/gen-000.json) |
+| 1 | TDLeaf from Gen 0, 11 rounds × 500 games, depth 3 | 5,500 | +132 [+98, +168], 400-game match at depth 4, after an SPRT pass at depth 3 | [`confirm-gen001t1-vs-gen000-d4.json`](engine/results/confirm-gen001t1-vs-gen000-d4.json), [`sprt-gen001t1-vs-gen000-d3.json`](engine/results/sprt-gen001t1-vs-gen000-d3.json) |
+| 2 | Gen 1 with the two laws the Ledger cut switched off (accretion, binding); no new training | 0 | +81 [+71, +92], fixed-depth SPRT against the parent, depth 4, 4,000 games | [`gen001b-vs-gen001.json`](engine/results/gen001b-vs-gen001.json) |
+| 3 | TDLeaf from Gen 2, 20 rounds × 2,000 games, depth 4, on GitHub Actions | 40,000 | +53 [+43, +63], fixed-depth SPRT against the parent, depth 4, 4,000 games | [`gen003a-vs-gen002.json`](engine/results/gen003a-vs-gen002.json) |
+| 4 (Home) | TDLeaf from Gen 3, 20 rounds × 2,000 games, depth 4; tidal load tried, then switched off | 40,000 | +30 [+20, +40], fixed-depth SPRT against the parent, depth 4, 4,000 games | [`gen004b-vs-gen003.json`](engine/results/gen004b-vs-gen003.json) |
 
-where $\varepsilon$ is the softening length and $\sigma(c - d)$ regulates the interaction reach across the board.
+In all, Home's lineage learned from 85,500 games of self-play (the `training.games` fields of the generation files). These gains are against the parent only. They are not ratings.
 
-### 2. The Tidal Tensor & Line of Failure
-A King is not destroyed by simple attraction, but by **differential gravitational stretching (tide)** across its immediate neighborhood. Kepler-64 calculates the Hessian matrix of the potential at each King's location:
+**From equal weights.** As a control, two runs started with the knight, bishop, rook and queen all at the same weight (4.43, so the army weighs the same as with human values) and trained for 30 rounds × 2,000 games at depth 4, with different seeds. Both settled near knight 2.6, bishop 3.3, rook 4.4, queen 8.2, and the two runs agree: as multiples of the knight, bishop 1.25, rook 1.68, queen 3.11 and 3.12. The order queen > rook > bishop > knight came out of self-play alone. These are the weights this universe's laws need; they make no claim about "true" piece values, and the absolute scale is lower than the human one. Evidence: [`control-equal-masses-a/`](engine/results/control-equal-masses-a/), [`control-equal-masses-b/`](engine/results/control-equal-masses-b/) (findings F20, F24).
 
-$$\mathbf{A} = \nabla\nabla\Phi\big|_{\text{King}} = \begin{pmatrix} \Phi_{xx} & \Phi_{xy} \\ \Phi_{yx} & \Phi_{yy} \end{pmatrix}$$
+**A correction we made.** The first training run made the engine weaker (−80 Elo, rejected by the gate; [`gen001-light.md`](engine/results/gen001-light.md)). Gen 1 then worked, and at first we credited the learned training temperature. A pre-registered test with three arms from Gen 0 showed otherwise: with quiet leaves and unfinished games dropped, a temperature fixed at 4 gave +156 over Gen 0, against +133 for the learned one, and learned against fixed 4 came out at −34 [−44, −24]. Gen 1's jump came from those two training fixes. The temperature's value matters (fixed 6 against fixed 4 is −70), and learning it lands near a good value, slowly. Evidence: [`engine/results/attrib/`](engine/results/attrib/) (finding F32).
 
-The eigenvalues $(\lambda_1, \lambda_2)$ describe the principal stretching and compression axes, while the eigenvector $\vec{v}_1$ points along the **Line of Failure** through the King's defense.
+## Every law has to earn its place
 
-### 3. The Roche Disruption Win Condition ($\eta$)
-In celestial mechanics, when an orbiting body passes within the **Roche limit**, tidal forces overpower its self-gravity and pull it apart. Kepler-64 expresses this as a dimensionless index $\eta$:
+The Law Ledger plays each law against a copy of the same universe without it. The number is the Elo of having the law: positive means the law helps. Each row is an SPRT of 4,000 games at depth 4, engine against engine, and names the generation it was measured on.
 
-$$\eta = \frac{R_g^3 \cdot \lambda_1}{m_{\text{ref}}^2}$$
+| Law | Gen | Elo of having it [95%] | Verdict | Evidence |
+|---|---|---|---|---|
+| The field as a whole (all its terms), against counting material alone | 1 | +330 [+316, +345] | Kept | [`ledger-gen001.md`](engine/results/ledger-gen001.md) |
+| Spreading (`sigma`) | 1 | +129 [+118, +140] | Kept | [`ledger-gen001.md`](engine/results/ledger-gen001.md) |
+| Held space | 1 | +111 [+101, +122] | Kept | [`ledger-gen001.md`](engine/results/ledger-gen001.md) |
+| Light speed 2 moves, against 3 | 1 | +14 [+4, +24]; 1 move ties 2 (+3 [−7, +13]) | Kept at 2 | [`ledger-gen001.md`](engine/results/ledger-gen001.md) |
+| King emission (`kappa`) | 1 | +8 [−1, +18] | Inconclusive | [`ledger-gen001.md`](engine/results/ledger-gen001.md) |
+| Learned masses, against 3/3/5/9 | 1 | +6 [−4, +16] | Inconclusive | [`ledger-gen001.md`](engine/results/ledger-gen001.md) |
+| Binding (exposure) | 1, then 3 | −15 [−25, −5] at Gen 1; +35 [+25, +45] at Gen 3 | Came back | [`ledger-gen001.md`](engine/results/ledger-gen001.md), [`ledger-gen003.md`](engine/results/ledger-gen003.md) |
+| Accretion (captures absorb weight) | 1 | −103 [−113, −93] | Rejected | [`ledger-gen001-acc0.json`](engine/results/ledger-gen001/ledger-gen001-acc0.json) |
+| Roche limit, spec-1 (a king torn apart) | 1, 3, 4 | −71 [−81, −61] switched on at Gen 1; −9 [−19, +1] at Gen 3; −6 [−16, +4] at Gen 4 | Rejected | [`ledger-gen001.md`](engine/results/ledger-gen001.md), [`ledger-gen003-roche0.json`](engine/results/ledger-gen003-roche0.json), [`ledger-gen004-roche0.json`](engine/results/ledger-gen004-roche0.json) |
+| Tidal load, spec-2 (enemy pull on the king's body) | 3, 4 | added to Gen 3 at weights 0.05 / 0.10 / 0.34: −31 / −77 / −248; trained in from 0: −24 [−34, −14] | Rejected | [`ledger-gen003-tide005.json`](engine/results/ledger-gen003-tide005.json), [`ledger-gen003-tide010.json`](engine/results/ledger-gen003-tide010.json), [`ledger-gen003-tide034.json`](engine/results/ledger-gen003-tide034.json), [`ledger-gen004tide-tide0.json`](engine/results/ledger-gen004tide-tide0.json) |
 
-$\eta$ enters the score directly: the more the enemy army stretches a King, the worse for its side. The learned Roche threshold $\rho_{\text{roche}}$ gates a separate disruption gauge, $\sigma\big(k_{\text{gain}}(|F_{\text{King}}| - \rho_{\text{roche}})\big)$: once the enemy army's pull on the King crosses it, the King is judged **disrupting**. That is the engine's physical stand-in for checkmate (real checkmate still ends the game).
+Reading it: the field is worth a lot, and spreading and held space do most of the work. Binding was cut at Gen 1 and earned its place back at Gen 3, so a verdict holds for the generation it was measured on. We tried two physical laws for a king being torn apart; neither made the engine stronger. Home plays with accretion and tidal load off, and with the spec-1 Roche limit at no measurable effect. The caveats are in each file: one law changed at a time, no re-tuning, engine against engine.
 
-### 4. Capture Accretion
-When a piece captures an opponent, mass is preserved: the capturing piece **absorbs 80% of the captured piece's mass**:
+**Rejected laws live on as alternate universes.** Their formulas stay in the spec, and you can switch them back on and play them on the website:
 
-$$M_{\text{capturer}} \leftarrow M_{\text{capturer}} + 0.8 \cdot M_{\text{captured}}$$
+| Universe | Its rule |
+|---|---|
+| **Home** | Our universe. The strongest so far (Gen 4). |
+| **Genesis** | Every piece was born the same weight. It found its own values by playing itself, with accretion on. |
+| **First Light** | Before it learned anything: human piece values, laws set by hand. |
+| **Hunger** | Captures absorb weight: a piece grows by eating. Rejected, it played better without. Home's constants with this law switched on. |
+| **Roche** | A king can be torn apart by enemy pull, like a moon too close to its planet. Two versions were tried; neither made the engine stronger. Home's constants with this law turned up. |
+| **Undertow** | Enemy pull drags on the king's whole body. Rejected, it made the engine weaker. Home's constants with this law switched on. |
 
-A Queen that has captured multiple rooks and minor pieces becomes a dense gravitational well, exerting stronger pull across the board.
+Hunger, Roche and Undertow are variants of Home that were never trained themselves.
 
-</details>
+## Why v1 exists
 
----
+Kepler-64 v0 (Python and JAX, frozen in [`kepler64/`](kepler64/)) had a physics story built on a tidal tensor, a Roche limit and gravitational waves. When we measured it, removing those headline terms changed the best move in 0% of 120 test positions; v0 really played on material and straight-line distance to the king ([`docs/v1/01_V0_AUDIT.md`](docs/v1/01_V0_AUDIT.md)). Its field also passed through pieces and ignored how they move, and a bug in its capture rule distorted the material count. So v1 was rebuilt from scratch in Rust, with a field shaped by the movement rules and every law tested in the Ledger. At equal depth, v1's untrained Gen 0 beat v0 100 games to 0 ([`m1-v1gen000-vs-v0-d3.json`](engine/results/m1-v1gen000-vs-v0-d3.json)).
 
-## ⚡ The Laws Were Learned, Not Written
+## Run it
 
-The physical constants of this universe are **learnable parameters** optimized via automatic differentiation in JAX:
+### The UCI engine
 
-$$\theta = \{ G, \; \varepsilon, \; c, \; \rho_{\text{roche}}, \; R_g, \; k_{\text{gain}}, \; \gamma, \; \dots \}$$
-
-Using gradient descent on its own self-play games, Kepler-64 tunes these constants. The expert is its own deeper search; when a teacher move exists the policy term is used alone, and the outcome term only stands in when there is none:
-
-$$\mathcal{L} = \mathcal{L}_{\text{outcome}}(\sigma(S(p)), y) + \alpha \mathcal{L}_{\text{policy}}(S(p_{\text{expert}}), S(p_{\text{legal}}))$$
-
-Gradients flow directly through the analytical potential equations and eigenvalue calculations.
-
----
-
-## 🚀 Try It in 3 Lines
-
-### Installation
-
-```bash
-git clone https://github.com/r-baruah/kepler-64.git
-cd kepler-64
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
-```
-
-### ♟️ Play in Any Chess GUI (UCI)
-
-Want to play against the universe in **Arena, En Croissant, Cutechess, or Banksia**? Kepler-64 speaks the standard Universal Chess Interface (UCI) protocol out of the box:
+You need Rust; [`engine/rust-toolchain.toml`](engine/rust-toolchain.toml) pins the version and rustup picks it up.
 
 ```bash
-python -m kepler64.uci
-```
-*Point your favorite chess GUI to this command — it handles depth limits, time controls, and instant warmups.*
-
-### 🐍 Watch the universe make its first move in Python
-
-```python
-import chess
-from kepler64 import RocheEngine
-from kepler64.core.fastboard import FastBoard
-
-engine = RocheEngine()                       # creates the universe (auto-loads trained laws)
-board = chess.Board()
-physics = FastBoard.from_chess(board)        # the board as the physics sees it
-
-print(f"Gravitational verdict: {engine.evaluate(physics):+.3f}")
-
-move = engine.play(board, depth=2)           # the universe picks a move
-print("Kepler-64 plays:", board.san(move))
+cd engine
+cargo build --release
+./target/release/kepler        # speaks UCI on stdin/stdout
 ```
 
-### ☁️ Train on Kaggle (Free T4 GPU)
+To use it in a chess GUI such as Cute Chess or Arena, add `engine/target/release/kepler` as a UCI engine and set its `Generation` option to the full path of `engine/data/generations/gen-004.json`. Without that option the engine uses its built-in hand-set constants, which are not Home. From a terminal:
 
-Want to run the full training loop or the Credibility Gate without heating up your laptop? Open [`notebooks/kaggle_gate.ipynb`](notebooks/kaggle_gate.ipynb) on Kaggle to run on a free T4 GPU with zero local setup.
+```
+uci
+setoption name Generation value /path/to/kepler-64/engine/data/generations/gen-004.json
+position startpos
+go depth 8
+```
 
-Want the full visual experience locally?
+Other options: `Hash` (MB), `Depth` (a fixed depth limit), `UCI_ShowBreakdown` (print every term of the evaluation). The engine thinks in ku; the `cp` it prints is `round(100 × ku)`, a unit conversion for GUIs that expect it.
+
+Natively it searches about 1 million nodes per second on one thread of a Ryzen 5 5500U laptop (985,000 from the start position and 1,015,000 on Kiwipete at depth 6; [`engine/results/perf-m2.md`](engine/results/perf-m2.md)).
+
+### Training, matches and suites
+
+Everything is a subcommand of `kepler-train`: `cargo run --release -p kepler-train -- <command> --help`. The method, statistics and gates are in [`docs/v1/04_TRAINING_AND_GATES.md`](docs/v1/04_TRAINING_AND_GATES.md). Two examples, from [`engine/results/suites-per-generation.md`](engine/results/suites-per-generation.md) and [`docs/v1/08_DISTRIBUTED_COMPUTE.md`](docs/v1/08_DISTRIBUTED_COMPUTE.md) §4:
 
 ```bash
-cd viz-web && npm install && npm run dev   # → http://localhost:5173
+# run a test suite at a fixed depth (from engine/)
+./target/release/kepler-train suite --engine ./target/release/kepler --opt Generation=data/generations/gen-00K.json --suite data/suites/SUITE.epd --depth D --out results/suite-SUITE-gen00K-dD.json
+
+# one batch of an SPRT between two generations
+kepler-train sprt-shard --a new.json --b old.json --openings balanced-200.epd --pairs 50 --seed <S_k> --depth 4 --threads 4 --out s-k.json
 ```
 
----
+### Reproducibility
 
-## 🗺️ Project Map
+Heavy runs (training generations, the Ledger, the ladder) are split into work units: one binary, one or two JSON inputs, a seed and a count, writing one JSON file. Units can run on any Linux x86-64 machine, and the results merge back into `engine/results/` ([`docs/v1/08_DISTRIBUTED_COMPUTE.md`](docs/v1/08_DISTRIBUTED_COMPUTE.md)).
+
+The determinism contract (rules D1 to D8 in §3a: pinned toolchain, pure-Rust maths, depth or node limits only, seeded randomness, a canonical result hash) is checked by three reference units. They gave the same `result_hash` on the maintainer's laptop (Ryzen 5 5500U, Fedora) and on a GitHub Actions runner (EPYC 7763, Ubuntu), and with 1 and 3 threads ([`engine/data/determinism/reference.json`](engine/data/determinism/reference.json), finding F12). Rerun the check with:
+
+```bash
+# from engine/
+./target/release/kepler-train determinism-check --reference data/determinism/reference.json --engine-dir .
+```
+
+Ladder games against Stockfish use clocks and Stockfish's own randomness, so they are statistics with error bars and are never used for training.
+
+### The website
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+The engine runs in the browser as WebAssembly (`kepler-wasm`), with no server. The built package is committed in `web/src/lib/engine/pkg/`; see [`web/README.md`](web/README.md) to rebuild it. Gen 3 in Chrome 155 on an Android phone (the browser hides the exact model) reached depth 6 in 333 ms on Kiwipete, 64 ms from the start position and 149 ms in a quiet middlegame; Chromium 156 on the Ryzen laptop took 307, 55 and 134 ms ([`engine/results/browser/phone-android-chrome155.json`](engine/results/browser/phone-android-chrome155.json), [`desktop-linux-chromium156.json`](engine/results/browser/desktop-linux-chromium156.json)). Node counts match the native engine at the same depth (finding F34).
+
+## Open problems and contributing
+
+Kepler-64 is a small universe with open questions. Four are written up in [`docs/v1/11_OPEN_PROBLEMS.md`](docs/v1/11_OPEN_PROBLEMS.md), each with a test for when it is solved:
+
+1. **The king problem.** Two Roche-limit designs failed; find a king-danger law, built only from the field, that passes the Ledger.
+2. **Make accretion work.** Find a version of mass transfer on capture that passes the Ledger, or show why none can.
+3. **Any new law.** Borrowed from real physics or invented for this board, judged by the Ledger against the champion.
+4. **Explain a result (no code needed).** Why a fixed temperature beats a learned one, and why the self-found piece values land where they do.
+
+The one rule: a new law must be physics from the field, a quantity of pull, mass, exposure or held squares ([`02_LAWS_SPEC.md`](docs/v1/02_LAWS_SPEC.md) §9). No chess heuristics. To take one on, open an issue naming the problem number.
+
+## Repo layout
 
 ```text
-kepler-64/
-├── kepler64/                    # The engine (pure Python + JAX)
-│   ├── core/                    #   THE LAWS: gravity, tidal tensor, evaluation,
-│   │                            #   constants (17 learnable leaves), accretion,
-│   │                            #   Lorentz boost, Schwarzschild & wave terms
-│   ├── search/                  #   Alpha-beta search with PVS, LMR, and TT hashing
-│   ├── training/                #   Learning the laws from games (JAX autodiff)
-│   ├── multiverse/              #   Layer 2: posterior sampling, Stokes flow, Observer
-│   ├── uci.py                   #   UCI engine protocol (play in Arena, En Croissant)
-│   └── tests/                   #   140 tests — 100% green verification suite
-│
-├── Kepler-64_Book/              # 📖 The complete textbook (start at PRELUDE.md)
-│
-├── notebooks/                   # 📓 Cloud notebooks
-│   └── kaggle_gate.ipynb        #   Kaggle T4 GPU credibility gate runbook
-│
-├── viz-web/                     # 🔭 Web Observatory (TypeScript + Canvas)
-│   ├── src/core/                #   TypeScript ports of the gravitational math
-│   ├── src/render/              #   Contours, tidal ellipses, timelines
-│   └── src/ui/                  #   Board, timeline, compendium UI
-│
-├── scripts/
-│   ├── benchmarks.py            # Pre-launch benchmark suite (learned-vs-frozen, etc.)
-│   ├── credibility_gate.py      # Learned-vs-frozen ablation harness
-│   ├── distill_posterior.py     # Per-leaf sensitivity map
-│   ├── generate_replay.py       # Replay data for the Observatory
-│   └── train.py                 # Self-play training rounds (MRR-gated champion)
-│
-├── docs/                        # Audit reports, gate results, design notes
-├── REFERENCES.md                # Scientific bibliography
-├── CITATION.cff                 # Citation metadata
-└── README.md
+engine/              v1, a Rust workspace
+  crates/
+    kepler-core/     board, laws, search, exact gradients
+    kepler-uci/      the UCI engine (binary: kepler)
+    kepler-train/    self-play, TDLeaf, SPRT, ladder, suites, work units
+    kepler-wasm/     the engine for the browser
+  data/              generations, opening suite, test suites, ablations
+  results/           every published number, as committed files
+docs/v1/             specs and plans: laws, architecture, training, findings
+web/                 the website (SvelteKit)
+kepler64/            v0 (Python + JAX), frozen baseline
+scripts/audit/       the v0 audit scripts
 ```
 
----
+## Cite
 
-## 🧪 Testing & Verification
-
-Kepler-64 includes a test suite covering force symmetry, eigenvalue calculations against SciPy, and mass accretion rules:
-
-```bash
-pytest kepler64/tests/ -v
-```
-
-The same suite runs automatically on every push and pull request via [`​.github/workflows/tests.yml`](.github/workflows/tests.yml), followed by a one-move engine smoke test — so "tests passing" is a live claim, not a memory.
-
-### Learned vs Frozen Physics — the Credibility Gate (pilot)
-
-The central claim — *"the constants learned by gradient descent do real work"* — is checked by an automated ablation (`scripts/credibility_gate.py`): self-play harvest → train all 17 leaves → held-out ranking metrics → color-balanced head-to-head match. **Pilot run (84 self-play examples, 300 Adam steps, 8-game match):**
-
-| Metric | Frozen | Learned |
-|---|---|---|
-| Head-to-head (W/D/L) | — | **8 / 0 / 0** |
-| Held-out MRR | 0.683 | 0.619 |
-
-**Honest read:** the harness works end-to-end and the learned universe won its pilot match, but 84 examples cannot constrain 17 constants (held-out ranking regressed — small-data overfitting) and n=8 games is far too few to claim an Elo edge. Scaled runs are pending; until then this table is a demonstration of method, not a result. Full numbers: [`docs/credibility_gate_results.md`](docs/credibility_gate_results.md).
-
----
-
-## ❓ Frequently Asked Questions
-
-**Is this real physics?**
-Real *equations*, honestly computed — Newtonian gravity with Plummer softening, real tidal tensors, real eigenvalues, a real symplectic integrator. But the *setting* is an engineered analogy: flat 2D board, point-mass pieces. The project never claims chess is literally astrophysics; the Book has an entire honesty chapter about exactly this.
-
-**So… is it actually good at chess?**
-It plays legal, coherent, occasionally creative chess. Against Stockfish? It loses, and proudly so — that was never the point. The point is that every single evaluation can be *explained*: "this move is better because it increases the tidal stretching of the enemy King by X." Try getting that out of a neural network.
-
-**How does it learn without being told anything about chess?**
-Two signals from real games: *who won* (outcome) and *which move a deeper search would pick* (policy). Gradient descent then adjusts the 17 physical constants until the universe's judgment matches reality. No chess rules are ever written in — if the engine develops a liking for central control, gravity discovered it.
-
-**Can I watch what it's thinking?**
-Yes — that's the whole philosophy. The [Web Observatory](https://r-baruah.github.io/kepler-64/) shows the live gravitational field and tidal stress every move, and the [Book](Kepler-64_Book/PRELUDE.md) teaches you to read them from zero.
-
----
-
-## 🔬 The Bigger Questions
-
-1. **Emergent strategy:** Can gradient descent through gravitational fields discover positional ideas — center control, pawn structure — with zero human chess knowledge?
-2. **Tidal warnings:** Does rising tidal stress predict tactical disasters *before* material is lost?
-3. **Accretion dynamics:** How do openings change when captures make you heavier instead of just richer?
-
----
-
-## 👤 Author
-
-**Kepler-64** is created and maintained by **Ripuranjan Baruah** ([@r-baruah](https://github.com/r-baruah)).
-
-Research discussions and ideas are always welcome via [GitHub Issues](https://github.com/r-baruah/kepler-64/issues) and [Pull Requests](https://github.com/r-baruah/kepler-64/pulls)!
-
----
-
-## 📖 Citation
-
-If you use Kepler-64 in your research or projects, please cite:
+If you use Kepler-64 in research or benchmarks, please cite it. The metadata is in [`CITATION.cff`](CITATION.cff), and GitHub's "Cite this repository" button reads it.
 
 ```bibtex
-@software{baruah2026kepler64,
-  author       = {Baruah, Ripuranjan},
-  title        = {Kepler-64: Differentiable N-Body Gravitational Chess Engine},
-  year         = {2026},
-  publisher    = {GitHub},
-  journal      = {GitHub Repository},
-  howpublished = {\url{https://github.com/r-baruah/kepler-64}}
+@software{baruah-kepler64,
+  title  = {Kepler-64: a chess engine whose evaluation is a physics-style field learned by self-play},
+  author = {Baruah, Ripuranjan},
+  url    = {https://github.com/r-baruah/kepler-64}
 }
 ```
 
----
+## About the name
 
-## 📄 License
+The name has layers. **Kepler** is for Johannes Kepler, who found the laws of the planets from observations; this engine finds its constants from its own games. **64** is for the squares of the board. And **Kepler-64b** is a real planet: a gas giant that orbits a pair of stars while a second pair circles far out, the first planet known in a four-star system, spotted in 2012 by volunteers of the Planet Hunters project. A world pulled between suns seemed right for a board pulled between two sides.
 
-This project is licensed under the [MIT License](LICENSE).
+## Credits and licence
+
+Kepler-64 is made by Ripuranjan Baruah and released under the [MIT licence](LICENSE).
+
+- **Stockfish 19** is the examiner only: the ladder, suite verification and the opening-balance filter. It is never the teacher.
+- **Chess pieces:** the "cburnett" set by Colin M. L. Burnett, BSD 3-clause licence ([`web/static/pieces/LICENSE.md`](web/static/pieces/LICENSE.md)).
+- **Fonts:** Geist and Geist Mono, SIL Open Font License.
+- **Photograph:** Earthrise, NASA AS17-152-23272 (Apollo 17, 1972), public domain ([`web/static/images/CREDITS.md`](web/static/images/CREDITS.md)).
+- **Move generation:** [`cozy-chess`](https://crates.io/crates/cozy-chess) (MIT).
