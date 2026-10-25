@@ -5,7 +5,6 @@ import numpy as np, chess
 from kepler64.core.constants import load_constants
 from kepler64.core.universe import GameState
 from kepler64.core.evaluate import score_white_terms
-from kepler64.core.transitions import child_mass_vector
 
 C = load_constants()
 random.seed(1)
