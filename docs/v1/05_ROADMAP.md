@@ -82,7 +82,7 @@ Plan and stages are in `06_WEB_PLAN.md`. Design follows the staged check-ins the
 
 ## M7 · Release v1.0
 - [ ] Tag `v1.0.0`, changelog, `CITATION.cff` version bump, GitHub release with UCI binaries (Linux, Windows, macOS)
-- [ ] `v1` merged into `main`
+- [x] `v1` merged into `main` (PR #3, 2026-10-26, ahead of the tag so the public README and the site match)
 - [ ] Launch, following the maintainer's private plan
 
 ---
