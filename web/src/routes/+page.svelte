@@ -7,6 +7,7 @@
 	import Header from '$lib/components/Header.svelte';
 	import Landing from '$lib/components/Landing.svelte';
 	import KingReadout from '$lib/components/KingReadout.svelte';
+	import PgnActions from '$lib/components/PgnActions.svelte';
 	import MoveList from '$lib/components/MoveList.svelte';
 	import Sheet from '$lib/components/Sheet.svelte';
 	import UniverseSystem from '$lib/components/UniverseSystem.svelte';
@@ -187,6 +188,7 @@
 								<strong>{resultText(game.snap.state, game.human)}</strong>
 								<span class="muted num">{moves} {moves === 1 ? 'move' : 'moves'} &middot; {game.preset.name}</span>
 							</div>
+							<div class="overpgn"><PgnActions {game} /></div>
 							<div class="overbtns">
 								<button class="secondary sm" onclick={() => (game.sheet = 'universe')}>Universe</button>
 								<button class="primary sm" onclick={() => game.start(game.human)}>Play again</button>
@@ -214,6 +216,7 @@
 			<div class="cap">Moves</div>
 			{#if game.history.length}
 				<MoveList history={game.history} />
+				<PgnActions {game} />
 			{:else}
 				<p class="empty">No moves yet.</p>
 			{/if}
@@ -297,6 +300,10 @@
 			<button class="secondary big" onclick={() => game.flip()}>Flip board</button>
 			<button class="secondary big" onclick={() => (game.sheet = 'level')}>Level: {game.level.name}</button>
 		</div>
+		{#if game.history.length}
+			<div class="cap">Save this game</div>
+			<PgnActions {game} />
+		{/if}
 	</Sheet>
 {/if}
 
@@ -514,6 +521,11 @@
 	.res .num {
 		font-size: var(--t-xs);
 	}
+	.overpgn {
+		order: 3;
+		flex: 1 0 100%;
+		margin-top: -6px;
+	}
 	.overbtns {
 		display: flex;
 		gap: 8px;
@@ -726,8 +738,24 @@
 		justify-content: space-between;
 		align-items: center;
 	}
+	/* On phones the board takes the full width between the gutters. It used to shrink with the
+	   viewport height (so a phone with browser bars showed a small centred board); the page
+	   scrolls instead, and the fixed dock has its own bottom padding. Wider, shorter screens
+	   (tablet portrait, phone landscape) still fit the board to the height. */
 	.stage[data-mode='play'] .center {
-		--board: min(100%, max(260px, calc(100dvh - 380px)));
+		--board: 100%;
+	}
+	@media (min-width: 560px) {
+		.stage[data-mode='play'] .center {
+			--board: min(100%, max(260px, calc(100dvh - 380px)));
+		}
+	}
+	/* Tall phones: centre the block between the header and the dock instead of leaving a gap. */
+	@media (max-width: 899px) {
+		.stage[data-mode='play'] {
+			min-height: calc(100dvh - 57px);
+			justify-content: center;
+		}
 	}
 	.view .viewnum {
 		display: flex;

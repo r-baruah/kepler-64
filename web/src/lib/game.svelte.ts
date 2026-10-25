@@ -3,6 +3,8 @@
 import { commentary } from './commentary';
 import { fenTurn, moveNumber, parsePlacement, sanFor, sqIndex, sqName, START_FEN, withSuffix, type Occupant } from './chess';
 import { EngineClient, webAssemblySupported } from './engine/client';
+import engineCommit from './engine/pkg/ENGINE_COMMIT?raw';
+import { buildPgn, pgnFileName } from './pgn';
 import type { EngineState, LevelFacts, PresetFacts, Side, SiteFacts, Snapshot } from './types';
 
 export type FieldMode = 'off' | 'pull' | 'cones';
@@ -437,7 +439,51 @@ export class GameStore {
 		}
 	}
 
+	// ---- PGN export ----------------------------------------------------------------
+
+	pgnCopied = $state(false);
+	private copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	/** PGN of the game so far (result "*" while unfinished). */
+	pgn(date = new Date()): string {
+		return buildPgn({
+			sans: this.history.map((h) => h.san),
+			startFen: this.startFen,
+			human: this.human,
+			result: this.snap?.state.result ?? null,
+			universe: this.preset.name,
+			level: this.level.name,
+			date,
+			engineCommit
+		});
+	}
+
+	async copyPgn() {
+		try {
+			await navigator.clipboard.writeText(this.pgn());
+		} catch (e) {
+			console.error(e);
+			return;
+		}
+		this.pgnCopied = true;
+		clearTimeout(this.copiedTimer);
+		this.copiedTimer = setTimeout(() => (this.pgnCopied = false), 1500);
+	}
+
+	downloadPgn() {
+		const date = new Date();
+		const url = URL.createObjectURL(new Blob([this.pgn(date)], { type: 'application/x-chess-pgn' }));
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = pgnFileName(date);
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+	}
+
 	dispose() {
+		clearTimeout(this.copiedTimer);
 		this.epoch++;
 		this.client.stop();
 	}
