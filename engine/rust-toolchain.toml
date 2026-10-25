@@ -1,0 +1,7 @@
+# Pinned so every machine (laptop, CI, compute workers) builds the same binary:
+# part of the determinism contract in docs/v1/08_DISTRIBUTED_COMPUTE.md.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

@@ -1,0 +1,94 @@
+{
+  "bounds": {
+    "lower": -2.9444389791664403,
+    "upper": 2.9444389791664403
+  },
+  "config": {
+    "a_hash": "68cb3f7bd853594b",
+    "alpha": 0.05,
+    "b_hash": "0a6ffd193c54fcba",
+    "beta": 0.05,
+    "created": "2026-10-24T10:31:00Z",
+    "deterministic": true,
+    "elo0": 0.0,
+    "elo1": 10.0,
+    "note": "result is for A versus B; judged once on the summed pentanomial",
+    "shard_config": {
+      "a": {
+        "file": "engine/data/generations/gen-001.json",
+        "generation": 1
+      },
+      "adjudication": {
+        "draw_after": 80,
+        "draw_ku": 0.15000000596046448,
+        "draw_plies": 20,
+        "enabled": true,
+        "resign_ku": 8.0,
+        "resign_plies": 6
+      },
+      "b": {
+        "file": "engine/data/ablations/gen001-bind0.json",
+        "generation": 1
+      },
+      "created": "2026-10-24T09:53:04Z",
+      "depth": 4,
+      "explore_plies": 6,
+      "hash_mb": 8,
+      "max_plies": 300,
+      "movetime_ms": null,
+      "note": "pentanomial = pairs scoring 0, 0.5, 1, 1.5, 2 for A",
+      "openings": "engine/data/openings/balanced-200.epd",
+      "openings_hash": "f572f886e751625c",
+      "pairs": 100,
+      "round_seed": 1001,
+      "shard_index": 0,
+      "threads": 4
+    },
+    "shard_seeds": [
+      17903441133155513752,
+      17605818075929060940,
+      1644448726955308385,
+      17106917682402415577,
+      6159883586550559212,
+      7478293964511427352,
+      16764765528948346985,
+      14292336402225882147,
+      14789102071413609424,
+      17507267135828006277,
+      14967406001735899101,
+      4494315102638151600,
+      6203087680454420308,
+      2288788644642700502,
+      16179226005170491755,
+      8719933989618338936,
+      13593777374906943897,
+      12924354217932545220,
+      16154833191966848374,
+      11356833806934567691
+    ],
+    "shards": 20,
+    "spec": "v1.0-spec-1"
+  },
+  "elo": {
+    "estimate": -15.122991615263292,
+    "hi95": -5.1770059008483225,
+    "lo95": -25.093816827752395,
+    "reliable": true
+  },
+  "games": 4000,
+  "llr": -7.82264574917148,
+  "pentanomial": [
+    396,
+    285,
+    741,
+    253,
+    325
+  ],
+  "result": "H0",
+  "shard_seconds_sum": 7058.205,
+  "wdl": {
+    "d": 608,
+    "l": 1783,
+    "w": 1609
+  }
+}

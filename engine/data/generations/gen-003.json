@@ -1,0 +1,43 @@
+{
+  "generation": 3,
+  "parent": 2,
+  "spec": "v1.0-spec-1",
+  "created": "2026-10-24",
+  "constants": {
+    "alpha": 0.4598543643951416,
+    "beta": 1.4926611185073853,
+    "c": 2,
+    "f_acc": 0.0,
+    "k_roche": 1.5479880571365356,
+    "kappa": 1.883018970489502,
+    "lambda_bind": 0.014027344062924385,
+    "lambda_space": 0.11772186309099197,
+    "m_b": 3.532851219177246,
+    "m_n": 3.0397088527679443,
+    "m_q": 8.278520584106445,
+    "m_r": 4.8340935707092285,
+    "rho": 1.6743991374969482,
+    "sigma": 0.5355085134506226
+  },
+  "pinned": [],
+  "training": {
+    "capped_target": "drop",
+    "conserve_mass": false,
+    "depth": 4,
+    "games": 40000,
+    "games_per_round": 2000,
+    "lambda": 0.699999988079071,
+    "learn_temperature": true,
+    "lr": 0.009999999776482582,
+    "lr_units": "relative to bound range (hi - lo)",
+    "optimizer": "adam",
+    "rounds": 20,
+    "shards_per_round": 20,
+    "temperature": 3.0349416732788086,
+    "method": "TDLeaf(lambda) self-play from gen-002, run gen003-tdleaf-a on GitHub Actions (20 rounds x 2,000 games, depth 4)"
+  },
+  "acceptance": {
+    "sprt": "results/gen003a-vs-gen002.json",
+    "elo": "+53 [+43, +63], 4,000 games, depth 4"
+  }
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Concept 2: Mission</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#14213D}a:hover{color:#2F5BFF}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; background: #F6F7F9; color: #14213D; font-family: Geist, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; position: relative">
+<header style="width: 100%; height: 56px; box-sizing: border-box; padding: 0 32px; display: flex; align-items: center; gap: 18px; border-bottom: 1px solid #DCE0E7">
+<div style="font-weight: 600; font-size: 16px; letter-spacing: -0.01em">Kepler-64</div>
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478; flex-grow: 1">/ a tiny universe that learned to play chess</div>
+<nav style="display: flex; gap: 22px; font-size: 14px"><a href="#" style="text-decoration: none; font-weight: 600">Play</a><a href="#" style="text-decoration: none; color: #5B6478">Watch</a><a href="#" style="text-decoration: none; color: #5B6478">Lab</a></nav>
+<a href="#" style="font-size: 13px; text-decoration: none; background: #14213D; color: #FFFFFF; border-radius: 999px; padding: 8px 16px">Star on GitHub · [STARS]</a>
+</header>
+<div style="position: absolute; left: 32px; top: 96px; width: 240px; display: flex; flex-direction: column; gap: 6px">
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478">KEPLER'S VIEW</div>
+<div style="font-size: 64px; font-weight: 300; letter-spacing: -0.04em; line-height: 1">+0.45</div>
+<div style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478">KU · ONE UNIT = ONE PAWN</div>
+<div style="margin-top: 28px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478">FIELD</div>
+<div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #14213D; opacity: 0.5"></span>White pulls harder</div>
+<div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #14213D; box-sizing: border-box; opacity: 0.6"></span>Black pulls harder</div>
+<div style="font-size: 12px; color: #5B6478; line-height: 1.55; margin-top: 4px">Bigger dot, stronger pull. Pull follows the lines a piece can move and stops at the first piece in the way.</div>
+<a href="#" style="font-size: 13px; color: #2F5BFF; text-decoration: none; margin-top: 4px">How it works →</a>
+</div>
+<div style="position: absolute; right: 32px; top: 96px; width: 200px; display: flex; flex-direction: column; gap: 8px; font-family: 'Geist Mono', monospace; font-size: 13px">
+<div style="font-size: 11px; color: #5B6478">MOVES</div>
+<div style="display: grid; grid-template-columns: 24px 1fr 1fr; row-gap: 6px"><span style="color: #9AA1B0">1</span><span>e4</span><span>e5</span><span style="color: #9AA1B0">2</span><span>Nf3</span><span style="color: #2F5BFF">Nc6</span></div>
+<div style="margin-top: 22px; font-size: 11px; color: #5B6478">UNIVERSE</div>
+<div style="font-family: Geist, sans-serif; font-size: 14px">Champion · Gen 4</div>
+<div style="font-size: 11px; color: #5B6478; margin-top: 8px">LEVEL</div>
+<div style="font-family: Geist, sans-serif; font-size: 14px">Default · 400k positions</div>
+</div>
+<div style="margin-top: 20px; width: 540px; height: 30px; display: flex; justify-content: space-between; align-items: center">
+<span style="font-weight: 600; font-size: 14px">Kepler</span>
+<span style="display: flex; align-items: center; gap: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478">pull on king 0.7 / 21.1 <span style="width: 90px; height: 2px; background: #DCE0E7; display: inline-block"><span style="display: block; width: 3%; height: 2px; background: #14213D"></span></span></span>
+</div>
+<dc-import name="BoardHi" fen="r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R" tint=".BBbbbB.BBbBBbbBwbbBbBbbbWbwb.bbwbwbwbbb.wwWwWw.WwWWWwWw.wwwWWW." marks=".l.h....h...h.....l.....h...h....h.h............................" theme="mission" size="{{boardSize}}" hint-size="540px,540px"></dc-import>
+<div style="width: 540px; height: 30px; display: flex; justify-content: space-between; align-items: center; margin-top: 4px">
+<span style="font-weight: 600; font-size: 14px">You <span style="font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 500; color: #2F5BFF; margin-left: 8px">● YOUR MOVE</span></span>
+<span style="display: flex; align-items: center; gap: 10px; font-family: 'Geist Mono', monospace; font-size: 11px; color: #5B6478">pull on king 2.2 / 25.6 <span style="width: 90px; height: 2px; background: #DCE0E7; display: inline-block"><span style="display: block; width: 8%; height: 2px; background: #14213D"></span></span></span>
+</div>
+<div style="width: 620px; margin-top: 6px; text-align: center; font-size: 15px; line-height: 1.5; color: #2A3550"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: #2F5BFF">2… Nc6 </span> Kepler's knight now pulls on 8 squares, including e5, where it holds its own pawn, and d4.</div>
+<nav aria-label="Game controls" style="margin-top: 12px; display: flex; gap: 2px; border: 1px solid #DCE0E7; border-radius: 999px; padding: 4px; background: #FFFFFF; box-shadow: 0 6px 24px rgba(20, 33, 61, 0.10)">
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #14213D; border: none; border-radius: 999px; background: none">New game</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #14213D; border: none; border-radius: 999px; background: none">Undo</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #14213D; border: none; border-radius: 999px; background: none">Flip</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #FFFFFF; border: none; border-radius: 999px; background: #14213D">Field: Pull</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #14213D; border: none; border-radius: 999px; background: none">Universe</button>
+<button style="height: 40px; padding: 0 16px; font: inherit; font-size: 13px; color: #14213D; border: none; border-radius: 999px; background: none">Level</button>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { boardSize: 540 }; }
+}
+</script>
+</body>
+</html>

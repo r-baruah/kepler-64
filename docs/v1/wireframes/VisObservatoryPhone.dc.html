@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Concept 1: Observatory, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#E9E4DA}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: radial-gradient(ellipse at 50% 40%, #101830 0%, #0A0F1E 50%, #05070D 100%); color: #E9E4DA; font-family: Manrope, system-ui, sans-serif; display: flex; flex-direction: column">
+<header style="height: 56px; box-sizing: border-box; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(160, 175, 210, 0.14)">
+<div style="font-weight: 700; font-size: 14px; letter-spacing: 0.2em; flex-grow: 1">KEPLER-64</div>
+<a href="#" style="height: 40px; padding: 0 12px; display: flex; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-decoration: none; border: 1px solid rgba(233, 228, 218, 0.4); border-radius: 999px">★ [STARS]</a>
+</header>
+<div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 0 16px">
+<div style="display: flex; justify-content: space-between; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8E98AE; letter-spacing: 0.04em">
+<span><span style="font-family: Manrope, sans-serif; font-size: 13px; font-weight: 600; color: #E9E4DA; letter-spacing: 0">Kepler</span> GEN 4</span>
+<span style="display: flex; align-items: center; gap: 6px">PULL <span style="color: #E9E4DA">0.7/21.1</span><span style="width: 44px; height: 3px; background: rgba(160, 175, 210, 0.2); display: inline-block"><span style="display: block; width: 3%; height: 3px; background: #8B7AFF"></span></span></span>
+</div>
+<dc-import name="BoardHi" fen="r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R" tint=".BBbbbB.BBbBBbbBwbbBbBbbbWbwb.bbwbwbwbbb.wwWwWw.WwWWWwWw.wwwWWW." marks=".l.h....h...h.....l.....h...h....h.h............................" theme="observatory" size="{{boardSize}}" hint-size="358px,358px"></dc-import>
+<div style="display: flex; justify-content: space-between; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8E98AE; letter-spacing: 0.04em">
+<span><span style="font-family: Manrope, sans-serif; font-size: 13px; font-weight: 600; color: #E9E4DA; letter-spacing: 0">You</span> <span style="color: #FFC478">YOUR MOVE</span></span>
+<span style="display: flex; align-items: center; gap: 6px">PULL <span style="color: #E9E4DA">2.2/25.6</span><span style="width: 44px; height: 3px; background: rgba(160, 175, 210, 0.2); display: inline-block"><span style="display: block; width: 8%; height: 3px; background: #FFECCC"></span></span></span>
+</div>
+<div style="margin-top: 10px; border-top: 1px solid rgba(160, 175, 210, 0.16); padding-top: 12px; font-size: 14px; line-height: 1.5; color: #D6D0C4"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #FFC478; letter-spacing: 0.06em">2… NC6 · +0.45 KU</span><br>Kepler's knight now pulls on 8 squares, including e5, where it holds its own pawn, and d4.</div>
+</div>
+<nav aria-label="Game controls" style="margin: 8px 16px 20px; height: 56px; border: 1px solid rgba(160, 175, 210, 0.22); border-radius: 999px; background: rgba(10, 14, 26, 0.8); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); font-size: 12px">
+<button style="font: inherit; color: #E9E4DA; border: none; background: none">New</button>
+<button style="font: inherit; color: #E9E4DA; border: none; background: none">Undo</button>
+<button style="font: inherit; color: #E9E4DA; border: none; background: none">Field</button>
+<button style="font: inherit; color: #E9E4DA; border: none; background: none">Universe</button>
+<button style="font: inherit; color: #E9E4DA; border: none; background: none">More</button>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return { boardSize: 358 }; }
+}
+</script>
+</body>
+</html>

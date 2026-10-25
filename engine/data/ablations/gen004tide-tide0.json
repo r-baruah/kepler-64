@@ -1,0 +1,40 @@
+{
+ "acceptance": null,
+ "constants": {
+  "alpha": 0.5393913984298706,
+  "beta": 2.7456345558166504,
+  "c": 2,
+  "f_acc": 0.0,
+  "k_roche": 3.3380253314971924,
+  "kappa": 2.6252963542938232,
+  "lambda_bind": 0.019230974838137627,
+  "lambda_space": 0.12638120353221893,
+  "m_b": 3.1232614517211914,
+  "m_n": 2.7217466831207275,
+  "m_q": 7.386493682861328,
+  "m_r": 4.241305828094482,
+  "rho": 1.5606869459152222,
+  "sigma": 0.5765364766120911
+ },
+ "created": "2026-10-24",
+ "generation": 4,
+ "parent": 3,
+ "pinned": [],
+ "spec": "v1.0-spec-1",
+ "training": {
+  "capped_target": "drop",
+  "conserve_mass": false,
+  "depth": 4,
+  "games": 40000,
+  "games_per_round": 2000,
+  "lambda": 0.699999988079071,
+  "learn_temperature": true,
+  "lr": 0.009999999776482582,
+  "lr_units": "relative to bound range (hi - lo)",
+  "optimizer": "adam",
+  "rounds": 20,
+  "shards_per_round": 20,
+  "temperature": 3.0582571029663086,
+  "note": "Ledger variant of the gen004-tide-a candidate with L5b tidal load off"
+ }
+}

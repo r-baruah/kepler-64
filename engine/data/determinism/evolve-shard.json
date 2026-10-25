@@ -1,0 +1,67 @@
+{
+  "c_k": 0.05,
+  "centre_hash": "54cf3626c756bbf7",
+  "config": {
+    "adjudication": {
+      "draw_after": 80,
+      "draw_ku": 0.15000000596046448,
+      "draw_plies": 20,
+      "enabled": true,
+      "resign_ku": 8.0,
+      "resign_plies": 6
+    },
+    "c0": 0.05,
+    "created": "2026-10-24T08:23:10Z",
+    "depth": 2,
+    "explore_plies": 6,
+    "gen_file": "./data/generations/gen-000.json",
+    "generation": 0,
+    "hash_mb": 8,
+    "max_plies": 300,
+    "minus_hash": "d89164df0cebb787",
+    "movetime_ms": null,
+    "note": "pentanomial = pairs scoring 0, 0.5, 1, 1.5, 2 for theta+",
+    "openings": "./data/openings/balanced-200.epd",
+    "openings_hash": "f572f886e751625c",
+    "pairs": 2,
+    "plus_hash": "a3e0cdd858ecd872",
+    "threads": 2
+  },
+  "delta": [
+    -1,
+    1,
+    1,
+    -1,
+    1,
+    -1,
+    -1,
+    -1,
+    -1,
+    1,
+    1,
+    1,
+    -1
+  ],
+  "deterministic": true,
+  "elapsed_ms": 849,
+  "iter": 0,
+  "kind": "evolve-shard",
+  "pentanomial": [
+    0,
+    0,
+    0,
+    0,
+    2
+  ],
+  "result_hash": "da3f1b02cbf711c9",
+  "score_plus": 1.0,
+  "seed": 424242,
+  "shard_index": 0,
+  "spec": "v1.0-spec-1",
+  "version": 1,
+  "wdl": {
+    "d": 0,
+    "l": 0,
+    "w": 4
+  }
+}

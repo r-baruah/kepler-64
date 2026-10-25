@@ -1,0 +1,67 @@
+# 07 · Decision log
+
+Newest first. Each entry: date, decision, why, and what it affects. Product and strategy decisions that aren't public are logged in the maintainer's private notes, and only their technical consequence appears here.
+
+| date | decision | why | affects |
+|---|---|---|---|
+| 2026-10-24 | Law Ledger verdicts at Gen 1: keep the field, spreading and held space; c = 2 over 3 (1 ties 2); **cut** accretion, binding energy and the spec-1 Roche limit (F16–F19). Interim: candidate gen-001b = gen-001 with f_acc = 0 and lambda_bind = 0 (beta already 0), under SPRT. The spec change (spec-2: remove or redesign the cut laws) waits for the maintainer's call, because accretion and the Roche limit are narrative pillars | The ledger's own rule: a law that doesn't make the engine stronger is cut | 02, 04, 09 |
+| 2026-10-24 | Gen 1 accepted as the current generation (`gen-001.json`). Note: it has `beta = 0`, so law L5 is inactive in Gen 1 | Fixed-size confirmations at depth 3 and 4 both clearly positive (F13); the L5 question goes to the Law Ledger (F14) | 04, 09 |
+| 2026-10-24 | The v0 Book (`Kepler-64_Book/`) is removed from the `v1` branch and will be rewritten from scratch for v1 | It describes v0's laws (Plummer field, tidal tensor, Lorentz mass), which v1 dropped; the maintainer prefers a fresh book over patching | 05 M6 |
+| 2026-10-24 | Training is redesigned around universe-inspired mechanisms: learned temperature, quiet leaves, capped games excluded, optional mass conservation, plus SPSA as "cosmological natural selection" for direct strength tuning. Spec-2 law candidates (promotion in the light cone, running couplings, Hawking evaporation, dark matter) are recorded as ideas only | The first TDLeaf run collapsed for diagnosable reasons (F10–F11); the maintainer asked for creative, physics-inspired solutions over standard ML recipes | 04, 10 |
+| 2026-10-24 | Milestone 1 verdict: **GO**. The spec-1 laws stay; continue to M2/M3 | All §7 gates passed (`engine/results/m1-gate.md`) | 05 |
+| 2026-10-24 | Heavy compute runs remotely as work units (GitHub Actions in a separate public compute repo first, the maintainer's mesh orchestrator later). Local runs are capped at about 1 hour of high CPU | The maintainer doesn't want multi-hour hot sessions on the laptop; every expensive job is a sum of independent games | 08, 04 |
+| 2026-10-24 | Gen 0 calibration: keep `lambda_bind` 0.01, `lambda_space` 0.05, `beta` 2.0. Calibration uses 300 seeded random-play positions instead of a fixed EPD file | They are the strongest values tested that keep the worst sibling-move deviation under 2.5 ku (`engine/results/calibration-gen000.md`). Seeded generation is reproducible without shipping a file | 02 §8, gen-000.json |
+| 2026-10-23 | The v1 movegen library is `cozy-chess` (MIT). `shakmaty` is excluded (GPL-3). | Permissive licence, fast, verified to build for wasm32 | 03 §1 |
+| 2026-10-23 | Development happens on branch `v1`; `main` stays stable until v1.0 | The public repo stays usable while the rewrite is in progress | 05 |
+| 2026-10-23 | No throwaway prototype: Rust milestone 1 is the go/no-go spike | Scaffolding (movegen, search, UCI, harness) is reused either way | 04 §7, 05 M1 |
+| 2026-10-23 | All of v1 is in Rust (core, UCI, trainer, WASM). JAX is dropped, and gradients are forward-mode duals in Rust. C++ was considered and rejected. | One codebase runs everywhere, including the browser; it runs on the local CPU (no GPU); WASM is trivial | 03 |
+| 2026-10-23 | Accretion fraction `f_acc` is learnable in [0, 1]; material counts rest mass only | v0's material was laundered through capture chains (01 §3) | 02 §2, §7 |
+| 2026-10-23 | Piece masses are learned (pawn = 1 unit) | Fixed 1/3/3/5/9 are human chess values | 02 §2 |
+| 2026-10-23 | v1 laws: rule-shaped field (L2), light speed in moves (L3), binding energy and space (L4), Roche limit on the king's body (L5), accretion (L6). Dropped: Euclidean Plummer field, tidal-tensor η, Lorentz mass, GW, Schwarzschild, Verlet drift, CoM/inertia/entropy deltas, binding γ, image seed, Observer (from the core) | Measured: the dropped terms changed 0–3% of moves, and the decisive ones were the cause of the blunders (01) | 02 |
+| 2026-10-23 | v0 (`kepler64/`, Python + JAX) is frozen and used only as a baseline; moved to `legacy/` at release | v1 replaces it; the comparison must stay reproducible | 03, 05 M6 |
+| 2026-10-23 | The old web frontend `viz-web/` is retired. The website is rebuilt in `web/` on the v1 engine. | Comprehension problems, and its browser engine wasn't the real engine | 06 |
+
+## 2026-10-24 · spec-2: add L5b tidal load, keep L5 as it is
+- **Decision:** add one term, `T_tide = lambda_tide · (U_{K_B} − U_{K_W})` with `U_K` the enemy pull summed over the king's body (`02_LAWS_SPEC.md` §6b). Constant 15, `lambda_tide`, bounds [0, 2], default 0. The spec-1 Roche gauge (L5) stays unchanged as its own law.
+- **Why:** the measurement in findings F31. The spec-1 index detects doomed kings but divides by the king's own support, which L4 already counts; its numerator alone carries the information the evaluation lacks. F30 showed that a gated law's shape constants freeze at weight 0; a linear term has no shape constants.
+- **Compatibility:** `lambda_tide = 0` is exactly spec-1, so existing generations remain valid with no Ledger rerun. Files omit `lambda_tide` when it's 0, so work-unit hashes don't change.
+- **Not decided yet:** whether L5b is kept. That's its Ledger row (`lambda_tide = 0` vs learned), on CI.
+
+## 2026-10-25 · Cut laws stay in the spec at weight 0, as playable alternate universes
+- **Decision (maintainer):** laws the Law Ledger cuts are not deleted. Their formulas stay in the spec with weight 0 in the champion: accretion (L6, `f_acc = 0`), the spec-1 Roche gauge (L5, `beta`), and, if its last test fails, tidal load (L5b, `lambda_tide = 0`). Binding energy (L4a) was cut at Gen 1 and earned its place back at Gen 3 (F26), which is the reason not to delete: a verdict holds for the generation it was measured on.
+- **Public framing:** a "laws the universe rejected" table with the Ledger numbers, and the website lets visitors switch a rejected law back on and play that universe. Every claim names the generation it was measured on.
+- **Spec consequence:** no spec id change for a cut; the weight is a constant value, not a formula change (§12).
+
+## 2026-10-25 · Website direction after the backend results (web plan §3b)
+- **Hero visual:** the field (pull along legal lines, stopped at the first piece), on by default at low intensity, in every share image.
+- **King readout:** "pull on your king": enemy pull on the king's body against its own support, from `KingReport`. No break event, no breaking-point percentage.
+- **Opponent:** levels are node budgets; the default level gets its own Stockfish ladder on CI before launch, and the site's strength line describes that level only.
+- **Launch presets:** Champion (gen-004), Equal start, Gen 0 (untrained), and the three rejected laws switched back on (accretion, spec-1 Roche, tidal load), each labelled as an untrained variant with its Ledger result and generation. Slow light left out (a tie in the Ledger, nothing to see).
+- **Domain:** `kepler.ripuranjan.com`.
+
+## 2026-10-25 · Visual direction: "Mission"; the landing page is Play at rest
+- **Look (maintainer):** concept 2, Mission: light, precise, navy ink, one electric-blue accent, Geist and Geist Mono, the field as a dot plate (solid dots for White's pull, rings for Black's). The dark "Observatory" concept is rejected: it repeated the old frontend's glowing dark theme. Space feel comes from small, sparing touches (a planet-and-ring mark), never glow or jargon.
+- **Controls:** a floating pill dock.
+- **Landing:** `/` opens on Play at rest (headline plus the live board) with a short scrolling story below; pressing Play turns it into the Play screen in place. See `docs/v1/wireframes/README.md`.
+
+## 2026-10-25 · Landing kept strict; share tooling minimal
+- **Landing:** hero plus exactly three sections (the one law, self-found piece values, the Law Ledger); the ladder and the v0 story are links into Lab. Shared-game and universe links skip the landing and open the board. Board-only vs hero is checked with the cold testers before launch (web plan §8b).
+- **Sharing:** link plus server-rendered preview image only. No image download, no clip or GIF export: the old frontend's GIF generator added weight and wasn't used, and shares follow the quality of the work more than the tooling.
+
+## 2026-10-25 · Stage C closed; check-ins move to the working build
+- The low-fi frames cover every Play state and the Mission frames plus the landing cover the look; redrawing every state in Mission would cost more than it teaches. The maintainer said proceed. Stage D's first check-in is the working Play screen (desktop and phone screenshots), not another drawing.
+- Superseded parts of the low-fi frames do not ship: the "Download image" button, the blue/orange tint, the side-panel layout.
+- Preset files created for the launch universes: `ablations/gen004-accretion.json`, `gen004-strong-roche.json`, `gen004-tidal.json` (spec-2), all loading in the WASM engine.
+
+## 2026-10-25 · Landing reframed around the concept; universes named; citation for v1
+- **Why:** the site showed the generic part (a board and piece values) and hid what is unusual about Kepler: a physics built natively for the chessboard, modelled on real physics. The maintainer asked for the space link to be visible and for less text.
+- **Landing (supersedes the three sections in the 2026-10-25 strict-landing entry):** hero, then (1) "Physics, rebuilt for a chessboard": real concept next to its chess version (mass, gravity, light speed, field) with the rook as the worked example; (2) "It knows space, not chess": what is absent from the evaluation, then the Gen 3 ladder result with its setup and the note that the browser opponent is unmeasured; (3) the Law Ledger, rejected laws drawn as playable universes. The piece-values chart and the lineage strip left the landing. The v0 story stays out of the landing (README and long posts only).
+- **Look:** an evolution of Mission, not a new direction. Space comes in as drawings (orbits, bodies sized by mass, dashed paths, callouts, a faint grid), never glow. Real physics words are allowed when used accurately with a plain gloss; decorative sci-fi words stay out. The `?look=a/b` switch is removed.
+- **Universe names:** Home, Genesis, First Light, Hunger, Roche, Undertow (web plan §5c). Untrained variants say "Variant of Home, not trained", never a game count.
+- **Open problems:** a short doc (`11_OPEN_PROBLEMS.md`) linked from the site footer, not a page, until someone takes one up.
+- **Citation:** `CITATION.cff` rewritten for v1 (the v0 title overclaimed, and the licence said Apache-2.0; the repo is MIT). The site's BibTeX is generated from it by `sync-data.mjs`.
+
+## 2026-10-26 · Concept round closed: keep the current site, borrow the photo plate
+- Three landing concepts (Orbital, Plate, Editorial; `docs/v1/wireframes/pass4/`) were compared. The maintainer keeps the current design and takes one idea only: a real space photograph turned into a framed, two-tone banner (from concept B), without its scan line, cross grid or drift.
+- It goes in the closing open-source band. The photo is NASA AS17-152-23272 (Earth rising over the Moon, Apollo 17, 1972), which is public domain, with credit in `web/static/images/CREDITS.md`.
+- Also adopted: the slimmer icon dock on phone, and a small PGN export button in the phone Play screen's top row.

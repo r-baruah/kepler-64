@@ -1,0 +1,31 @@
+{
+  "generation": 2,
+  "parent": 1,
+  "spec": "v1.0-spec-1",
+  "created": "2026-10-24",
+  "constants": {
+    "alpha": 0.29865318536758423,
+    "beta": 0.0,
+    "c": 2,
+    "f_acc": 0.0,
+    "k_roche": 1.229857325553894,
+    "kappa": 1.2870956659317017,
+    "lambda_bind": 0.0,
+    "lambda_space": 0.04317823052406311,
+    "m_b": 3.6301963329315186,
+    "m_n": 3.1533031463623047,
+    "m_q": 10.575230598449707,
+    "m_r": 5.288643836975098,
+    "rho": 1.3763911724090576,
+    "sigma": 0.49710962176322937
+  },
+  "pinned": [],
+  "training": {
+    "method": "law selection by the Law Ledger (no new training): gen-001 with accretion and binding energy switched off",
+    "temperature": 3.7229480743408203
+  },
+  "acceptance": {
+    "ledger": "results/ledger-gen001.md",
+    "sprt": "results/gen001b-vs-gen001.json"
+  }
+}

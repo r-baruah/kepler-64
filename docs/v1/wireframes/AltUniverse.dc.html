@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Direction A: the board is the universe</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1a1a1a}a:hover{color:#555}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; background: #ececec; color: #1a1a1a; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center">
+<header style="width: 100%; height: 48px; box-sizing: border-box; padding: 0 28px; display: flex; align-items: center; gap: 16px">
+<div style="font-weight: 700; font-size: 17px">Kepler-64</div>
+<div style="flex-grow: 1; text-align: center; font-size: 14px; color: #333">A tiny universe that learned to play chess</div>
+<a href="#" style="font-size: 14px">Watch</a>
+<a href="#" style="font-size: 14px">Lab</a>
+<a href="#" style="border: 1px solid #1a1a1a; border-radius: 6px; padding: 6px 12px; text-decoration: none; font-size: 13px">Star · [STARS]</a>
+</header>
+<div style="width: 580px; display: flex; justify-content: space-between; align-items: center; height: 36px; font-size: 13px">
+<div style="display: flex; align-items: center; gap: 10px"><span style="font-weight: 600">Kepler</span><span style="color: #444">Champion (Gen 4) · Default</span></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="color: #444">pull on king 0.7 / 21.1</span><span style="width: 80px; height: 6px; background: #cfcfcf; border-radius: 3px; display: inline-block"><span style="display: block; width: 3%; height: 6px; background: #1a1a1a; border-radius: 3px"></span></span></div>
+</div>
+<dc-import name="Board" fen="r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R" tint=".BBbbbB.BBbBBbbBwbbBbBbbbWbwb.bbwbwbwbbb.wwWwWw.WwWWWwWw.wwwWWW." marks=".l................l............................................." palette="light" size="{{boardSize}}" field="{{yes}}" hint-size="580px,580px"></dc-import>
+<div style="width: 580px; display: flex; justify-content: space-between; align-items: center; height: 36px; font-size: 13px">
+<div style="display: flex; align-items: center; gap: 10px"><span style="font-weight: 600">You</span><span style="color: #444">Your move · Kepler played Nc6 (+0.45 ku for Kepler)</span></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="color: #444">pull on king 2.2 / 25.6</span><span style="width: 80px; height: 6px; background: #cfcfcf; border-radius: 3px; display: inline-block"><span style="display: block; width: 8%; height: 6px; background: #1a1a1a; border-radius: 3px"></span></span></div>
+</div>
+<nav aria-label="Game controls" style="margin-top: 14px; display: flex; gap: 6px; background: #ffffff; border: 1px solid #bdbdbd; border-radius: 28px; padding: 6px">
+<button style="height: 44px; padding: 0 16px; font: inherit; font-size: 14px; border: none; border-radius: 22px; background: none">New game</button>
+<button style="height: 44px; padding: 0 16px; font: inherit; font-size: 14px; border: none; border-radius: 22px; background: none">Undo</button>
+<button style="height: 44px; padding: 0 16px; font: inherit; font-size: 14px; border: none; border-radius: 22px; background: none">Flip</button>
+<button style="height: 44px; padding: 0 16px; font: inherit; font-size: 14px; border: none; border-radius: 22px; background: #e6e6e6">Field: Pull</button>
+<button style="height: 44px; padding: 0 16px; font: inherit; font-size: 14px; border: none; border-radius: 22px; background: none">Universe</button>
+<button style="height: 44px; padding: 0 16px; font: inherit; font-size: 14px; border: none; border-radius: 22px; background: none">Moves (4)</button>
+<button style="height: 44px; padding: 0 16px; font: inherit; font-size: 14px; border: none; border-radius: 22px; background: none">How it works</button>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { yes: true, boardSize: 580 }; }
+}
+</script>
+</body>
+</html>

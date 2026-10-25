@@ -1,0 +1,120 @@
+@import './tokens.css';
+
+/* Self-hosted Geist (SIL Open Font License 1.1, see static/fonts/OFL-*.txt). */
+@font-face {
+	font-family: 'Geist';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/geist-latin-wght-normal.woff2') format('woff2');
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--bg);
+	transition: background-color 0.25s var(--ease), color 0.25s var(--ease);
+	color: var(--ink);
+	font-family: var(--font-sans);
+	font-size: 16px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+
+a {
+	color: var(--ink);
+}
+a:hover {
+	color: var(--accent);
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+@font-face {
+	font-family: 'Geist Mono';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/geist-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Geist Mono';
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url('/fonts/geist-mono-latin-500-normal.woff2') format('woff2');
+}
+
+/* Numbers line up: tabular figures. Geist Mono is for small labels and numbers in diagrams. */
+.num {
+	font-variant-numeric: tabular-nums;
+}
+.mono {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0;
+}
+
+/* Small label: one style everywhere. */
+.label-sm {
+	font-size: var(--t-xs);
+	font-weight: 500;
+	color: var(--muted);
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* Section reveal (enhancement only). Content is always visible by default: with no JS, reduced
+ * motion, or a scraper that never scrolls, nothing is hidden. The `reveal` action in
+ * src/lib/reveal.ts adds .in once, when a section that started below the fold scrolls in, and
+ * only then does it play a short fade and rise. */
+@media (prefers-reduced-motion: no-preference) {
+	.reveal.in {
+		animation: reveal 0.55s var(--ease) both;
+	}
+	@keyframes reveal {
+		from {
+			opacity: 0;
+			transform: translateY(14px);
+		}
+	}
+}

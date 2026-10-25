@@ -1,0 +1,28 @@
+{
+  "generation": 0,
+  "parent": null,
+  "spec": "v1.0-spec-1",
+  "created": "2026-10-24",
+  "constants": {
+    "m_n": 4.4286,
+    "m_b": 4.4286,
+    "m_r": 4.4286,
+    "m_q": 4.4286,
+    "kappa": 1.0,
+    "alpha": 0.35,
+    "sigma": 0.5,
+    "c": 2,
+    "lambda_bind": 0.01,
+    "lambda_space": 0.05,
+    "rho": 1.5,
+    "k_roche": 3.0,
+    "beta": 2.0,
+    "f_acc": 0.8
+  },
+  "pinned": [],
+  "training": {
+    "temperature": 6.0,
+    "note": "control start: gen-000 with all four masses equal (4.4286) so the full-army total equals 39, the human-valued total"
+  },
+  "acceptance": {}
+}

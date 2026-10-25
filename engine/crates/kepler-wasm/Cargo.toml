@@ -1,0 +1,17 @@
+[package]
+name = "kepler-wasm"
+description = "Kepler-64 v1 in the browser: the Engine class the website codes against"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cozy-chess.workspace = true
+kepler-core = { path = "../kepler-core" }
+serde.workspace = true
+serde_json.workspace = true
+serde-wasm-bindgen = "0.6"
+wasm-bindgen = "=0.2.100"

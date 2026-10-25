@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play: end-of-game card</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1a1a1a}a:hover{color:#555}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; box-sizing: border-box; background: #fafafa; color: #1a1a1a; font-family: system-ui, sans-serif; display: flex; flex-direction: column">
+<header style="height: 64px; box-sizing: border-box; padding: 0 32px; border-bottom: 1px solid #d0d0d0; display: flex; align-items: center; gap: 24px">
+<div style="font-weight: 700; font-size: 20px">Kepler-64</div>
+<div style="color: #555; font-size: 15px; flex-grow: 1">A tiny universe that learned to play chess.</div>
+<nav style="display: flex; gap: 20px; font-size: 15px"><a href="#">Play</a><a href="#">Watch</a><a href="#">Lab</a></nav>
+<a href="#" style="border: 1px solid #1a1a1a; border-radius: 6px; padding: 8px 14px; text-decoration: none; font-size: 14px">Star on GitHub · [STARS]</a>
+</header>
+<main style="flex-grow: 1; display: flex; gap: 40px; padding: 32px; box-sizing: border-box">
+<dc-import name="Board" fen="1n1Rkb1r/p4ppp/4q3/4p1B1/4P3/8/PPP2PPP/2K5" tint="..bb.Bb...bbbbBbbbbbbbbb..bwbbbb.bb...bw.wwww.w.b.ww.....wwww..." marks="" size="{{boardSize}}" field="{{yes}}" hint-size="640px,640px"></dc-import>
+</main>
+<div style="position: absolute; inset: 0; background: rgba(250, 250, 250, 0.72); display: flex; align-items: center; justify-content: center">
+<div role="dialog" aria-label="Game summary" style="width: 560px; box-sizing: border-box; background: #ffffff; border: 2px solid #1a1a1a; border-radius: 10px; padding: 28px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 26px; font-weight: 700">You won by checkmate</div>
+<div style="font-size: 15px; color: #444">17 moves against Kepler · Champion (Gen 4) · Default</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 13px; font-weight: 600; color: #444">THREE MOMENTS FROM YOUR GAME</div>
+<a href="#" style="display: flex; gap: 14px; align-items: center; border: 1px solid #c8c8c8; border-radius: 8px; padding: 12px; text-decoration: none">
+<div style="width: 64px; height: 64px; background: #e3e3e3; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #666">mini board</div>
+<div style="font-size: 15px; line-height: 1.4"><div style="font-weight: 600">Move [N]: Kepler's score turned</div><div style="color: #444">from [+0.8] to [−2.1] ku after [YOUR MOVE]</div></div>
+</a>
+<a href="#" style="display: flex; gap: 14px; align-items: center; border: 1px solid #c8c8c8; border-radius: 8px; padding: 12px; text-decoration: none">
+<div style="width: 64px; height: 64px; background: #e3e3e3; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #666">mini board</div>
+<div style="font-size: 15px; line-height: 1.4"><div style="font-weight: 600">Move [N]: the biggest capture</div><div style="color: #444">[PIECE] for [PIECE], a swing of [X] ku</div></div>
+</a>
+<a href="#" style="display: flex; gap: 14px; align-items: center; border: 1px solid #c8c8c8; border-radius: 8px; padding: 12px; text-decoration: none">
+<div style="width: 64px; height: 64px; background: #e3e3e3; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #666">mini board</div>
+<div style="font-size: 15px; line-height: 1.4"><div style="font-weight: 600">Move [N]: pull on Black's king jumped</div><div style="color: #444">enemy pull from [1.2] to [5.0]</div></div>
+</a>
+</div>
+<div style="display: flex; gap: 10px; flex-wrap: wrap">
+<button style="height: 48px; padding: 0 18px; font: inherit; font-size: 15px; border-radius: 6px; border: 1px solid #1a1a1a; background: #1a1a1a; color: #ffffff">Copy share link</button>
+<button style="height: 48px; padding: 0 18px; font: inherit; font-size: 15px; border-radius: 6px; border: 1px solid #1a1a1a; background: #ffffff">Download image</button>
+<button style="height: 48px; padding: 0 18px; font: inherit; font-size: 15px; border-radius: 6px; border: 1px solid #1a1a1a; background: #ffffff">Play again</button>
+</div>
+<div style="font-size: 13px; color: #555">Enjoyed it? <a href="#">Star Kepler-64 on GitHub</a></div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return { yes: true, boardSize: 640 }; }
+}
+</script>
+</body>
+</html>

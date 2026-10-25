@@ -1,0 +1,45 @@
+{
+  "generation": 1,
+  "parent": 0,
+  "spec": "v1.0-spec-1",
+  "created": "2026-10-24",
+  "constants": {
+    "alpha": 0.29865318536758423,
+    "beta": 0.0,
+    "c": 2,
+    "f_acc": 0.800000011920929,
+    "k_roche": 1.229857325553894,
+    "kappa": 1.2870956659317017,
+    "lambda_bind": 0.003561808029189706,
+    "lambda_space": 0.04317823052406311,
+    "m_b": 3.6301963329315186,
+    "m_n": 3.1533031463623047,
+    "m_q": 10.575230598449707,
+    "m_r": 5.288643836975098,
+    "rho": 1.3763911724090576,
+    "sigma": 0.49710962176322937
+  },
+  "pinned": [],
+  "training": {
+    "capped_target": "drop",
+    "conserve_mass": false,
+    "depth": 3,
+    "games": 5500,
+    "games_per_round": 500,
+    "lambda": 0.699999988079071,
+    "learn_temperature": true,
+    "lr": 0.009999999776482582,
+    "lr_units": "relative to bound range (hi - lo)",
+    "optimizer": "adam",
+    "rounds": 11,
+    "shards_per_round": 1,
+    "temperature": 3.7229480743408203,
+    "method": "tdleaf-lambda with learned temperature, quiet leaves, capped games dropped (docs/v1/10 T1, T5, T6)",
+    "run": "local, 11 rounds x 500 games, depth 3, 6 threads, seed 20261025"
+  },
+  "acceptance": {
+    "sprt": "results/sprt-gen001t1-vs-gen000-d3.json",
+    "confirm_d3": "results/confirm-gen001t1-vs-gen000-d3.json",
+    "confirm_d4": "results/confirm-gen001t1-vs-gen000-d4.json"
+  }
+}

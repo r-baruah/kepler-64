@@ -1,0 +1,101 @@
+{
+  "name": "gen003",
+  "gen": "engine/data/generations/gen-003.json",
+  "tc": "30+0.3",
+  "stockfish": "sf_19 UCI_LimitStrength",
+  "deterministic": false,
+  "run": "https://github.com/r-baruah/kepler-64-compute/actions/runs/40111762290",
+  "rungs": [
+    {
+      "stockfish_elo": 1500,
+      "games": 200,
+      "w": 174,
+      "d": 1,
+      "l": 25,
+      "score": 0.8725,
+      "elo_diff": 334.1,
+      "elo_diff_lo95": 271.2,
+      "elo_diff_hi95": 420.7,
+      "implied_rating": 1834.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 199,
+        "threefold_repetition": 1
+      }
+    },
+    {
+      "stockfish_elo": 1700,
+      "games": 200,
+      "w": 154,
+      "d": 6,
+      "l": 40,
+      "score": 0.785,
+      "elo_diff": 225.0,
+      "elo_diff_lo95": 172.2,
+      "elo_diff_hi95": 288.9,
+      "implied_rating": 1925.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 194,
+        "fifty_move_rule": 1,
+        "threefold_repetition": 5
+      }
+    },
+    {
+      "stockfish_elo": 1900,
+      "games": 200,
+      "w": 123,
+      "d": 3,
+      "l": 74,
+      "score": 0.6225,
+      "elo_diff": 86.9,
+      "elo_diff_lo95": 39.0,
+      "elo_diff_hi95": 138.3,
+      "implied_rating": 1987.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 197,
+        "insufficient_material": 1,
+        "threefold_repetition": 2
+      }
+    },
+    {
+      "stockfish_elo": 2100,
+      "games": 200,
+      "w": 103,
+      "d": 5,
+      "l": 92,
+      "score": 0.5275,
+      "elo_diff": 19.1,
+      "elo_diff_lo95": -28.4,
+      "elo_diff_hi95": 67.4,
+      "implied_rating": 2119.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 195,
+        "threefold_repetition": 3,
+        "insufficient_material": 1,
+        "fifty_move_rule": 1
+      }
+    },
+    {
+      "stockfish_elo": 2300,
+      "games": 200,
+      "w": 75,
+      "d": 10,
+      "l": 115,
+      "score": 0.4,
+      "elo_diff": -70.4,
+      "elo_diff_lo95": -120.0,
+      "elo_diff_hi95": -23.6,
+      "implied_rating": 2230.0,
+      "shards": 10,
+      "reasons": {
+        "checkmate": 190,
+        "threefold_repetition": 6,
+        "max_plies": 1,
+        "fifty_move_rule": 3
+      }
+    }
+  ]
+}

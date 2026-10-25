@@ -1,0 +1,69 @@
+{
+  "bounds": {
+    "lower": -2.9444389791664403,
+    "upper": 2.9444389791664403
+  },
+  "config": {
+    "a_hash": "68cb3f7bd853594b",
+    "alpha": 0.05,
+    "b_hash": "54cf3626c756bbf7",
+    "beta": 0.05,
+    "created": "2026-10-24T09:06:03Z",
+    "elo0": 0.0,
+    "elo1": 10.0,
+    "note": "result is for A versus B; judged once on the summed pentanomial",
+    "shard_config": {
+      "a": {
+        "file": "results/gen001-t1-candidate.json",
+        "generation": 1
+      },
+      "adjudication": {
+        "draw_after": 80,
+        "draw_ku": 0.15000000596046448,
+        "draw_plies": 20,
+        "enabled": true,
+        "resign_ku": 8.0,
+        "resign_plies": 6
+      },
+      "b": {
+        "file": "data/generations/gen-000.json",
+        "generation": 0
+      },
+      "created": "2026-10-24T09:06:03Z",
+      "depth": 4,
+      "explore_plies": 6,
+      "max_plies": 300,
+      "movetime_ms": null,
+      "note": "pentanomial = pairs scoring 0, 0.5, 1, 1.5, 2 for A",
+      "openings": "data/openings/balanced-200.epd",
+      "pairs": 200
+    },
+    "shard_seeds": [
+      777
+    ],
+    "shards": 1,
+    "spec": "v1.0-spec-1"
+  },
+  "elo": {
+    "estimate": 131.94252873707498,
+    "hi95": 168.22227406493667,
+    "lo95": 98.22409209300628,
+    "reliable": true
+  },
+  "games": 400,
+  "llr": 5.073767222551371,
+  "pentanomial": [
+    17,
+    6,
+    73,
+    23,
+    81
+  ],
+  "result": "H1",
+  "shard_seconds_sum": 330.973,
+  "wdl": {
+    "d": 31,
+    "l": 112,
+    "w": 257
+  }
+}

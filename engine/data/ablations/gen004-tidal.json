@@ -1,0 +1,29 @@
+{
+ "generation": 4,
+ "parent": 4,
+ "spec": "v1.0-spec-2",
+ "created": "2026-10-25",
+ "constants": {
+  "alpha": 0.5393913984298706,
+  "beta": 2.7456345558166504,
+  "c": 2,
+  "f_acc": 0.0,
+  "k_roche": 3.3380253314971924,
+  "kappa": 2.6252963542938232,
+  "lambda_bind": 0.019230974838137627,
+  "lambda_space": 0.12638120353221893,
+  "m_b": 3.1232614517211914,
+  "m_n": 2.7217466831207275,
+  "m_q": 7.386493682861328,
+  "m_r": 4.241305828094482,
+  "rho": 1.5606869459152222,
+  "sigma": 0.5765364766120911,
+  "lambda_tide": 0.1
+ },
+ "pinned": [],
+ "training": {
+  "note": "Alternate universe: gen-004 with L5b tidal load at 0.1. Untrained variant. Ledger: 0.10 lost 77 Elo on gen-003 (F33); rejected after training (F35).",
+  "temperature": 3.0582571029663086
+ },
+ "acceptance": {}
+}

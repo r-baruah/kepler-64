@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Board with field</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div role="img" aria-label="{{label}}" style="width: {{px}}; height: {{px}}; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); border: 1px solid #9a9a9a; box-sizing: border-box; font-family: system-ui, sans-serif">
+<sc-for list="{{squares}}" as="sq" hint-placeholder-count="64">
+<div style="{{sq.style}}">
+<div style="{{sq.tintStyle}}"></div>
+<sc-if value="{{sq.hasPiece}}" hint-placeholder-val="{{false}}">
+<div style="{{sq.pieceStyle}}">{{sq.letter}}</div>
+</sc-if>
+<sc-if value="{{sq.hasDot}}" hint-placeholder-val="{{false}}">
+<div style="{{sq.dotStyle}}"></div>
+</sc-if>
+<sc-if value="{{sq.hasRank}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 3px; top: 2px; font-size: 10px; color: #555">{{sq.rank}}</div>
+</sc-if>
+<sc-if value="{{sq.hasFile}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; right: 3px; bottom: 1px; font-size: 10px; color: #555">{{sq.file}}</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"fen":{"editor":"text","default":"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"},"tint":{"editor":"text","default":".bbbBbb.BbBBBbbBbbbbbbbb................wwwwwwwwWwWWWwwW.wwwWww."},"marks":{"editor":"text","default":""},"size":{"editor":"int","default":480,"min":160,"max":800},"field":{"editor":"boolean","default":true},"palette":{"editor":"enum","options":["hue","light"],"default":"hue"},"$preview":{"width":480,"height":480}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const size = this.props.size ?? 480;
+    const fen = this.props.fen ?? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+    const tint = (this.props.tint ?? '').padEnd(64, '.');
+    const marks = (this.props.marks ?? '').padEnd(64, '.');
+    const field = this.props.field ?? true;
+    const cells = [];
+    for (const row of fen.split('/')) {
+      for (const ch of row) {
+        if (/[1-8]/.test(ch)) { for (let i = 0; i < +ch; i++) cells.push(''); }
+        else cells.push(ch);
+      }
+    }
+    const light = (this.props.palette ?? 'hue') === 'light';
+    const tints = light
+      ? { W: 'rgba(255, 255, 255, 0.62)', w: 'rgba(255, 255, 255, 0.28)', B: 'rgba(0, 0, 0, 0.34)', b: 'rgba(0, 0, 0, 0.14)' }
+      : { W: 'rgba(52, 104, 196, 0.42)', w: 'rgba(52, 104, 196, 0.17)', B: 'rgba(214, 118, 28, 0.42)', b: 'rgba(214, 118, 28, 0.17)' };
+    const cs = size / 8;
+    const squares = cells.map((p, i) => {
+      const r = Math.floor(i / 8), f = i % 8;
+      const dark = (r + f) % 2 === 1;
+      const m = marks[i];
+      let bg = light ? (dark ? '#b4b4b4' : '#cfcfcf') : (dark ? '#c9c9c9' : '#ededed');
+      if (m === 'l') bg = dark ? '#b9b39a' : '#dcd6bc';
+      let outline = 'none';
+      if (m === 's') outline = 'inset 0 0 0 3px #222';
+      if (m === 'h') outline = 'inset 0 0 0 2px #333';
+      if (m === 'f') outline = 'inset 0 0 0 1px #777';
+      const white = p && p === p.toUpperCase();
+      const t = field ? (tints[tint[i]] || 'transparent') : 'transparent';
+      return {
+        style: `position: relative; background: ${bg}; box-shadow: ${outline}; display: flex; align-items: center; justify-content: center`,
+        tintStyle: `position: absolute; inset: 0; background: ${t}`,
+        hasPiece: !!p,
+        letter: p ? p.toUpperCase() : '',
+        pieceStyle: `position: relative; width: ${Math.round(cs * 0.66)}px; height: ${Math.round(cs * 0.66)}px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: ${Math.round(cs * 0.3)}px; ${white ? 'background: #ffffff; color: #1a1a1a; border: 2px solid #1a1a1a' : 'background: #2a2a2a; color: #ffffff; border: 2px solid #2a2a2a'}; box-sizing: border-box`,
+        hasDot: m === 'o' || ((m === 'h' || m === 'f') && !p),
+        dotStyle: `position: relative; width: ${Math.round(cs * (m === 'f' ? 0.16 : 0.24))}px; height: ${Math.round(cs * (m === 'f' ? 0.16 : 0.24))}px; border-radius: 50%; background: ${m === 'f' ? '#888' : '#333'}`,
+        hasRank: f === 0, rank: String(8 - r),
+        hasFile: r === 7, file: 'abcdefgh'[f],
+      };
+    });
+    return { squares, px: size + 'px', label: 'Chess board, position ' + fen };
+  }
+}
+</script>
+</body>
+</html>

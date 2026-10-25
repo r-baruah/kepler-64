@@ -1,0 +1,243 @@
+{
+  "engine": {
+    "cmd": "./target/release/kepler",
+    "id_name": "Kepler-64 v1 (v1.0-spec-1)",
+    "options": [
+      "Generation=data/generations/gen-000.json"
+    ]
+  },
+  "finished": "2026-10-23T18:39:24Z",
+  "limits": {
+    "depth": 3,
+    "type": "depth"
+  },
+  "results": [
+    {
+      "am": [
+        "Qxc4"
+      ],
+      "am_hit": false,
+      "bm": [
+        "Qc2"
+      ],
+      "bm_hit": false,
+      "c0": "v0 played Qxc4 (loses 886cp, SF19 d18)",
+      "depth": 3,
+      "error": null,
+      "fen": "r1b1kbnr/pp3ppp/1qn1p3/3pP3/2pP4/2PQ1N2/PP3PPP/RNB1KB1R w KQkq -",
+      "id": "french-w-qxc4",
+      "move_san": "Qd2",
+      "move_uci": "d3d2",
+      "score_cp": 30
+    },
+    {
+      "am": [
+        "Qa6"
+      ],
+      "am_hit": false,
+      "bm": [
+        "Qc7"
+      ],
+      "bm_hit": false,
+      "c0": "v0 played Qa6 (loses 613cp)",
+      "depth": 3,
+      "error": null,
+      "fen": "r1b1kbnr/pp3ppp/1qn1p3/4P3/2BP4/2P2N2/PP3PPP/RNB1K2R b KQkq -",
+      "id": "french-w-qa6",
+      "move_san": "Na5",
+      "move_uci": "c6a5",
+      "score_cp": 811
+    },
+    {
+      "am": [
+        "Ng5"
+      ],
+      "am_hit": false,
+      "bm": [
+        "Bc2"
+      ],
+      "bm_hit": false,
+      "c0": "v0 played Ng5 leaving Bd3 en prise (loses 734cp)",
+      "depth": 3,
+      "error": null,
+      "fen": "r1b1kbnr/pp3ppp/1qn1p3/3pP3/2pP4/2PB1N2/PP3PPP/RNBQK2R w KQkq -",
+      "id": "french-b-ng5",
+      "move_san": "Be2",
+      "move_uci": "d3e2",
+      "score_cp": 29
+    },
+    {
+      "am": [
+        "Qxd4"
+      ],
+      "am_hit": false,
+      "bm": [
+        "cxd3"
+      ],
+      "bm_hit": true,
+      "c0": "v0 ignored the hanging bishop (loses 1473cp)",
+      "depth": 3,
+      "error": null,
+      "fen": "r1b1kbnr/pp3ppp/1qn1p3/3pP1N1/2pP4/2PB4/PP3PPP/RNBQK2R b KQkq -",
+      "id": "french-b-qxd4",
+      "move_san": "cxd3",
+      "move_uci": "c4d3",
+      "score_cp": 211
+    },
+    {
+      "am": [
+        "O-O"
+      ],
+      "am_hit": false,
+      "bm": [
+        "cxd4"
+      ],
+      "bm_hit": true,
+      "c0": "v0 left the queen capture (loses 1649cp)",
+      "depth": 3,
+      "error": null,
+      "fen": "r1b1kbnr/pp3ppp/2n1p3/3pP1N1/2pq4/2PB4/PP3PPP/RNBQK2R w KQkq -",
+      "id": "french-b-oo",
+      "move_san": "cxd4",
+      "move_uci": "c3d4",
+      "score_cp": 734
+    },
+    {
+      "am": [
+        "Qh4"
+      ],
+      "am_hit": false,
+      "bm": [
+        "Qxd3"
+      ],
+      "bm_hit": true,
+      "c0": "loses 1253cp",
+      "depth": 3,
+      "error": null,
+      "fen": "r1b1kbnr/pp3ppp/2n1p3/3pP1N1/2pq4/2PB4/PP3PPP/RNBQ1RK1 b kq -",
+      "id": "french-b-qh4",
+      "move_san": "Qxd3",
+      "move_uci": "d4d3",
+      "score_cp": 447
+    },
+    {
+      "am": [
+        "Nxf7"
+      ],
+      "am_hit": false,
+      "bm": [
+        "g3"
+      ],
+      "bm_hit": true,
+      "c0": "loses 1068cp",
+      "depth": 3,
+      "error": null,
+      "fen": "r1b1kbnr/pp3ppp/2n1p3/3pP1N1/2p4q/2PB4/PP3PPP/RNBQ1RK1 w kq -",
+      "id": "french-b-nxf7",
+      "move_san": "g3",
+      "move_uci": "g2g3",
+      "score_cp": 62
+    },
+    {
+      "am": [
+        "Nf5"
+      ],
+      "am_hit": false,
+      "bm": [
+        "Bxe2"
+      ],
+      "bm_hit": true,
+      "c0": "knight sacrifice toward the king (loses 728cp)",
+      "depth": 3,
+      "error": null,
+      "fen": "r2q1rk1/ppp1npbp/3p1np1/3Pp1B1/2P1P1bN/2N5/PP2BPPP/R2Q1RK1 b - -",
+      "id": "kid-w-nf5",
+      "move_san": "Bxe2",
+      "move_uci": "g4e2",
+      "score_cp": -27
+    },
+    {
+      "am": [
+        "Bf5"
+      ],
+      "am_hit": false,
+      "bm": [
+        "Nd7"
+      ],
+      "bm_hit": false,
+      "c0": "hangs the bishop to exf5 (loses 562cp)",
+      "depth": 3,
+      "error": null,
+      "fen": "r1bq1rk1/ppp1npbp/3p1np1/3Pp3/2P1P3/2N5/PP2BPPP/R1BQNRK1 b - -",
+      "id": "kid-b-bf5",
+      "move_san": "Qd7",
+      "move_uci": "d8d7",
+      "score_cp": 6
+    },
+    {
+      "am": [
+        "Bg5"
+      ],
+      "am_hit": false,
+      "bm": [
+        "exf5"
+      ],
+      "bm_hit": true,
+      "c0": "misses the free bishop (loses 782cp)",
+      "depth": 3,
+      "error": null,
+      "fen": "r2q1rk1/ppp1npbp/3p1np1/3Ppb2/2P1P3/2N5/PP2BPPP/R1BQNRK1 w - -",
+      "id": "kid-b-bg5",
+      "move_san": "exf5",
+      "move_uci": "e4f5",
+      "score_cp": 219
+    },
+    {
+      "am": [
+        "Nxd5"
+      ],
+      "am_hit": false,
+      "bm": [
+        "Nxc3"
+      ],
+      "bm_hit": false,
+      "c0": "loses 934cp",
+      "depth": 3,
+      "error": null,
+      "fen": "r2q1rk1/ppp1npbp/3p2p1/3PpbB1/2P1n3/2N2N2/PP2BPPP/R2Q1RK1 b - -",
+      "id": "kid-b-nxd5",
+      "move_san": "Nxg5",
+      "move_uci": "e4g5",
+      "score_cp": 108
+    },
+    {
+      "am": [
+        "Qxd5"
+      ],
+      "am_hit": false,
+      "bm": [
+        "Bxd8"
+      ],
+      "bm_hit": true,
+      "c0": "misses the queen (loses 1000cp)",
+      "depth": 3,
+      "error": null,
+      "fen": "r2q1rk1/ppp2pbp/3p2p1/3npbB1/2P1n3/2N2N2/PP2BPPP/R2Q1RK1 w - -",
+      "id": "kid-b-qxd5",
+      "move_san": "Bxd8",
+      "move_uci": "g5d8",
+      "score_cp": 434
+    }
+  ],
+  "seconds": 0.201911328,
+  "started": "2026-10-23T18:39:24Z",
+  "suite": "data/suites/v0_closed_blunders.epd",
+  "totals": {
+    "am_hits": 0,
+    "am_positions": 12,
+    "bm_hits": 7,
+    "bm_positions": 12,
+    "errors": 0,
+    "positions": 12
+  }
+}

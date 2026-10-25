@@ -1,0 +1,12 @@
+r1b1kbnr/pp3ppp/1qn1p3/3pP3/2pP4/2PQ1N2/PP3PPP/RNB1KB1R w KQkq - 0 7 am Qxc4; bm Qc2; id "french-w-qxc4"; c0 "v0 played Qxc4 (loses 886cp, SF19 d18)";
+r1b1kbnr/pp3ppp/1qn1p3/4P3/2BP4/2P2N2/PP3PPP/RNB1K2R b KQkq - 0 8 am Qa6; bm Qc7; id "french-w-qa6"; c0 "v0 played Qa6 (loses 613cp)";
+r1b1kbnr/pp3ppp/1qn1p3/3pP3/2pP4/2PB1N2/PP3PPP/RNBQK2R w KQkq - 0 7 am Ng5; bm Bc2; id "french-b-ng5"; c0 "v0 played Ng5 leaving Bd3 en prise (loses 734cp)";
+r1b1kbnr/pp3ppp/1qn1p3/3pP1N1/2pP4/2PB4/PP3PPP/RNBQK2R b KQkq - 1 7 am Qxd4; bm cxd3; id "french-b-qxd4"; c0 "v0 ignored the hanging bishop (loses 1473cp)";
+r1b1kbnr/pp3ppp/2n1p3/3pP1N1/2pq4/2PB4/PP3PPP/RNBQK2R w KQkq - 0 8 am O-O; bm cxd4; id "french-b-oo"; c0 "v0 left the queen capture (loses 1649cp)";
+r1b1kbnr/pp3ppp/2n1p3/3pP1N1/2pq4/2PB4/PP3PPP/RNBQ1RK1 b kq - 1 8 am Qh4; bm Qxd3; id "french-b-qh4"; c0 "loses 1253cp";
+r1b1kbnr/pp3ppp/2n1p3/3pP1N1/2p4q/2PB4/PP3PPP/RNBQ1RK1 w kq - 2 9 am Nxf7; bm g3; id "french-b-nxf7"; c0 "loses 1068cp";
+r2q1rk1/ppp1npbp/3p1np1/3Pp1B1/2P1P1bN/2N5/PP2BPPP/R2Q1RK1 b - - 4 10 am Nf5; bm Bxe2; id "kid-w-nf5"; c0 "knight sacrifice toward the king (loses 728cp)";
+r1bq1rk1/ppp1npbp/3p1np1/3Pp3/2P1P3/2N5/PP2BPPP/R1BQNRK1 b - - 2 9 am Bf5; bm Nd7; id "kid-b-bf5"; c0 "hangs the bishop to exf5 (loses 562cp)";
+r2q1rk1/ppp1npbp/3p1np1/3Ppb2/2P1P3/2N5/PP2BPPP/R1BQNRK1 w - - 3 10 am Bg5; bm exf5; id "kid-b-bg5"; c0 "misses the free bishop (loses 782cp)";
+r2q1rk1/ppp1npbp/3p2p1/3PpbB1/2P1n3/2N2N2/PP2BPPP/R2Q1RK1 b - - 1 11 am Nxd5; bm Nxc3; id "kid-b-nxd5"; c0 "loses 934cp";
+r2q1rk1/ppp2pbp/3p2p1/3npbB1/2P1n3/2N2N2/PP2BPPP/R2Q1RK1 w - - 0 12 am Qxd5; bm Bxd8; id "kid-b-qxd5"; c0 "misses the queen (loses 1000cp)";
