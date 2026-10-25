@@ -72,7 +72,7 @@ Plan and stages are in `06_WEB_PLAN.md`. Design follows the staged check-ins the
 - [x] Stage C: wireframes and visual direction approved (2026-10-25): low-fi states, Mission look, landing; the remaining states are checked on the working build instead of redrawn
 - [ ] Phone layout polish (maintainer, 2026-10-25: "needs a lot of optimizations"), done during stage D
 - [~] Stage D: visual build of Play. Pass 1 done 2026-10-25 (`web/`: Mission tokens, Play with the hero at rest, real engine in a worker, field dots and light cones, king readouts, commentary, universe presets, node-budget levels; desktop and phone). Pass 3 done 2026-10-25: landing reframed (physics plate, "It knows space, not chess", Ledger as playable universes), universes named, universe picker drawn as systems, Cite sheet, dark mode, header nav, reveal fix. Still to do: end-of-game moments card, share link, star count, phone polish (empty space on tall phones, dark light-cone contrast)
-- [ ] Hosted on Vercel at the chosen domain. Soft launch to 5–10 cold testers, findings written down
+- [~] Hosted on Vercel at the chosen domain: live at https://kepler.ripuranjan.com since 2026-10-26 (builds from `main`). Soft launch to 5–10 cold testers, findings written down
 
 ## M6 · Website complete + docs
 - [ ] Watch, Explore, Lab (laws, Ledger, Generations, the v0→v1 story, cite)
