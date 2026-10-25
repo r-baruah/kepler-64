@@ -745,6 +745,17 @@
 	.stage[data-mode='play'] .center {
 		--board: 100%;
 	}
+	/* Phones in play: the board runs edge to edge, like a chess app; the rows above and below keep the gutters. */
+	@media (max-width: 559px) {
+		.stage[data-mode='play'] .boardwrap {
+			width: calc(100% + 2 * var(--gutter));
+		}
+		.stage[data-mode='play'] .boardwrap :global(.board) {
+			border-radius: 0;
+			border-left: none;
+			border-right: none;
+		}
+	}
 	@media (min-width: 560px) {
 		.stage[data-mode='play'] .center {
 			--board: min(100%, max(260px, calc(100dvh - 380px)));
