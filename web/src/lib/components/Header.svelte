@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import StarIcon from '$lib/components/StarIcon.svelte';
 	import { currentTheme, setTheme, type Theme } from '$lib/theme';
 
 	interface Props {
@@ -70,15 +71,7 @@
 			{/if}
 		</button>
 		<a class="star" href="https://github.com/r-baruah/kepler-64">
-			<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"
-				><path
-					d="M12 3.2l2.6 5.5 6 .8-4.4 4.1 1.1 5.9L12 16.6l-5.3 2.9 1.1-5.9-4.4-4.1 6-.8Z"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.6"
-					stroke-linejoin="round"
-				/></svg
-			>
+			<StarIcon />
 			<span>Star<span class="long">&nbsp;on GitHub</span></span>
 		</a>
 	</div>

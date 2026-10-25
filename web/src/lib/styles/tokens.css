@@ -30,6 +30,12 @@
 	--accent: #2c52e0;
 	--accent-soft: rgba(44, 82, 224, 0.12);
 	--alert: #b4432f;
+	/* The "Star on GitHub" star: a warm gold fill with a darker edge that holds 3:1 on light grounds.
+	   --star-lt / --star-lt-edge are for stars on a light chip in either theme (the banner button). */
+	--star: #eaa922;
+	--star-edge: #9a6a06;
+	--star-lt: #eaa922;
+	--star-lt-edge: #9a6a06;
 
 	/* Board: low glare. Cool grey paper and slate. */
 	--sq-light: #dde1e7;
@@ -101,6 +107,8 @@
 	--accent: #7d97ff;
 	--accent-soft: rgba(125, 151, 255, 0.16);
 	--alert: #e47e66;
+	--star: #f4c24d;
+	--star-edge: #f4c24d;
 
 	--sq-light: #6f788c;
 	--sq-dark: #535c6f;

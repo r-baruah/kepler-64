@@ -3,9 +3,11 @@
 	import Board from '$lib/components/Board.svelte';
 	import PhysicsPlate from '$lib/components/PhysicsPlate.svelte';
 	import Sheet from '$lib/components/Sheet.svelte';
+	import StarIcon from '$lib/components/StarIcon.svelte';
 	import UniverseSystem from '$lib/components/UniverseSystem.svelte';
 	import { parsePlacement, sqIndex } from '$lib/chess';
 	import { EngineClient } from '$lib/engine/client';
+	import { pinScroll } from '$lib/pinscroll';
 	import { reveal } from '$lib/reveal';
 	import type { Breakdown, LedgerCard, SiteFacts } from '$lib/types';
 
@@ -87,32 +89,36 @@
 
 <div class="landing">
 	<section class="sec" id="how" use:reveal>
-		<header class="head">
-			<div class="eyebrow mono"><span class="dot"></span>01 &middot; How it works</div>
-			<h2>Physics, rebuilt for a chessboard.</h2>
-			<p class="lede">We wrote the laws. It found the constants itself, in {fmt(facts.selfPlayGames)} games of self-play.</p>
-		</header>
-		<div class="how">
-			<PhysicsPlate constants={home.constants} field={plateField} />
-			<figure class="example">
-				<div class="exboard">
-					<Board
-						placement={demoPlacement}
-						bottom="white"
-						field={null}
-						{cones}
-						lastMove={null}
-						selected={null}
-						targets={new Map()}
-						label="A white rook on d2 behind its own pawn on d4. The squares the rook pulls on are highlighted."
-						onselectown={() => false}
-						ontap={() => {}}
-						onmove={() => {}}
-					/>
-				</div>
-				<figcaption><span class="mono k">Worked example</span> The rook pulls up to its own pawn, and no further.</figcaption>
-			</figure>
+		<!-- Phones: the heading and the cards stick under the header while the cards scroll sideways
+		     (src/lib/pinscroll.ts). Elsewhere .pin and .pinbox are display: contents. -->
+		<div class="pin" use:pinScroll>
+			<div class="pinbox" data-pin-box>
+				<header class="head">
+					<div class="eyebrow mono"><span class="dot"></span>01 &middot; How it works</div>
+					<h2>Physics, rebuilt for a chessboard.</h2>
+					<p class="lede">We wrote the laws. It found the constants itself, in {fmt(facts.selfPlayGames)} games of self-play.</p>
+				</header>
+				<PhysicsPlate constants={home.constants} field={plateField} />
+			</div>
 		</div>
+		<figure class="example">
+			<div class="exboard">
+				<Board
+					placement={demoPlacement}
+					bottom="white"
+					field={null}
+					{cones}
+					lastMove={null}
+					selected={null}
+					targets={new Map()}
+					label="A white rook on d2 behind its own pawn on d4. The squares the rook pulls on are highlighted."
+					onselectown={() => false}
+					ontap={() => {}}
+					onmove={() => {}}
+				/>
+			</div>
+			<figcaption><span class="mono k">Worked example</span> The rook pulls up to its own pawn, and no further.</figcaption>
+		</figure>
 		<p class="namenote">Named after Johannes Kepler, who found the planets' laws in observations. Kepler-64 finds its constants in its own games.</p>
 	</section>
 
@@ -215,7 +221,7 @@
 				<p>The engine, the training runs and every number on this page are on GitHub.</p>
 				<a class="problems" href="https://github.com/r-baruah/kepler-64/blob/v1/docs/v1/11_OPEN_PROBLEMS.md">Open problems <span aria-hidden="true">&rarr;</span></a>
 				<div class="openbtns">
-					<a class="b1" href="https://github.com/r-baruah/kepler-64">Star on GitHub</a>
+					<a class="b1" href="https://github.com/r-baruah/kepler-64"><StarIcon size={17} /><span>Star on GitHub</span></a>
 					<a class="b2" href="https://github.com/r-baruah/kepler-64">View the code</a>
 					<button class="b2" onclick={() => (citeOpen = true)}>Cite</button>
 				</div>
@@ -316,10 +322,29 @@
 	}
 
 	/* 1. how it works */
-	.how {
-		display: flex;
-		flex-direction: column;
-		gap: 18px;
+	.pin,
+	.pinbox {
+		display: contents;
+	}
+	/* Phones with motion allowed: once pinscroll.ts has measured the cards it adds .pinned. The box
+	   sticks under the header for --pin-dist of scrolling, the cards' own sideways overflow. */
+	@media (max-width: 599px) and (prefers-reduced-motion: no-preference) {
+		.pin:global(.pinned) {
+			display: block;
+		}
+		/* the scroll room for the pin (a sticky box can't travel into its parent's padding) */
+		.pin:global(.pinned)::after {
+			content: '';
+			display: block;
+			height: var(--pin-dist, 0px);
+		}
+		.pin:global(.pinned) .pinbox {
+			display: flex;
+			flex-direction: column;
+			gap: 20px;
+			position: sticky;
+			top: 68px;
+		}
 	}
 	.example {
 		margin: 0;
@@ -694,6 +719,10 @@
 		background: none;
 	}
 	.b1 {
+		/* a light chip in both themes, so the star uses its light-ground colours */
+		--star: var(--star-lt);
+		--star-edge: var(--star-lt-edge);
+		gap: 8px;
 		background: var(--band-ink) !important;
 		color: var(--plate-lo);
 		min-height: 52px !important;
@@ -795,6 +824,51 @@
 		font-weight: 500;
 	}
 
+	/* Phone: a tighter text block (balanced lines, one comfortable measure, even spacing), the three
+	   buttons as one full-width Star plus two side by side, and a shorter photo window lifted towards
+	   the text so the empty sky above the Earth stays small. The text never enters the window. */
+	@media (max-width: 699px) {
+		.opentext {
+			gap: 0;
+			padding: 28px 20px 16px;
+		}
+		.opentext > svg {
+			margin-bottom: 14px;
+		}
+		.open h2 {
+			font-size: clamp(27px, 7.6vw, 31px);
+		}
+		.opentext p {
+			margin-top: 10px;
+			max-width: 30ch;
+			text-wrap: pretty;
+		}
+		.problems {
+			margin-top: 4px;
+		}
+		.openbtns {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 10px;
+			margin-top: 12px;
+		}
+		.openbtns .b1 {
+			grid-column: 1 / -1;
+		}
+		.openbtns a,
+		.openbtns button {
+			padding: 0 12px;
+		}
+		.photo {
+			/* The Earth sits right of centre so the horizon climbs less across the window and meets the
+			   right edge just below the window's top; the window is shorter than before. */
+			aspect-ratio: 5 / 3;
+			--s: 132%;
+			--ex: 60%;
+			--ey: 56%;
+		}
+	}
+
 	@media (min-width: 700px) {
 		.plate {
 			display: grid;
@@ -851,11 +925,16 @@
 			letter-spacing: -0.04em;
 			line-height: 1.05;
 		}
-		.how {
+		/* the cards and the worked example side by side under the heading */
+		#how {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) 360px;
-			gap: 20px;
+			column-gap: 20px;
 			align-items: stretch;
+		}
+		#how .head,
+		.namenote {
+			grid-column: 1 / -1;
 		}
 		.exboard {
 			width: min(100%, 300px);

@@ -85,7 +85,7 @@
 
 	const elapsed = $derived(game.thinking ? Math.max(0, now - game.thinkStart) / 1000 : 0);
 
-	// Phone: the PGN export menu in the top row (shown once a move has been played).
+	// Phone: the PGN export menu at the right end of the move strip (shown once a move has been played).
 	let pgnOpen = $state(false);
 	let pgnMenu = $state<HTMLElement | null>(null);
 	let pgnButton = $state<HTMLButtonElement | null>(null);
@@ -128,22 +128,7 @@
 			<div class="num" class:pos={view !== null && view > 0}>{viewText}</div>
 			<div class="cap" title="Kepler units: one pawn's weight is 1">ku, pawn = 1</div>
 		</div>
-		<div class="viewright">
-			{#if game.history.length}
-				<div class="pgnmenu" bind:this={pgnMenu}>
-					<button bind:this={pgnButton} class="pgnbtn" aria-label="Export PGN" aria-expanded={pgnOpen} aria-controls="pgn-menu" onclick={() => (pgnOpen = !pgnOpen)}>
-						<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5v9M6.5 9 10 12.5 13.5 9" /><path d="M4 13.5v2.5h12v-2.5" /></svg>
-						<span>PGN</span>
-					</button>
-					{#if pgnOpen}
-						<div class="pgnpop" id="pgn-menu">
-							<PgnActions {game} stack ondownload={() => (pgnOpen = false)} />
-						</div>
-					{/if}
-				</div>
-			{/if}
-			<button class="meta" onclick={() => (game.sheet = 'universe')}>{game.preset.name}<br />{game.level.name} level</button>
-		</div>
+		<button class="meta" onclick={() => (game.sheet = 'universe')}>{game.preset.name}<br />{game.level.name} level</button>
 		<div class="legendcol">
 			<div class="cap">Field</div>
 			<FieldLegend mode={game.fieldMode} c={game.preset.constants.c} />
@@ -239,7 +224,22 @@
 						<span class="muted">{game.myTurn ? 'Your move. Tap a piece, then a square.' : ''}</span>
 					{/if}
 				</div>
-				<div class="strip"><MoveList history={game.history} strip /></div>
+				<div class="strip">
+					<div class="stripmoves"><MoveList history={game.history} strip /></div>
+					{#if game.history.length}
+						<div class="pgnmenu" bind:this={pgnMenu}>
+							<button bind:this={pgnButton} class="pgnbtn" aria-label="Export PGN" aria-expanded={pgnOpen} aria-controls="pgn-menu" onclick={() => (pgnOpen = !pgnOpen)}>
+								<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5v9M6.5 9 10 12.5 13.5 9" /><path d="M4 13.5v2.5h12v-2.5" /></svg>
+								<span>PGN</span>
+							</button>
+							{#if pgnOpen}
+								<div class="pgnpop" id="pgn-menu">
+									<PgnActions {game} stack ondownload={() => (pgnOpen = false)} />
+								</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
 				<div class="dockwrap"><Dock {game} /></div>
 			{/if}
 		{/if}
@@ -567,6 +567,9 @@
 	.strip {
 		width: var(--board);
 		min-height: 26px;
+		display: flex;
+		align-items: center;
+		gap: 12px;
 	}
 
 	.promo {
@@ -832,22 +835,24 @@
 	.view .legendcol {
 		display: none;
 	}
-	.viewright {
-		display: flex;
-		align-items: center;
-		gap: 10px;
+	/* The move strip scrolls sideways on its own; the PGN button stays pinned at the row's right end. */
+	.stripmoves {
+		flex: 1 1 auto;
+		min-width: 0;
 	}
 	.pgnmenu {
 		position: relative;
+		flex: none;
 	}
 	.pgnbtn {
 		display: flex;
 		align-items: center;
-		gap: 6px;
+		gap: 5px;
 		min-height: var(--tap);
-		padding: 0 12px 0 10px;
-		border: 1px solid var(--line);
-		border-radius: var(--radius-pill);
+		margin: -9px -6px -9px 0;
+		padding: 0 6px 0 8px;
+		border: none;
+		border-radius: 8px;
 		background: none;
 		font-size: var(--t-xs);
 		font-weight: 500;
@@ -857,8 +862,8 @@
 			color 0.15s;
 	}
 	.pgnbtn svg {
-		width: 18px;
-		height: 18px;
+		width: 15px;
+		height: 15px;
 		fill: none;
 		stroke: currentColor;
 		stroke-width: 1.4;
@@ -867,12 +872,12 @@
 	}
 	.pgnbtn:hover,
 	.pgnbtn[aria-expanded='true'] {
-		border-color: var(--line-strong);
 		color: var(--ink);
 	}
+	/* Opens upward: the dock sits just below the strip. */
 	.pgnpop {
 		position: absolute;
-		top: calc(100% + 6px);
+		bottom: calc(100% + 6px);
 		right: 0;
 		z-index: 20;
 		padding: 4px 0;
@@ -962,8 +967,7 @@
 			padding-top: 40px;
 			font-size: 13px;
 		}
-		.view .meta,
-		.viewright {
+		.view .meta {
 			display: none;
 		}
 		.view .num {

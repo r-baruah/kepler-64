@@ -61,10 +61,25 @@
 	});
 
 	const qR = $derived(6.2 * Math.sqrt(constants.m_q));
+
+	// Fallback for the progress thumb where CSS scroll timelines are missing: 0 at the first card, 1 at the last.
+	const cssTimeline = typeof CSS !== 'undefined' && CSS.supports('animation-timeline: scroll()');
+	let progress = $state(0);
+	let rowFrame = 0;
+	function onRowScroll(e: Event) {
+		if (cssTimeline || rowFrame) return;
+		const el = e.currentTarget as HTMLElement;
+		rowFrame = requestAnimationFrame(() => {
+			rowFrame = 0;
+			const max = el.scrollWidth - el.clientWidth;
+			progress = max > 0 ? Math.min(1, Math.max(0, el.scrollLeft / max)) : 0;
+		});
+	}
 </script>
 
+<div class="pp" style:--p={progress}>
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div class="plate" role="region" aria-label="Physics ideas and their chess versions" tabindex="0">
+<div class="plate" role="region" aria-label="Physics ideas and their chess versions" tabindex="0" data-pin-track onscroll={onRowScroll}>
 	<!-- 1. Mass -->
 	<figure class="pair">
 		<div class="half">
@@ -184,6 +199,9 @@
 		<figcaption>Whoever pulls harder on it.</figcaption>
 	</figure>
 </div>
+<!-- Phone: where the row is (four cards). A CSS scroll timeline drives it where supported. -->
+<div class="track" aria-hidden="true"><span class="thumb"></span></div>
+</div>
 
 <style>
 	/* Phone: one row of cards that scrolls sideways (the next card peeks in), so the four pairs
@@ -203,6 +221,54 @@
 	}
 	.pair {
 		scroll-snap-align: start;
+	}
+	/* While pinned the page drives the row, so no snapping (it would fight every step). */
+	:global(.pinned) .plate {
+		scroll-snap-type: none;
+	}
+	/* The progress track: a short line with a thumb a quarter of its length. */
+	.track {
+		position: relative;
+		width: 64px;
+		height: 2px;
+		margin: 4px auto 0;
+		border-radius: 1px;
+		background: var(--line-strong);
+	}
+	.thumb {
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 16px;
+		height: 100%;
+		border-radius: 1px;
+		background: var(--accent);
+		transform: translateX(calc(var(--p, 0) * 48px));
+	}
+	@supports (animation-timeline: scroll()) {
+		.pp {
+			timeline-scope: --cards;
+		}
+		.plate {
+			scroll-timeline: --cards inline;
+		}
+		.thumb {
+			animation: cards-thumb linear both;
+			animation-timeline: --cards;
+		}
+	}
+	@keyframes cards-thumb {
+		from {
+			transform: translateX(0);
+		}
+		to {
+			transform: translateX(48px);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.track {
+			display: none;
+		}
 	}
 	.pair {
 		margin: 0;
@@ -351,6 +417,9 @@
 	}
 
 	@media (min-width: 600px) {
+		.track {
+			display: none;
+		}
 		.plate {
 			grid-auto-flow: row;
 			grid-template-columns: 1fr 1fr;
