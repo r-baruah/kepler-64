@@ -84,7 +84,26 @@
 	}
 
 	const elapsed = $derived(game.thinking ? Math.max(0, now - game.thinkStart) / 1000 : 0);
+
+	// Phone: the PGN export menu in the top row (shown once a move has been played).
+	let pgnOpen = $state(false);
+	let pgnMenu = $state<HTMLElement | null>(null);
+	let pgnButton = $state<HTMLButtonElement | null>(null);
+	$effect(() => {
+		if (!game.history.length || game.sheet || !play) pgnOpen = false;
+	});
+	function pgnOutside(e: PointerEvent) {
+		if (pgnOpen && pgnMenu && !pgnMenu.contains(e.target as Node)) pgnOpen = false;
+	}
+	function pgnKey(e: KeyboardEvent) {
+		if (pgnOpen && e.key === 'Escape') {
+			pgnOpen = false;
+			pgnButton?.focus();
+		}
+	}
 </script>
+
+<svelte:window onpointerdown={pgnOutside} onkeydown={pgnKey} />
 
 <svelte:head>
 	<title>Kepler-64</title>
@@ -109,7 +128,22 @@
 			<div class="num" class:pos={view !== null && view > 0}>{viewText}</div>
 			<div class="cap" title="Kepler units: one pawn's weight is 1">ku, pawn = 1</div>
 		</div>
-		<button class="meta" onclick={() => (game.sheet = 'universe')}>{game.preset.name}<br />{game.level.name} level</button>
+		<div class="viewright">
+			{#if game.history.length}
+				<div class="pgnmenu" bind:this={pgnMenu}>
+					<button bind:this={pgnButton} class="pgnbtn" aria-label="Export PGN" aria-expanded={pgnOpen} aria-controls="pgn-menu" onclick={() => (pgnOpen = !pgnOpen)}>
+						<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5v9M6.5 9 10 12.5 13.5 9" /><path d="M4 13.5v2.5h12v-2.5" /></svg>
+						<span>PGN</span>
+					</button>
+					{#if pgnOpen}
+						<div class="pgnpop" id="pgn-menu">
+							<PgnActions {game} stack ondownload={() => (pgnOpen = false)} />
+						</div>
+					{/if}
+				</div>
+			{/if}
+			<button class="meta" onclick={() => (game.sheet = 'universe')}>{game.preset.name}<br />{game.level.name} level</button>
+		</div>
 		<div class="legendcol">
 			<div class="cap">Field</div>
 			<FieldLegend mode={game.fieldMode} c={game.preset.constants.c} />
@@ -730,7 +764,7 @@
 	.stage[data-mode='play'] {
 		gap: 8px;
 		padding-top: 10px;
-		padding-bottom: calc(92px + env(safe-area-inset-bottom));
+		padding-bottom: calc(74px + env(safe-area-inset-bottom));
 	}
 	.stage[data-mode='play'] .view {
 		order: 0;
@@ -798,11 +832,61 @@
 	.view .legendcol {
 		display: none;
 	}
+	.viewright {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+	.pgnmenu {
+		position: relative;
+	}
+	.pgnbtn {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-height: var(--tap);
+		padding: 0 12px 0 10px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-pill);
+		background: none;
+		font-size: var(--t-xs);
+		font-weight: 500;
+		color: var(--muted);
+		transition:
+			border-color 0.15s,
+			color 0.15s;
+	}
+	.pgnbtn svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.4;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+	.pgnbtn:hover,
+	.pgnbtn[aria-expanded='true'] {
+		border-color: var(--line-strong);
+		color: var(--ink);
+	}
+	.pgnpop {
+		position: absolute;
+		top: calc(100% + 6px);
+		right: 0;
+		z-index: 20;
+		padding: 4px 0;
+		background: var(--card);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-card-sm);
+		box-shadow: var(--shadow-card);
+	}
+	/* Phone: the dock is a slim bar along the bottom edge. */
 	.dockwrap {
 		position: fixed;
-		left: var(--gutter);
-		right: var(--gutter);
-		bottom: max(12px, env(safe-area-inset-bottom));
+		left: 0;
+		right: 0;
+		bottom: 0;
 		z-index: 10;
 	}
 
@@ -848,11 +932,13 @@
 		}
 
 		.stage[data-mode='play'] {
-			--bw: min(600px, max(320px, calc(100dvh - 300px)));
+			/* The side columns and the gap give way first on narrow desktops (900 to 1100px), then the
+			   board, so the page never scrolls sideways; at 1100px and up this is the full layout. */
+			--bw: min(600px, max(320px, calc(100dvh - 300px)), calc(100vw - 460px));
 			display: grid;
-			grid-template-columns: 236px var(--bw) 236px;
+			grid-template-columns: minmax(150px, 236px) var(--bw) minmax(150px, 236px);
 			justify-content: center;
-			column-gap: 48px;
+			column-gap: clamp(20px, 4vw, 48px);
 			align-items: start;
 			padding: 18px 32px 24px;
 		}
@@ -876,7 +962,8 @@
 			padding-top: 40px;
 			font-size: 13px;
 		}
-		.view .meta {
+		.view .meta,
+		.viewright {
 			display: none;
 		}
 		.view .num {

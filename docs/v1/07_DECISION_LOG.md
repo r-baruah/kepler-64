@@ -60,3 +60,8 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 - **Universe names:** Home, Genesis, First Light, Hunger, Roche, Undertow (web plan §5c). Untrained variants say "Variant of Home, not trained", never a game count.
 - **Open problems:** a short doc (`11_OPEN_PROBLEMS.md`) linked from the site footer, not a page, until someone takes one up.
 - **Citation:** `CITATION.cff` rewritten for v1 (the v0 title overclaimed, and the licence said Apache-2.0; the repo is MIT). The site's BibTeX is generated from it by `sync-data.mjs`.
+
+## 2026-10-26 · Concept round closed: keep the current site, borrow the photo plate
+- Three landing concepts (Orbital, Plate, Editorial; `docs/v1/wireframes/pass4/`) were compared. The maintainer keeps the current design and takes one idea only: a real space photograph turned into a framed, two-tone banner (from concept B), without its scan line, cross grid or drift.
+- It goes in the closing open-source band. The photo is NASA AS17-152-23272 (Earth rising over the Moon, Apollo 17, 1972), which is public domain, with credit in `web/static/images/CREDITS.md`.
+- Also adopted: the slimmer icon dock on phone, and a small PGN export button in the phone Play screen's top row.

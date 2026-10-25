@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kepler-64 Plate</title>
+<style>
+:root{
+  --bg:#F1EEE6;--ink:#121C33;--ink-2:#2B3A5C;--muted:#596276;--line:#D6D0C2;--accent:#1F3F8C;
+  --card:#F9F7F1;--soft:#E7E2D6;--sq-l:#EDE8DB;--sq-d:#C9CDD5;--pull-w:#C9974F;--pull-b:#3E5FA8;
+  --plate-ink:#F1EEE6;--duo:url(#duo-light);--reseau:rgba(241,238,230,.5);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#10141C;--ink:#ECE8DE;--ink-2:#CFC9BA;--muted:#9C998F;--line:#2A303C;--accent:#93B2F2;
+  --card:#161B25;--soft:#1C2230;--sq-l:#3C4351;--sq-d:#2C323E;--pull-w:#D9AE72;--pull-b:#7E9EE0;--tint:50%;
+  --plate-ink:#ECE8DE;--duo:url(#duo-dark);--reseau:rgba(236,232,222,.32);
+}}
+:root[data-theme=dark]{
+  --bg:#10141C;--ink:#ECE8DE;--ink-2:#CFC9BA;--muted:#9C998F;--line:#2A303C;--accent:#93B2F2;
+  --card:#161B25;--soft:#1C2230;--sq-l:#3C4351;--sq-d:#2C323E;--pull-w:#D9AE72;--pull-b:#7E9EE0;--tint:50%;
+  --plate-ink:#ECE8DE;--duo:url(#duo-dark);--reseau:rgba(236,232,222,.32);
+}
+@font-face{font-family:Geist;src:url(assets/fonts/geist-latin-wght-normal.woff2) format('woff2');font-weight:100 900;font-display:swap}
+@font-face{font-family:'Geist Mono';src:url(assets/fonts/geist-mono-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Geist Mono';src:url(assets/fonts/geist-mono-latin-500-normal.woff2) format('woff2');font-weight:500;font-display:swap}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Geist,system-ui,sans-serif;font-size:16px;line-height:1.5;overflow-x:clip;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:inherit}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.bd{display:grid;grid-template-columns:repeat(var(--n),1fr);aspect-ratio:1;container-type:inline-size;position:relative;user-select:none}
+.bd .sq{position:relative;display:grid;place-items:center;background:var(--sq-l)}
+.bd .sq.d{background:var(--sq-d)}
+.bd .sq.l.pw{background:color-mix(in srgb,var(--pull-w) var(--tint,42%),var(--sq-l))}
+.bd .sq.d.pw{background:color-mix(in srgb,var(--pull-w) var(--tint,42%),var(--sq-d))}
+.bd .sq.l.pb{background:color-mix(in srgb,var(--pull-b) var(--tint,42%),var(--sq-l))}
+.bd .sq.d.pb{background:color-mix(in srgb,var(--pull-b) var(--tint,42%),var(--sq-d))}
+.bd .pc{font-family:'DejaVu Sans','Segoe UI Symbol','Noto Sans Symbols 2',serif;font-size:calc(100cqw / var(--n) * .74);line-height:1;transform:translateY(-.03em)}
+.bd .pc.w{color:#FBFAF6;-webkit-text-stroke:.035em #1B1B1E;paint-order:stroke fill}
+.bd .pc.b{color:#16161A}
+.bd .rk,.bd .fl{position:absolute;font:500 calc(100cqw / var(--n) * .16)/1 'Geist Mono',monospace;font-style:normal;color:var(--ink);opacity:.55}
+.bd .rk{left:5%;top:5%}.bd .fl{right:6%;bottom:5%}
+.bd .lb{position:absolute;font:500 calc(100cqw / var(--n) * .3)/1 'Geist Mono',monospace;color:var(--ink)}
+
+.ico-sun{display:none}
+:root[data-theme=dark] .ico-sun{display:block}:root[data-theme=dark] .ico-moon{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .ico-sun{display:block}:root:not([data-theme=light]) .ico-moon{display:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.dock{display:grid;grid-template-columns:repeat(5,1fr)}
+.dock button{background:none;border:0;color:inherit;font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 6px;cursor:pointer}
+.dock button span{font-size:11px;line-height:1;white-space:nowrap}
+.dock button em{font-style:normal;opacity:.7}
+.phone{width:340px;max-width:100%;border:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.phone .top{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-size:13px}
+.phone .bd{margin:0 0 18px}
+.dsec{display:grid;grid-template-columns:auto 1fr;gap:56px;align-items:center}
+.dsec .note{max-width:24em}
+@media (max-width:900px){.dsec{grid-template-columns:1fr;gap:24px;justify-items:center}.dsec .note{justify-self:start}}
+
+.wrap{max-width:1280px;margin:0 auto;padding:0 40px}
+@media (max-width:700px){.wrap{padding:0 16px}}
+.lab{font:500 11px/1.3 'Geist Mono';letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+/* top strip */
+.strip{border-bottom:1px solid var(--ink)}
+.strip .wrap{display:flex;align-items:center;gap:24px;height:56px}
+.brand{font:600 15px Geist;letter-spacing:-.01em;text-decoration:none;display:flex;gap:10px;align-items:center}
+.brand small{font:500 11px 'Geist Mono';letter-spacing:.08em;color:var(--muted);border-left:1px solid var(--line);padding-left:10px}
+.links{display:flex;gap:22px;font-size:14px;color:var(--ink-2)}.links a{text-decoration:none}
+.soon{font:500 10px 'Geist Mono';color:var(--muted);border:1px solid var(--line);padding:1px 5px;margin-left:5px}
+.sp{flex:1}
+.icon-btn{background:none;border:1px solid var(--line);color:var(--ink);width:34px;height:34px;display:grid;place-items:center;cursor:pointer}
+.gh{font-size:14px;border:1px solid var(--ink);padding:6px 12px;text-decoration:none}
+@media (max-width:860px){.links,.gh,.brand small{display:none}}
+/* hero */
+.hero{padding:40px 0 80px}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);grid-template-areas:"plate side" "copy side" ". side";grid-template-rows:auto auto 1fr;column-gap:56px;align-content:start;align-items:start}
+.platebox{grid-area:plate}
+.platehead{display:flex;justify-content:space-between;padding-bottom:10px}
+.plate{position:relative;aspect-ratio:5/4;overflow:hidden;background:#142A5C;outline:1px solid var(--ink);outline-offset:6px}
+.plate img{position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;object-position:30% 60%;filter:var(--duo);animation:drift 70s ease-in-out infinite alternate;transform-origin:70% 40%}
+@keyframes drift{from{transform:scale(1) translate(0,0)}to{transform:scale(1.06) translate(-1.5%,1%)}}
+.plate .reseau{position:absolute;inset:0;background-image:
+  linear-gradient(var(--reseau),var(--reseau)),linear-gradient(var(--reseau),var(--reseau));
+  background-size:13px 1px,1px 13px;background-repeat:no-repeat}
+.plate svg.res{position:absolute;inset:0;width:100%;height:100%;color:var(--reseau)}
+.plate .scan{position:absolute;left:0;right:0;height:1px;background:var(--plate-ink);opacity:.55;top:0;animation:scan 14s linear infinite}
+.plate .scan::after{content:"";position:absolute;right:16px;top:-4px;width:9px;height:9px;border:1px solid var(--plate-ink)}
+@keyframes scan{from{top:0}to{top:100%}}
+.plate h1{position:absolute;left:36px;top:32px;right:36px;color:var(--plate-ink);font-size:clamp(36px,3.5vw,52px);line-height:1.02;letter-spacing:-.04em;font-weight:500;max-width:11.5ch}
+.plate .corner{position:absolute;font:500 10px 'Geist Mono';letter-spacing:.09em;color:var(--plate-ink);opacity:.85}
+.plate .c1{right:16px;top:14px}.plate .c2{left:16px;bottom:14px}
+.platecap{display:flex;justify-content:space-between;gap:24px;padding-top:16px;font:400 12px/1.45 'Geist Mono';color:var(--muted)}
+.copy{grid-area:copy;padding-top:28px;display:grid;grid-template-columns:1fr auto;gap:32px;align-items:end;border-top:1px solid var(--line);margin-top:24px}
+.sub{font-size:19px;line-height:1.45;color:var(--ink-2);max-width:27em}
+.cta{display:flex;gap:10px}
+.btn{font:500 15px Geist;padding:13px 22px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer;white-space:nowrap}
+.btn.o{background:transparent;color:var(--ink)}
+.side{grid-area:side;display:flex;flex-direction:column}
+.side .bd{outline:1px solid var(--ink);outline-offset:6px}
+.legend{display:flex;gap:18px;margin-top:20px;font-size:12.5px;color:var(--muted)}
+.legend span{display:flex;gap:7px;align-items:center}.legend i{width:11px;height:11px;display:inline-block}
+.cat{margin-top:36px;border-top:1px solid var(--ink)}
+.cat .row{display:grid;grid-template-columns:28px 1fr 60px 64px;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.cat .row.h{padding:12px 0 8px}
+.cat .dot{border-radius:50%;background:var(--ink);justify-self:center}
+.cat .row.q .dot{background:var(--accent)}
+.cat .v{font:500 14px 'Geist Mono';text-align:right}
+.cat .bar{height:3px;background:var(--ink-2);opacity:.6}
+.cat .foot{display:flex;justify-content:space-between;padding-top:10px}
+.cat .foot a{color:var(--accent);text-decoration:none}
+@media (max-width:960px){
+  .hero{padding:20px 0 56px}
+  .hero .wrap{grid-template-columns:1fr;grid-template-areas:"plate" "copy" "side";grid-template-rows:none}
+  .plate{aspect-ratio:4/5}
+  .plate img{object-position:35% 55%}
+  .plate h1{left:20px;top:22px;font-size:38px;max-width:9ch}
+  .copy{grid-template-columns:1fr;gap:24px;margin-top:20px;padding-top:24px;margin-bottom:44px;border-top:0}
+  .sub{font-size:17px}
+  .platecap{flex-direction:column;gap:2px;font-size:11.5px}
+  .cta .btn{flex:1}
+}
+/* section 03 */
+.sec{border-top:1px solid var(--ink);padding:96px 0 112px}
+.sh{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:56px;align-items:end;margin-bottom:48px}
+.sh .lab{color:var(--accent);margin-bottom:18px}
+h2{font-size:clamp(32px,4vw,54px);line-height:1.02;letter-spacing:-.035em;font-weight:500}
+.sh p{font-size:17px;color:var(--ink-2)}
+.ledger{width:100%;border-collapse:collapse;font-size:15px}
+.ledger th{text-align:left;font:500 11px 'Geist Mono';letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:0 16px 12px 0;border-bottom:1px solid var(--ink)}
+.ledger td{padding:18px 16px 18px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+.ledger td.no{font:500 12px 'Geist Mono';color:var(--muted);width:48px}
+.ledger td.law{font-size:18px;font-weight:500;letter-spacing:-.015em}
+.ledger td.why{color:var(--muted)}
+.stamp{display:inline-block;font:500 10.5px 'Geist Mono';letter-spacing:.1em;padding:4px 8px;border:1px solid currentColor;text-transform:uppercase;white-space:nowrap}
+.stamp.k{color:var(--ink);background:var(--soft)}
+.stamp.cb{color:var(--accent)}
+.stamp.r{color:var(--muted);border-style:dashed}
+.ledger td.u a{color:var(--accent);text-decoration:none;white-space:nowrap}
+.ledger td.u span{color:var(--muted)}
+.plates{display:grid;grid-template-columns:repeat(6,1fr);gap:20px;margin-top:64px}
+.up{display:flex;flex-direction:column;gap:10px}
+.up .fig{aspect-ratio:1;border:1px solid var(--ink);position:relative;background:var(--card)}
+.up .fig svg{width:100%;height:100%;color:var(--ink)}
+.up .fig .n{position:absolute;left:8px;top:7px;font:500 10px 'Geist Mono';color:var(--muted);letter-spacing:.08em}
+.up h3{font-size:16px;font-weight:600;letter-spacing:-.01em;display:flex;justify-content:space-between;align-items:baseline}
+.up h3 a{font:500 12px 'Geist Mono';color:var(--accent);text-decoration:none}
+.up p{font-size:13.5px;color:var(--muted);line-height:1.4}
+@media (max-width:960px){
+  .sec{padding:64px 0 72px}
+  .sh{grid-template-columns:1fr;gap:14px;margin-bottom:28px}
+  .ledger thead{display:none}
+  .ledger tr{display:grid;grid-template-columns:40px 1fr auto;grid-template-areas:"no law st" "no why why" "no u u";row-gap:4px;padding:16px 0;border-bottom:1px solid var(--line)}
+  .ledger tr:first-child{border-top:1px solid var(--ink)}
+  .ledger td{border:0;padding:0}
+  .ledger td.no{grid-area:no;padding-top:3px}.ledger td.law{grid-area:law;font-size:16.5px}.ledger td.st{grid-area:st}.ledger td.why{grid-area:why;font-size:14px}.ledger td.u{grid-area:u;font-size:14px;padding-top:4px}
+  .plates{grid-template-columns:repeat(2,1fr);gap:24px 14px;margin-top:44px}
+}
+footer{border-top:1px solid var(--ink);padding:22px 0}
+footer .wrap{display:flex;justify-content:space-between;gap:16px}
+.dk{padding:80px 0}
+.dk .phone{border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:5px}
+.dk .dock{border-top:1px solid var(--ink)}
+.dk .dock button+button{border-left:1px solid var(--line)}
+.dk .dock button span{font:500 9.5px 'Geist Mono';letter-spacing:.03em;text-transform:uppercase}
+.dk .dock button em{color:var(--accent);opacity:1}
+.dk .note .lab{color:var(--accent);margin-bottom:14px}
+.dh{font-size:28px;font-weight:500;letter-spacing:-.025em;margin-bottom:10px}.dp{color:var(--muted)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="duo-light" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncR type="table" tableValues="0.078 0.914"/><feFuncG type="table" tableValues="0.165 0.929"/><feFuncB type="table" tableValues="0.361 0.953"/></feComponentTransfer></filter>
+  <filter id="duo-dark" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncR type="table" tableValues="0.051 0.70"/><feFuncG type="table" tableValues="0.071 0.74"/><feFuncB type="table" tableValues="0.106 0.80"/></feComponentTransfer></filter>
+</svg>
+<div class="strip"><div class="wrap">
+  <a class="brand" href="#">Kepler-64<small>A FIELD STUDY OF CHESS</small></a>
+  <div class="links"><a href="#">Play</a><a href="#">How it works</a><a href="#ledger">Law Ledger</a><a href="#">Lab<span class="soon">Soon</span></a></div>
+  <div class="sp"></div>
+  <button class="icon-btn" onclick="toggleTheme()" aria-label="Switch light or dark"><svg class="ico-moon" width="16" height="16" viewBox="0 0 16 16"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1Z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg><svg class="ico-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3"/></svg></button>
+  <a class="gh" href="#">Star on GitHub</a>
+</div></div>
+
+<header class="hero"><div class="wrap">
+  <div class="platebox">
+    <div class="platehead"><span class="lab">Plate I</span><span class="lab">Earth over the Moon</span></div>
+    <div class="plate">
+      <img src="assets/nasa/as17-152-23272-medium.jpg" alt="The crescent Earth rising above the Moon's horizon, photographed from Apollo 17 in lunar orbit.">
+      <svg class="res" aria-hidden="true"><defs><pattern id="rs" width="64" height="64" patternUnits="userSpaceOnUse"><path d="M32 27v10M27 32h10" stroke="currentColor" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(#rs)"/></svg>
+      <div class="scan"></div>
+      <h1>A tiny universe that learned to play chess.</h1>
+      <span class="corner c2">IMAGE: NASA</span>
+    </div>
+    <div class="platecap"><span>Earth rising over the Moon, Apollo 17, December 1972.</span><span>NASA AS17-152-23272</span></div>
+  </div>
+  <div class="copy">
+    <p class="sub">We gave chess its own physics. Pieces have mass and pull along the lines they can move. It learned the rest by playing itself.</p>
+    <div class="cta"><button class="btn">Play White</button><button class="btn o">Play Black</button></div>
+  </div>
+  <aside class="side">
+    <div class="platehead"><span class="lab">Plate II</span><span class="lab">The field, illustrative</span></div>
+    <div id="hero-board"></div>
+    <div class="legend"><span><i style="background:color-mix(in srgb,var(--pull-w) 42%,var(--sq-l))"></i>White pulls harder</span><span><i style="background:color-mix(in srgb,var(--pull-b) 42%,var(--sq-l))"></i>Black pulls harder</span></div>
+    <div class="cat" id="cat"></div>
+  </aside>
+</div></header>
+
+<section class="sec" id="ledger"><div class="wrap">
+  <div class="sh">
+    <div><div class="lab">03 / The Law Ledger</div><h2>Every law has to earn its place.</h2></div>
+    <p>Each law played against a copy of the engine without it. Laws that helped stayed. The rest became alternate universes.</p>
+  </div>
+  <table class="ledger">
+    <thead><tr><th>No.</th><th>Law</th><th>Verdict</th><th>Finding</th><th>Universe</th></tr></thead>
+    <tbody>
+      <tr><td class="no">1</td><td class="law">Pull follows the moves</td><td class="st"><span class="stamp k">Kept</span></td><td class="why">Beats counting pieces alone, by far</td><td class="u"><span>Home</span></td></tr>
+      <tr><td class="no">2</td><td class="law">Squares belong to the stronger pull</td><td class="st"><span class="stamp k">Kept</span></td><td class="why">Control of space</td><td class="u"><span>Home</span></td></tr>
+      <tr><td class="no">3</td><td class="law">Defenders hold pieces together</td><td class="st"><span class="stamp cb">Came back</span></td><td class="why">Cut at first, useful later</td><td class="u"><span>Home</span></td></tr>
+      <tr><td class="no">4</td><td class="law">Captures absorb weight</td><td class="st"><span class="stamp r">Rejected</span></td><td class="why">Better switched off</td><td class="u"><a href="#">Play Hunger</a></td></tr>
+      <tr><td class="no">5</td><td class="law">A king torn apart by pull</td><td class="st"><span class="stamp r">Rejected twice</span></td><td class="why">Two designs, neither helped</td><td class="u"><a href="#">Play Roche</a> &nbsp; <a href="#">Play Undertow</a></td></tr>
+    </tbody>
+  </table>
+  <div class="plates" id="plates"></div>
+</div></section>
+<section class="sec dk"><div class="wrap dsec">
+  <div class="phone"><div class="top"><span>Your move</span><span class="mono">Home</span></div><div id="pboard"></div><div class="dock" id="dock" role="toolbar" aria-label="Game actions"></div></div>
+  <div class="note"><div class="lab">Play screen / phone</div><h3 class="dh">A slimmer dock.</h3><p class="dp">Five actions as icons with short labels. Field shows its current mode.</p></div>
+</div></section>
+<footer><div class="wrap"><span class="lab">Concept B: Plate. Wireframe pass 4.</span><span class="lab">Photograph: NASA, public domain</span></div></footer>
+
+<script>
+/* shared: theme toggle + static board drawing (no engine) */
+(function(){
+  var root=document.documentElement, q=new URLSearchParams(location.search).get('theme');
+  if(q==='light'||q==='dark') root.dataset.theme=q;
+  window.toggleTheme=function(){
+    var cur=root.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    root.dataset.theme=cur==='dark'?'light':'dark';
+  };
+})();
+var GL={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+/* fen: ranks top to bottom; field: string of n*n chars w/b/.; labels: {index:text}; delay: fn(r,c)->seconds or null */
+function drawBoard(el,o){
+  var n=o.n||8, rows=(o.fen||'').split('/'), field=o.field||'', out='';
+  el.classList.add('bd'); el.style.setProperty('--n',n);
+  for(var r=0;r<n;r++){
+    var row=[], s=rows[r]||String(n);
+    for(var i=0;i<s.length;i++){var ch=s[i]; if(/\d/.test(ch)){for(var k=0;k<+ch;k++)row.push('');} else row.push(ch);}
+    for(var c=0;c<n;c++){
+      var idx=r*n+c, f=field[idx]||'.', p=row[c]||'';
+      var cls='sq '+((r+c)%2?'d':'l')+(f==='w'?' pw':f==='b'?' pb':'')+(f==='x'?' px':'');
+      var st=o.delay?' style="--d:'+o.delay(r,c,f).toFixed(2)+'s"':'';
+      out+='<div class="'+cls+'"'+st+'>';
+      if(o.coords&&c===0) out+='<i class="rk">'+(n-r)+'</i>';
+      if(o.coords&&r===n-1) out+='<i class="fl">'+'abcdefgh'[c]+'</i>';
+      if(p) out+='<span class="pc '+(p===p.toUpperCase()?'w':'b')+'">'+GL[p.toLowerCase()]+'︎</span>';
+      if(o.labels&&o.labels[idx]!=null) out+='<b class="lb">'+o.labels[idx]+'</b>';
+      out+='</div>';
+    }
+  }
+  el.innerHTML=out;
+}
+var START='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+var START_FIELD='bbbbbbbb'+'bbbbbbbb'+'bbbbbbbb'+'........'+'........'+'wwwwwwww'+'wwwwwwww'+'wwwwwwww';
+/* rook on d2, own pawn on d5: pull along rank 2, d1, and up the file to d5, no further */
+var ROOK_FEN='8/8/8/3P4/8/8/3R4/8';
+var ROOK_FIELD=(function(){var f='';for(var r=0;r<8;r++)for(var c=0;c<8;c++){var on=(r===6&&c!==3)||(c===3&&(r===7||(r>=3&&r<=5)));f+=on?'w':'.';}return f;})();
+/* phone Play-screen dock mock: five actions as icons with short labels */
+var DOCK=[
+ ['New','<path d="M10 4v12M4 10h12"/>'],
+ ['Undo','<path d="M7.5 5 4 8.5 7.5 12"/><path d="M4 8.5h7.5a4.5 4.5 0 0 1 0 9H9"/>'],
+ ['Field','<rect x="3.5" y="3.5" width="13" height="13" rx="1"/><path d="M10 3.5v13M3.5 10h13"/><rect x="3.5" y="10" width="6.5" height="6.5" fill="currentColor" opacity=".35" stroke="none"/>','Pull'],
+ ['Universe','<ellipse cx="10" cy="10" rx="7.5" ry="4" transform="rotate(-20 10 10)"/><circle cx="10" cy="10" r="2" fill="currentColor" stroke="none"/>'],
+ ['More','<circle cx="4.5" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.2" fill="currentColor" stroke="none"/>']
+];
+function drawDock(el){
+  el.innerHTML=DOCK.map(function(d){return '<button type="button" aria-label="'+d[0]+(d[2]?': '+d[2]:'')+'"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">'+d[1]+'</svg><span>'+d[0]+(d[2]?'<em> '+d[2]+'</em>':'')+'</span></button>'}).join('');
+}
+
+drawBoard(document.getElementById('hero-board'),{fen:START,field:START_FIELD,coords:true});
+var W=[['Pawn',1],['Knight',2.7],['Bishop',3.1],['Rook',4.2],['Queen',7.4]];
+document.getElementById('cat').innerHTML='<div class="foot lab" style="padding:12px 0 8px;border-bottom:1px solid var(--line)"><span>Weights in this universe</span><span>Pawn = 1</span></div>'+
+ W.map(function(w){var d=(7*Math.sqrt(w[1])).toFixed(1);return '<div class="row'+(w[0]==='Queen'?' q':'')+'"><span class="dot" style="width:'+d+'px;height:'+d+'px"></span><span>'+w[0]+'</span><span class="bar" style="width:'+(w[1]/7.4*60).toFixed(0)+'px"></span><span class="v">'+w[1].toFixed(1)+'</span></div>'}).join('')+
+ '<div class="foot lab"><span>Area shows weight. Learned by self-play.</span><a href="#">Home</a></div>';
+/* universe plates: line drawings, five bodies sized by weight (sqrt) */
+function bodies(ws,opt){opt=opt||{};var x=[22,42,61,80,100],o='<path d="M10 80 Q60 52 112 80" fill="none" stroke="currentColor" stroke-width=".6" opacity=".45"/>';
+ ws.forEach(function(w,i){var r=(2.1*Math.sqrt(w)).toFixed(2),y=(80-28*Math.sin(Math.PI*(x[i]-10)/102)*0.98).toFixed(1);
+   o+=opt.hollow?'<circle cx="'+x[i]+'" cy="'+y+'" r="'+r+'" fill="none" stroke="currentColor" stroke-dasharray="1.5 1.5"/>':'<circle cx="'+x[i]+'" cy="'+y+'" r="'+r+'" fill="'+(i===4&&!opt.mono?'var(--accent)':'currentColor')+'"/>';});
+ return o;}
+var U=[
+ ['Home','The champion. Weights it learned itself.',bodies([1,2.7,3.1,4.2,7.4]),1],
+ ['Genesis','All pieces born the same weight.',bodies([3,3,3,3,3],{mono:1}),1],
+ ['First Light','Before any learning.','<path d="M10 80 Q60 52 112 80" fill="none" stroke="currentColor" stroke-width=".6" stroke-dasharray="2 2" opacity=".6"/>'+[22,42,61,80,100].map(function(x){var y=(80-28*Math.sin(Math.PI*(x-10)/102)*0.98).toFixed(1);return '<path d="M'+x+' '+(y-4)+'v8" stroke="currentColor"/>'}).join(''),1],
+ ['Hunger','Captures absorb weight.',bodies([1,2.7,3.1,4.2,7.4])+'<path d="M61 50 Q72 38 79 51" fill="none" stroke="currentColor" stroke-dasharray="1.6 1.6"/><path d="M76 49l3 2.4 .6-3.6" fill="none" stroke="currentColor"/>',1],
+ ['Roche','A king can be torn apart, like a moon too close to its planet.','<circle cx="44" cy="62" r="16" fill="currentColor"/><circle cx="76" cy="50" r="5" fill="none" stroke="currentColor"/><circle cx="85" cy="47" r="1.8" fill="currentColor"/><circle cx="90" cy="51" r="1.2" fill="currentColor"/><circle cx="87" cy="55" r="1" fill="currentColor"/><path d="M60 62 Q70 58 76 55" fill="none" stroke="currentColor" stroke-width=".6" opacity=".5"/>',1],
+ ['Undertow','Enemy pull drags on the king’s body.','<ellipse cx="61" cy="60" rx="9" ry="6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="61" cy="60" r="2" fill="currentColor"/><path d="M48 60H26M74 60h22M30 57l-4 3 4 3M92 57l4 3-4 3" fill="none" stroke="var(--accent)" stroke-width="1"/>',1]
+];
+document.getElementById('plates').innerHTML=U.map(function(u,i){return '<div class="up"><div class="fig"><span class="n">U'+(i+1)+'</span><svg viewBox="0 0 122 122">'+u[2]+'</svg></div><h3>'+u[0]+'<a href="#">Play</a></h3><p>'+u[1]+'</p></div>'}).join('');
+drawBoard(document.getElementById('pboard'),{fen:START,field:START_FIELD});drawDock(document.getElementById('dock'));
+</script>
+</body>
+</html>

@@ -205,20 +205,40 @@
 		</div>
 	</section>
 
-	<section class="open" use:reveal>
-		<div class="opentext">
-			<svg width="32" height="32" viewBox="0 0 20 20" aria-hidden="true"
-				><circle cx="10" cy="10" r="4" fill="currentColor" /><ellipse cx="10" cy="10" rx="9" ry="3.4" fill="none" stroke="currentColor" stroke-width="1.2" transform="rotate(-20 10 10)" /></svg
-			>
-			<h2>Open source, all of it.</h2>
-			<p>The engine, the training runs and every number on this page are on GitHub.</p>
-			<a class="problems" href="https://github.com/r-baruah/kepler-64/blob/v1/docs/v1/11_OPEN_PROBLEMS.md">Open problems <span aria-hidden="true">&rarr;</span></a>
+	<section class="open" use:reveal aria-labelledby="open-h">
+		<div class="plate">
+			<div class="opentext">
+				<svg width="32" height="32" viewBox="0 0 20 20" aria-hidden="true"
+					><circle cx="10" cy="10" r="4" fill="currentColor" /><ellipse cx="10" cy="10" rx="9" ry="3.4" fill="none" stroke="currentColor" stroke-width="1.2" transform="rotate(-20 10 10)" /></svg
+				>
+				<h2 id="open-h">Open source, all of it.</h2>
+				<p>The engine, the training runs and every number on this page are on GitHub.</p>
+				<a class="problems" href="https://github.com/r-baruah/kepler-64/blob/v1/docs/v1/11_OPEN_PROBLEMS.md">Open problems <span aria-hidden="true">&rarr;</span></a>
+				<div class="openbtns">
+					<a class="b1" href="https://github.com/r-baruah/kepler-64">Star on GitHub</a>
+					<a class="b2" href="https://github.com/r-baruah/kepler-64">View the code</a>
+					<button class="b2" onclick={() => (citeOpen = true)}>Cite</button>
+				</div>
+			</div>
+			<!-- The photograph, in the plate's two tones (see .duo). Its sky is the plate's own colour, so the
+			     photo has no visible edge on the sky side; the text never sits over the Moon or the Earth. -->
+			<div class="photo">
+				<div class="duo">
+					<picture>
+						<source type="image/webp" srcset="/images/earthrise-as17-152-23272-800.webp 800w, /images/earthrise-as17-152-23272.webp 1280w" sizes="(min-width: 700px) 60vw, 130vw" />
+						<img
+							src="/images/earthrise-as17-152-23272.jpg"
+							alt="A crescent Earth rising over the grey, cratered horizon of the Moon, seen from Apollo 17 in lunar orbit."
+							width="1280"
+							height="1280"
+							loading="lazy"
+							decoding="async"
+						/>
+					</picture>
+				</div>
+			</div>
 		</div>
-		<div class="openbtns">
-			<a class="b1" href="https://github.com/r-baruah/kepler-64">Star on GitHub</a>
-			<a class="b2" href="https://github.com/r-baruah/kepler-64">View the code</a>
-			<button class="b2" onclick={() => (citeOpen = true)}>Cite</button>
-		</div>
+		<p class="platecap mono">Earth rising over the Moon, Apollo 17, 1972&nbsp;&middot;&nbsp;NASA</p>
 	</section>
 
 	<footer class="foot">
@@ -594,28 +614,51 @@
 		text-decoration: underline;
 	}
 
-	/* 4. open source */
+	/* 4. open source: a photo plate. The NASA photograph (Earthrise, AS17-152-23272) is set in two
+	   tones from the tokens: black maps to --plate-lo, white to --plate-hi. The sky is pure black in the
+	   original, so it comes out exactly the plate's background and the text sits on it, never on the
+	   Moon or the Earth. Phone: text above the photo. From 700px: text left, photo right. */
 	.open {
 		margin: 16px 0;
-		padding: 28px 22px;
-		border-radius: 24px;
-		background: var(--band);
-		color: var(--band-ink);
-		box-shadow: inset 0 0 0 1px var(--line);
-		display: flex;
-		flex-direction: column;
-		gap: 18px;
-	}
-	.opentext {
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+	}
+	.plate {
+		position: relative;
+		overflow: hidden;
+		border-radius: 24px;
+		background: var(--plate-lo);
+		color: var(--band-ink);
+		/* the plate mount: a thin rule just outside the plate */
+		outline: 1px solid var(--line-strong);
+		outline-offset: 5px;
+		display: flex;
+		flex-direction: column;
+	}
+	/* the plate's edge rule, drawn over the photo too */
+	.plate::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: 2;
+		border-radius: inherit;
+		box-shadow: inset 0 0 0 1px var(--line);
+		pointer-events: none;
+	}
+	.opentext {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 28px 22px 4px;
 	}
 	.open h2 {
 		font-size: 28px;
 		letter-spacing: -0.03em;
 	}
-	.open p {
+	.opentext p {
 		color: var(--band-muted);
 		font-size: 16px;
 		max-width: 460px;
@@ -636,6 +679,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+		margin-top: 6px;
 	}
 	.openbtns a,
 	.openbtns button {
@@ -646,15 +690,16 @@
 		font-size: 15px;
 		border-radius: var(--radius-pill);
 		min-height: 48px;
+		padding: 0 22px;
 		background: none;
 	}
 	.b1 {
 		background: var(--band-ink) !important;
-		color: var(--band);
+		color: var(--plate-lo);
 		min-height: 52px !important;
 	}
 	.b1:hover {
-		color: var(--band);
+		color: var(--plate-lo);
 		opacity: 0.9;
 	}
 	.b2 {
@@ -664,6 +709,52 @@
 	.b2:hover {
 		color: var(--band-ink);
 		border-color: var(--band-ink);
+	}
+	/* The photo window. --ex/--ey place the Earth's centre in the window; --s is the photo's width. */
+	.photo {
+		position: relative;
+		overflow: hidden;
+		aspect-ratio: 4 / 3;
+		--s: 125%;
+		--ex: 46%;
+		--ey: 62%;
+	}
+	.duo {
+		position: absolute;
+		left: var(--ex);
+		top: var(--ey);
+		width: var(--s);
+		aspect-ratio: 1;
+		/* the Earth's centre in the photograph, as a fraction of its width and height */
+		transform: translate(-47.5%, -58%);
+		/* Duotone: a grey photo multiplied onto the light tone, then the dark tone screened on top.
+		   Black becomes --plate-lo, white about --plate-hi. */
+		background: var(--plate-hi);
+		isolation: isolate;
+	}
+	.duo::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: var(--plate-lo);
+		mix-blend-mode: screen;
+		pointer-events: none;
+	}
+	.duo img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		/* contrast() also takes the film's near-black sky (at most 11/255) to pure black, so the sky
+		   meets the plate with no seam */
+		filter: grayscale(1) contrast(1.14);
+		mix-blend-mode: multiply;
+	}
+	.platecap {
+		margin: 4px 0 0;
+		padding: 0 6px;
+		font-size: 11.5px;
+		line-height: 1.5;
+		color: var(--muted);
 	}
 
 	.foot {
@@ -705,6 +796,21 @@
 	}
 
 	@media (min-width: 700px) {
+		.plate {
+			display: grid;
+			grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+		}
+		.opentext {
+			padding: 36px 28px 36px 32px;
+		}
+		.photo {
+			aspect-ratio: auto;
+			/* sized by the text beside it; cqw/cqh below are this window's own width and height */
+			container-type: size;
+			--s: max(110cqw, 130cqh);
+			--ex: 45%;
+			--ey: 60%;
+		}
 		.keptrow {
 			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
@@ -802,25 +908,32 @@
 		.ucard:not(.wide) .unis {
 			grid-template-columns: 1fr;
 		}
-		.open {
-			padding: 56px;
+		.plate {
 			border-radius: 28px;
-			flex-direction: row;
-			justify-content: space-between;
-			align-items: center;
-			gap: 48px;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		}
+		.opentext {
+			padding: 56px 24px 56px 56px;
 		}
 		.open h2 {
 			font-size: 40px;
 			letter-spacing: -0.035em;
 		}
-		.open p {
+		.opentext p {
 			font-size: 17px;
 			line-height: 1.55;
 		}
 		.openbtns {
-			width: 260px;
-			flex: none;
+			flex-direction: row;
+			flex-wrap: wrap;
+			margin-top: 14px;
+		}
+		.openbtns a,
+		.openbtns button {
+			padding: 0 20px;
+		}
+		.platecap {
+			font-size: 12px;
 		}
 		.foot {
 			flex-direction: row;

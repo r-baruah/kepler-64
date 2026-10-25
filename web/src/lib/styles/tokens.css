@@ -16,6 +16,10 @@
 	--band: #17223b;
 	--band-ink: #e6e9ef;
 	--band-muted: #b5bdcc;
+	/* Photo plate (the closing banner): the photograph's two tones. Its black sky maps to --plate-lo,
+	   which is also the plate's own background, so text can sit anywhere in the sky. */
+	--plate-lo: #17223b;
+	--plate-hi: #dfe4ee;
 
 	/* Ink */
 	--ink: #14213d;
@@ -86,6 +90,8 @@
 	--band: #171d27;
 	--band-ink: #e3e7ee;
 	--band-muted: #9ea7b8;
+	--plate-lo: #141a24;
+	--plate-hi: #8d96a8;
 
 	--ink: #e3e7ee;
 	--ink-2: #c4cbd7;

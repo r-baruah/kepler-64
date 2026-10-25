@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kepler-64 Orbital</title>
+<style>
+:root{
+  --bg:#F5F5F1;--ink:#121A2E;--ink-2:#2E3A55;--muted:#596377;--line:#D9DBD6;--accent:#B93C0B;
+  --card:#FFFFFF;--soft:#ECEDE7;--sq-l:#EAE8E1;--sq-d:#C6CAD0;--pull-w:#E2A15E;--pull-b:#7E95BE;
+  --orbit:#9AA3B2;--wedge:#B93C0B;--wedge-o:.09;--grid:rgba(18,26,46,.055);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#0E1626;--ink:#E9ECF2;--ink-2:#C3CAD8;--muted:#949EB2;--line:#26324A;--accent:#F08A50;
+  --card:#131D31;--soft:#192439;--sq-l:#3A4660;--sq-d:#2A354E;--pull-w:#E3B98A;--pull-b:#6F92D6;
+  --orbit:#5A6784;--wedge:#AFC2E6;--wedge-o:.07;--tint:52%;--grid:rgba(233,236,242,.045);
+}}
+:root[data-theme=dark]{
+  --bg:#0E1626;--ink:#E9ECF2;--ink-2:#C3CAD8;--muted:#949EB2;--line:#26324A;--accent:#F08A50;
+  --card:#131D31;--soft:#192439;--sq-l:#3A4660;--sq-d:#2A354E;--pull-w:#E3B98A;--pull-b:#6F92D6;
+  --orbit:#5A6784;--wedge:#AFC2E6;--wedge-o:.07;--tint:52%;--grid:rgba(233,236,242,.045);
+}
+@font-face{font-family:Geist;src:url(assets/fonts/geist-latin-wght-normal.woff2) format('woff2');font-weight:100 900;font-display:swap}
+@font-face{font-family:'Geist Mono';src:url(assets/fonts/geist-mono-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Geist Mono';src:url(assets/fonts/geist-mono-latin-500-normal.woff2) format('woff2');font-weight:500;font-display:swap}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Geist,system-ui,sans-serif;font-size:16px;line-height:1.5;overflow-x:clip;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:inherit}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.bd{display:grid;grid-template-columns:repeat(var(--n),1fr);aspect-ratio:1;container-type:inline-size;position:relative;user-select:none}
+.bd .sq{position:relative;display:grid;place-items:center;background:var(--sq-l)}
+.bd .sq.d{background:var(--sq-d)}
+.bd .sq.l.pw{background:color-mix(in srgb,var(--pull-w) var(--tint,42%),var(--sq-l))}
+.bd .sq.d.pw{background:color-mix(in srgb,var(--pull-w) var(--tint,42%),var(--sq-d))}
+.bd .sq.l.pb{background:color-mix(in srgb,var(--pull-b) var(--tint,42%),var(--sq-l))}
+.bd .sq.d.pb{background:color-mix(in srgb,var(--pull-b) var(--tint,42%),var(--sq-d))}
+.bd .pc{font-family:'DejaVu Sans','Segoe UI Symbol','Noto Sans Symbols 2',serif;font-size:calc(100cqw / var(--n) * .74);line-height:1;transform:translateY(-.03em)}
+.bd .pc.w{color:#FBFAF6;-webkit-text-stroke:.035em #1B1B1E;paint-order:stroke fill}
+.bd .pc.b{color:#16161A}
+.bd .rk,.bd .fl{position:absolute;font:500 calc(100cqw / var(--n) * .16)/1 'Geist Mono',monospace;font-style:normal;color:var(--ink);opacity:.55}
+.bd .rk{left:5%;top:5%}.bd .fl{right:6%;bottom:5%}
+.bd .lb{position:absolute;font:500 calc(100cqw / var(--n) * .3)/1 'Geist Mono',monospace;color:var(--ink)}
+
+.ico-sun{display:none}
+:root[data-theme=dark] .ico-sun{display:block}:root[data-theme=dark] .ico-moon{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .ico-sun{display:block}:root:not([data-theme=light]) .ico-moon{display:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.dock{display:grid;grid-template-columns:repeat(5,1fr)}
+.dock button{background:none;border:0;color:inherit;font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 6px;cursor:pointer}
+.dock button span{font-size:11px;line-height:1;white-space:nowrap}
+.dock button em{font-style:normal;opacity:.7}
+.phone{width:340px;max-width:100%;border:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.phone .top{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-size:13px}
+.phone .bd{margin:0 0 18px}
+.dsec{display:grid;grid-template-columns:auto 1fr;gap:56px;align-items:center}
+.dsec .note{max-width:24em}
+@media (max-width:900px){.dsec{grid-template-columns:1fr;gap:24px;justify-items:center}.dsec .note{justify-self:start}}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 40px}
+@media (max-width:700px){.wrap{padding:0 16px}}
+/* nav */
+nav{position:relative;z-index:5;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(6px)}
+nav .wrap{display:flex;align-items:center;gap:28px;height:60px}
+.brand{display:flex;gap:10px;align-items:center;font-weight:600;letter-spacing:-.01em;text-decoration:none}
+.links{display:flex;gap:22px;font-size:14px;color:var(--ink-2)}
+.links a{text-decoration:none}.soon{font:500 10px 'Geist Mono';color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 6px;margin-left:5px}
+.sp{flex:1}
+.icon-btn{background:none;border:1px solid var(--line);color:var(--ink);border-radius:99px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer}
+.gh{font-size:14px;border:1px solid var(--line);border-radius:99px;padding:7px 14px;text-decoration:none}
+@media (max-width:700px){.links,.gh{display:none}}
+/* hero */
+.hero{position:relative;overflow:clip;padding:72px 0 88px;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:40px 40px;background-position:-1px -1px}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,500px);grid-template-areas:"copy board" "weights board";column-gap:72px;align-items:start}
+.copy{grid-area:copy;position:relative;z-index:2;padding-top:40px}
+.eyebrow{font:500 12px/1 'Geist Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:flex;gap:10px;align-items:center}
+.eyebrow::before{content:"";width:22px;height:1px;background:currentColor}
+h1{font-size:clamp(44px,6.2vw,84px);line-height:.98;letter-spacing:-.045em;font-weight:500;margin:22px 0 26px;max-width:9.5ch}
+.sub{font-size:18px;line-height:1.5;color:var(--ink-2);max-width:30em}
+.cta{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
+.btn{font:500 15px Geist;border-radius:99px;padding:13px 24px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.o{background:var(--bg);color:var(--ink);border-color:var(--line)}
+.boardcol{grid-area:board;position:relative}
+.bwrap{position:relative}
+.bwrap .bd{z-index:2;box-shadow:0 0 0 1px var(--line),0 24px 48px -32px rgba(18,26,46,.35);border-radius:3px;overflow:hidden}
+svg.orbit{position:absolute;left:-140%;top:-100%;width:380%;height:300%;z-index:1;pointer-events:none;overflow:visible}
+.orbit .path{fill:none;stroke:var(--orbit);stroke-width:.28}
+.orbit .path2{fill:none;stroke:var(--orbit);stroke-width:.18;stroke-dasharray:.8 1.4;opacity:.7}
+.orbit .wedges path{fill:var(--wedge);opacity:var(--wedge-o);stroke:var(--wedge);stroke-width:.15;stroke-opacity:.6}
+.orbit .axis{stroke:var(--orbit);stroke-width:.18;stroke-dasharray:2 1.2;opacity:.8}
+.orbit text{font:500 2.4px 'Geist Mono';fill:var(--muted);letter-spacing:.06em}
+.orbit .body{transform:translate(-80.88px,2.36px);animation:kep 48s linear infinite}
+.orbit .body circle{fill:var(--accent)}
+.orbit .body .ring{fill:none;stroke:var(--accent);stroke-width:.2;opacity:.5}
+@keyframes kep{0.00%{transform:translate(120.48px,75.65px)}1.04%{transform:translate(116.77px,84.45px)}2.08%{transform:translate(112.25px,92.83px)}3.13%{transform:translate(106.96px,100.68px)}4.17%{transform:translate(100.99px,107.93px)}5.21%{transform:translate(94.45px,114.52px)}6.25%{transform:translate(87.41px,120.40px)}7.29%{transform:translate(79.99px,125.56px)}8.33%{transform:translate(72.27px,129.97px)}9.38%{transform:translate(64.34px,133.65px)}10.42%{transform:translate(56.30px,136.61px)}11.46%{transform:translate(48.20px,138.87px)}12.50%{transform:translate(40.11px,140.46px)}13.54%{transform:translate(32.09px,141.43px)}14.58%{transform:translate(24.19px,141.80px)}15.63%{transform:translate(16.44px,141.61px)}16.67%{transform:translate(8.88px,140.90px)}17.71%{transform:translate(1.55px,139.70px)}18.75%{transform:translate(-5.55px,138.06px)}19.79%{transform:translate(-12.39px,136.01px)}20.83%{transform:translate(-18.96px,133.59px)}21.88%{transform:translate(-25.24px,130.81px)}22.92%{transform:translate(-31.22px,127.72px)}23.96%{transform:translate(-36.91px,124.35px)}25.00%{transform:translate(-42.29px,120.70px)}26.04%{transform:translate(-47.36px,116.83px)}27.08%{transform:translate(-52.12px,112.74px)}28.13%{transform:translate(-56.56px,108.45px)}29.17%{transform:translate(-60.69px,104.00px)}30.21%{transform:translate(-64.52px,99.39px)}31.25%{transform:translate(-68.03px,94.65px)}32.29%{transform:translate(-71.23px,89.79px)}33.33%{transform:translate(-74.12px,84.83px)}34.38%{transform:translate(-76.71px,79.78px)}35.42%{transform:translate(-78.99px,74.67px)}36.46%{transform:translate(-80.98px,69.49px)}37.50%{transform:translate(-82.67px,64.27px)}38.54%{transform:translate(-84.06px,59.02px)}39.58%{transform:translate(-85.16px,53.75px)}40.63%{transform:translate(-85.98px,48.48px)}41.67%{transform:translate(-86.51px,43.20px)}42.71%{transform:translate(-86.76px,37.94px)}43.75%{transform:translate(-86.73px,32.70px)}44.79%{transform:translate(-86.42px,27.50px)}45.83%{transform:translate(-85.84px,22.35px)}46.88%{transform:translate(-85.00px,17.24px)}47.92%{transform:translate(-83.89px,12.21px)}48.96%{transform:translate(-82.51px,7.24px)}50.00%{transform:translate(-80.88px,2.36px)}51.04%{transform:translate(-79.00px,-2.42px)}52.08%{transform:translate(-76.86px,-7.11px)}53.13%{transform:translate(-74.47px,-11.68px)}54.17%{transform:translate(-71.84px,-16.13px)}55.21%{transform:translate(-68.97px,-20.46px)}56.25%{transform:translate(-65.86px,-24.64px)}57.29%{transform:translate(-62.51px,-28.67px)}58.33%{transform:translate(-58.94px,-32.54px)}59.38%{transform:translate(-55.15px,-36.24px)}60.42%{transform:translate(-51.13px,-39.76px)}61.46%{transform:translate(-46.90px,-43.09px)}62.50%{transform:translate(-42.45px,-46.21px)}63.54%{transform:translate(-37.81px,-49.12px)}64.58%{transform:translate(-32.96px,-51.81px)}65.63%{transform:translate(-27.92px,-54.26px)}66.67%{transform:translate(-22.69px,-56.46px)}67.71%{transform:translate(-17.29px,-58.40px)}68.75%{transform:translate(-11.71px,-60.07px)}69.79%{transform:translate(-5.98px,-61.44px)}70.83%{transform:translate(-0.09px,-62.52px)}71.88%{transform:translate(5.94px,-63.27px)}72.92%{transform:translate(12.10px,-63.70px)}73.96%{transform:translate(18.38px,-63.77px)}75.00%{transform:translate(24.75px,-63.48px)}76.04%{transform:translate(31.21px,-62.82px)}77.08%{transform:translate(37.74px,-61.75px)}78.13%{transform:translate(44.31px,-60.27px)}79.17%{transform:translate(50.90px,-58.36px)}80.21%{transform:translate(57.49px,-56.00px)}81.25%{transform:translate(64.05px,-53.17px)}82.29%{transform:translate(70.54px,-49.86px)}83.33%{transform:translate(76.93px,-46.06px)}84.38%{transform:translate(83.17px,-41.75px)}85.42%{transform:translate(89.23px,-36.91px)}86.46%{transform:translate(95.05px,-31.55px)}87.50%{transform:translate(100.57px,-25.66px)}88.54%{transform:translate(105.74px,-19.24px)}89.58%{transform:translate(110.49px,-12.30px)}90.63%{transform:translate(114.76px,-4.86px)}91.67%{transform:translate(118.46px,3.05px)}92.71%{transform:translate(121.54px,11.39px)}93.75%{transform:translate(123.91px,20.11px)}94.79%{transform:translate(125.52px,29.14px)}95.83%{transform:translate(126.30px,38.40px)}96.88%{transform:translate(126.21px,47.79px)}97.92%{transform:translate(125.21px,57.20px)}98.96%{transform:translate(123.30px,66.53px)}100.00%{transform:translate(120.48px,75.65px)}}
+.legend{display:flex;gap:18px;margin-top:14px;font-size:12.5px;color:var(--muted);position:relative;z-index:2}
+.legend span{display:flex;gap:7px;align-items:center}.legend i{width:12px;height:12px;border-radius:2px;display:inline-block}
+.weights{grid-area:weights;position:relative;z-index:2;margin-top:56px;max-width:460px}
+.wh{display:flex;justify-content:space-between;font:500 11px 'Geist Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-bottom:10px;border-bottom:1px solid var(--line)}
+.wh a{color:var(--accent);text-decoration:none}
+.wrow{display:grid;grid-template-columns:repeat(5,1fr);align-items:end;padding:18px 0 10px;border-bottom:1px solid var(--line)}
+.wrow div{display:flex;flex-direction:column;align-items:center;gap:8px}
+.wrow .dot{border-radius:50%;background:var(--ink)}
+.wrow .q .dot{background:var(--accent)}
+.wrow b{font:500 15px 'Geist Mono'}.wrow small{font-size:12px;color:var(--muted)}
+.wnote{font-size:12.5px;color:var(--muted);margin-top:10px}
+@media (max-width:900px){
+  .hero{padding:32px 0 56px}
+  .hero .wrap{grid-template-columns:1fr;grid-template-areas:"copy" "board" "weights"}
+  .copy{padding-top:0;margin-bottom:56px}
+  h1{max-width:none}
+  .sub{font-size:17px}
+  .weights{margin-top:40px}
+}
+/* section 01 */
+.sec{padding:112px 0 120px;border-top:1px solid var(--line)}
+.sh{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:end;margin-bottom:56px}
+.kicker{font:500 12px 'Geist Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:18px}
+h2{font-size:clamp(32px,4vw,52px);line-height:1.02;letter-spacing:-.035em;font-weight:500}
+.sh p{font-size:18px;color:var(--ink-2);max-width:26em}
+.laws{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink);border-bottom:1px solid var(--line)}
+.law{padding:24px 22px 28px;border-left:1px solid var(--line);display:grid;grid-template-rows:auto 112px auto 112px auto;gap:12px}
+.law:first-child{border-left:0;padding-left:0}
+.law .n{font:500 11px 'Geist Mono';color:var(--muted);letter-spacing:.06em}
+.law svg.ph{width:100%;height:112px;color:var(--ink)}
+.law .from{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.law .from b{font-weight:500;color:var(--ink-2)}
+.law .from::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),var(--accent))}
+.law .mini{width:112px;height:112px;margin:0 auto 0 0}
+.law h3{font-size:20px;font-weight:500;letter-spacing:-.02em}
+.law p{font-size:14px;color:var(--muted);margin-top:4px}
+.worked{display:grid;grid-template-columns:340px 1fr;gap:56px;margin-top:64px;align-items:center}
+.worked .bd{border-radius:3px;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
+.worked .cap{font:500 11px 'Geist Mono';letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.worked .wk{font-size:28px;font-weight:500;letter-spacing:-.025em;line-height:1.15;max-width:16em}
+.worked .kepler{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);font-size:14px;color:var(--muted);max-width:32em;display:flex;gap:16px;align-items:flex-start}
+.worked .kepler svg{flex:none;color:var(--ink-2)}
+@media (max-width:900px){
+  .sec{padding:72px 0 80px}
+  .sh{grid-template-columns:1fr;gap:16px;margin-bottom:36px}
+  .sh p{font-size:17px}
+  .laws{grid-template-columns:1fr 1fr}
+  .law{padding:20px 14px 24px;grid-template-rows:auto 88px auto 88px auto}
+  .law:nth-child(odd){border-left:0;padding-left:0}
+  .law:nth-child(n+3){border-top:1px solid var(--line)}
+  .law svg.ph{height:88px}.law .mini{width:88px;height:88px}
+  .law h3{font-size:17px}
+  .worked{grid-template-columns:1fr;gap:28px;margin-top:48px}
+  .worked .wk{font-size:22px}
+}
+footer{border-top:1px solid var(--line);padding:28px 0;font-size:13px;color:var(--muted)}
+footer .wrap{display:flex;justify-content:space-between}
+.dk{padding:96px 0}
+.dk .phone{border-radius:28px;box-shadow:0 0 0 1px var(--line),0 30px 60px -40px rgba(18,26,46,.4)}
+.dk .dock{border-top:1px solid var(--line);background:var(--card);padding:4px 8px 10px;color:var(--ink-2)}
+.dk .dock button:nth-child(3){color:var(--accent)}
+.dh{font-size:28px;font-weight:500;letter-spacing:-.025em;margin-bottom:10px}.dp{color:var(--muted)}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="brand" href="#"><svg class="mark" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.2"/><circle cx="9.6" cy="12" r="2.1" fill="currentColor"/><circle cx="14.6" cy="12" r="1.5" fill="currentColor"/><circle cx="18.7" cy="5.3" r="2" fill="var(--accent)"/></svg>Kepler-64</a>
+  <div class="links"><a href="#">Play</a><a href="#how">How it works</a><a href="#">Law Ledger</a><a href="#">Lab<span class="soon">Soon</span></a></div>
+  <div class="sp"></div>
+  <button class="icon-btn" onclick="toggleTheme()" aria-label="Switch light or dark"><svg class="ico-moon" width="16" height="16" viewBox="0 0 16 16"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1Z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg><svg class="ico-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3"/></svg></button>
+  <a class="gh" href="#">Star on GitHub</a>
+</div></nav>
+
+<header class="hero">
+ <div class="wrap">
+  <div class="copy">
+    <div class="eyebrow">Chess engine, physics only</div>
+    <h1>A tiny universe that learned to play chess.</h1>
+    <p class="sub">We gave chess its own physics. Pieces have mass and pull along the lines they can move. It learned the rest by playing itself.</p>
+    <div class="cta"><button class="btn">Play White</button><button class="btn o">Play Black</button></div>
+  </div>
+  <div class="boardcol">
+    <div class="bwrap">
+      <svg class="orbit" viewBox="-140 -100 380 300" aria-hidden="true">
+        <g class="wedges"><path d="M50 50 L126.30 38.40 L126.30 45.91 L125.72 53.44 L124.56 60.95 L122.81 68.37 L120.48 75.65 L117.58 82.72 L114.15 89.53 L110.22 96.04 L105.82 102.18 L100.99 107.93 Z"/><path d="M50 50 L-85.84 22.35 L-85.19 18.26 L-84.36 14.21 L-83.37 10.21 L-82.21 6.26 L-80.88 2.36 L-79.39 -1.47 L-77.74 -5.25 L-75.93 -8.95 L-73.96 -12.58 L-71.84 -16.13 Z"/></g>
+        <ellipse class="path" cx="19.80" cy="39.01" rx="107.14" ry="102.21" transform="rotate(20 19.80 39.01)" />
+        <ellipse class="path2" cx="19.8" cy="39.01" rx="132" ry="125.9" transform="rotate(20 19.8 39.01)"/>
+        <line class="axis" x1="-80.88" y1="2.36" x2="120.48" y2="75.65"/>
+        <g transform="translate(-10.41 28.01)"><path d="M-1.4 0H1.4M0 -1.4V1.4" stroke="var(--muted)" stroke-width=".25"/></g>
+        <text x="-84" y="-3">APHELION, SLOWEST</text>
+        <text x="104" y="112">EQUAL AREAS</text><text x="104" y="115.4">IN EQUAL TIMES</text>
+        <g class="body"><circle r="1.6"/><circle class="ring" r="3.2"/></g>
+      </svg>
+      <div id="hero-board"></div>
+    </div>
+    <div class="legend"><span><i style="background:color-mix(in srgb,var(--pull-w) 42%,var(--sq-l))"></i>White pulls harder</span><span><i style="background:color-mix(in srgb,var(--pull-b) 42%,var(--sq-l))"></i>Black pulls harder</span></div>
+  </div>
+  <div class="weights">
+    <div class="wh"><span>Weights in this universe</span><a href="#">Home</a></div>
+    <div class="wrow" id="wrow"></div>
+    <p class="wnote">Area shows weight. Pawn = 1. Learned by self-play.</p>
+  </div>
+ </div>
+</header>
+
+<section class="sec" id="how"><div class="wrap">
+  <div class="sh">
+    <div><div class="kicker">01 / How it works</div><h2>Physics, rebuilt for a chessboard.</h2></div>
+    <p>We wrote the laws. It found the constants itself, in 85,500 games of self-play.</p>
+  </div>
+  <div class="laws">
+    <div class="law">
+      <span class="n">01</span>
+      <svg class="ph" viewBox="0 0 200 112" fill="none" stroke="currentColor"><circle cx="78" cy="56" r="26" fill="currentColor"/><circle cx="150" cy="56" r="7" fill="currentColor"/><ellipse cx="96" cy="56" rx="62" ry="22" stroke-width=".8" opacity=".45"/></svg>
+      <div class="from"><b>Mass</b></div>
+      <div class="mini bd" id="m1"></div>
+      <div><h3>Piece weight</h3><p>Learned by the engine. Pawn = 1.</p></div>
+    </div>
+    <div class="law">
+      <span class="n">02</span>
+      <svg class="ph" viewBox="0 0 200 112" fill="none" stroke="currentColor" stroke-width="1"><circle cx="100" cy="56" r="9" fill="currentColor"/><g opacity=".55"><path d="M100 36V12M100 76v24M80 56H40M120 56h40M86 42 70 26M114 42l16-16M86 70 70 86M114 70l16 16"/></g></svg>
+      <div class="from"><b>Gravity</b></div>
+      <div class="mini bd" id="m2"></div>
+      <div><h3>Pull along its moves</h3><p>Stops at the first piece in the way.</p></div>
+    </div>
+    <div class="law">
+      <span class="n">03</span>
+      <svg class="ph" viewBox="0 0 200 112" fill="none" stroke="currentColor" stroke-width="1"><circle cx="100" cy="56" r="4" fill="currentColor"/><circle cx="100" cy="56" r="22" opacity=".6"/><circle cx="100" cy="56" r="44" opacity=".35" stroke-dasharray="3 3"/></svg>
+      <div class="from"><b>Light speed</b></div>
+      <div class="mini bd" id="m3"></div>
+      <div><h3>2 moves</h3><p>Pull reaches at most 2 moves.</p></div>
+    </div>
+    <div class="law">
+      <span class="n">04</span>
+      <svg class="ph" viewBox="0 0 200 112" fill="none" stroke="currentColor"><rect x="10" y="8" width="180" height="96" fill="var(--pull-w)" opacity=".25" stroke="none"/><path d="M120 8C104 40 104 72 120 104H190V8Z" fill="var(--pull-b)" opacity=".35" stroke="none"/><path d="M120 8C104 40 104 72 120 104" stroke-dasharray="3 3"/><circle cx="62" cy="56" r="16" fill="currentColor"/><circle cx="152" cy="56" r="9" fill="currentColor"/></svg>
+      <div class="from"><b>Field</b></div>
+      <div class="mini bd" id="m4"></div>
+      <div><h3>Who owns a square</h3><p>Whoever pulls harder on it.</p></div>
+    </div>
+  </div>
+  <div class="worked">
+    <div id="rook"></div>
+    <div>
+      <div class="cap">Worked example</div>
+      <p class="wk">The rook pulls up to its own pawn, and no further.</p>
+      <div class="kepler"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor"><ellipse cx="20" cy="20" rx="18" ry="11" stroke-width="1"/><circle cx="12" cy="20" r="3.4" fill="currentColor"/><circle cx="38" cy="20" r="1.6" fill="currentColor"/></svg><p>Named after Johannes Kepler, who found the planets' laws in observations. Kepler-64 finds its constants in its own games.</p></div>
+    </div>
+  </div>
+</div></section>
+<section class="sec dk"><div class="wrap dsec">
+  <div class="phone"><div class="top"><span>Your move</span><span class="mono">Home</span></div><div id="pboard"></div><div class="dock" id="dock" role="toolbar" aria-label="Game actions"></div></div>
+  <div class="note"><div class="kicker">Play screen / phone</div><h3 class="dh">A slimmer dock.</h3><p class="dp">Five actions as icons with short labels. Field shows its current mode.</p></div>
+</div></section>
+<footer><div class="wrap"><span>Concept A: Orbital. Wireframe pass 4.</span><span class="mono">Static board, no engine</span></div></footer>
+
+<script>
+/* shared: theme toggle + static board drawing (no engine) */
+(function(){
+  var root=document.documentElement, q=new URLSearchParams(location.search).get('theme');
+  if(q==='light'||q==='dark') root.dataset.theme=q;
+  window.toggleTheme=function(){
+    var cur=root.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    root.dataset.theme=cur==='dark'?'light':'dark';
+  };
+})();
+var GL={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+/* fen: ranks top to bottom; field: string of n*n chars w/b/.; labels: {index:text}; delay: fn(r,c)->seconds or null */
+function drawBoard(el,o){
+  var n=o.n||8, rows=(o.fen||'').split('/'), field=o.field||'', out='';
+  el.classList.add('bd'); el.style.setProperty('--n',n);
+  for(var r=0;r<n;r++){
+    var row=[], s=rows[r]||String(n);
+    for(var i=0;i<s.length;i++){var ch=s[i]; if(/\d/.test(ch)){for(var k=0;k<+ch;k++)row.push('');} else row.push(ch);}
+    for(var c=0;c<n;c++){
+      var idx=r*n+c, f=field[idx]||'.', p=row[c]||'';
+      var cls='sq '+((r+c)%2?'d':'l')+(f==='w'?' pw':f==='b'?' pb':'')+(f==='x'?' px':'');
+      var st=o.delay?' style="--d:'+o.delay(r,c,f).toFixed(2)+'s"':'';
+      out+='<div class="'+cls+'"'+st+'>';
+      if(o.coords&&c===0) out+='<i class="rk">'+(n-r)+'</i>';
+      if(o.coords&&r===n-1) out+='<i class="fl">'+'abcdefgh'[c]+'</i>';
+      if(p) out+='<span class="pc '+(p===p.toUpperCase()?'w':'b')+'">'+GL[p.toLowerCase()]+'︎</span>';
+      if(o.labels&&o.labels[idx]!=null) out+='<b class="lb">'+o.labels[idx]+'</b>';
+      out+='</div>';
+    }
+  }
+  el.innerHTML=out;
+}
+var START='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+var START_FIELD='bbbbbbbb'+'bbbbbbbb'+'bbbbbbbb'+'........'+'........'+'wwwwwwww'+'wwwwwwww'+'wwwwwwww';
+/* rook on d2, own pawn on d5: pull along rank 2, d1, and up the file to d5, no further */
+var ROOK_FEN='8/8/8/3P4/8/8/3R4/8';
+var ROOK_FIELD=(function(){var f='';for(var r=0;r<8;r++)for(var c=0;c<8;c++){var on=(r===6&&c!==3)||(c===3&&(r===7||(r>=3&&r<=5)));f+=on?'w':'.';}return f;})();
+/* phone Play-screen dock mock: five actions as icons with short labels */
+var DOCK=[
+ ['New','<path d="M10 4v12M4 10h12"/>'],
+ ['Undo','<path d="M7.5 5 4 8.5 7.5 12"/><path d="M4 8.5h7.5a4.5 4.5 0 0 1 0 9H9"/>'],
+ ['Field','<rect x="3.5" y="3.5" width="13" height="13" rx="1"/><path d="M10 3.5v13M3.5 10h13"/><rect x="3.5" y="10" width="6.5" height="6.5" fill="currentColor" opacity=".35" stroke="none"/>','Pull'],
+ ['Universe','<ellipse cx="10" cy="10" rx="7.5" ry="4" transform="rotate(-20 10 10)"/><circle cx="10" cy="10" r="2" fill="currentColor" stroke="none"/>'],
+ ['More','<circle cx="4.5" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.2" fill="currentColor" stroke="none"/>']
+];
+function drawDock(el){
+  el.innerHTML=DOCK.map(function(d){return '<button type="button" aria-label="'+d[0]+(d[2]?': '+d[2]:'')+'"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">'+d[1]+'</svg><span>'+d[0]+(d[2]?'<em> '+d[2]+'</em>':'')+'</span></button>'}).join('');
+}
+
+drawBoard(document.getElementById('hero-board'),{fen:START,field:START_FIELD,coords:true});
+var W=[['Pawn',1],['Knight',2.7],['Bishop',3.1],['Rook',4.2],['Queen',7.4]];
+document.getElementById('wrow').innerHTML=W.map(function(w){var d=(10*Math.sqrt(w[1])).toFixed(1);return '<div class="'+(w[0]==='Queen'?'q':'')+'"><span class="dot" style="width:'+d+'px;height:'+d+'px"></span><b>'+w[1].toFixed(1)+'</b><small>'+w[0]+'</small></div>'}).join('');
+drawBoard(document.getElementById('m1'),{n:4,fen:'4/4/1P1Q/4'});
+drawBoard(document.getElementById('m2'),{n:5,fen:'5/2P2/5/2R2/5',field:'.....'+'..w..'+'..w..'+'ww.ww'+'..w..'});
+drawBoard(document.getElementById('m3'),{n:5,fen:'5/5/K4/5/5',field:'www..'+'www..'+'.ww..'+'www..'+'www..',labels:{5:'1',6:'1',11:'1',15:'1',16:'1',0:'2',1:'2',2:'2',7:'2',12:'2',17:'2',20:'2',21:'2',22:'2'}});
+drawBoard(document.getElementById('m4'),{n:4,fen:'3p/4/4/N3',field:'..bb'+'w.bb'+'ww.b'+'.ww.'});
+drawBoard(document.getElementById('rook'),{fen:ROOK_FEN,field:ROOK_FIELD,coords:true});
+drawBoard(document.getElementById('pboard'),{fen:START,field:START_FIELD});drawDock(document.getElementById('dock'));
+</script>
+</body>
+</html>
