@@ -47,14 +47,14 @@
 		align-content: start;
 	}
 	.list .n {
-		color: #9aa1b0;
+		color: var(--faint);
 	}
 	.k {
 		color: var(--accent);
 	}
 	.sc {
 		margin-left: 6px;
-		font-size: 10.5px;
+		font-size: 12px;
 		color: var(--muted);
 	}
 	.strip {
@@ -63,11 +63,11 @@
 		overflow-x: auto;
 		white-space: nowrap;
 		padding: 4px 0;
-		font-size: 12.5px;
+		font-size: 13px;
 		scrollbar-width: none;
 	}
 	.strip .n {
-		color: #9aa1b0;
+		color: var(--faint);
 		margin-right: 4px;
 	}
 </style>

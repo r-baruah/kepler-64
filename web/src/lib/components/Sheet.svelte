@@ -1,5 +1,9 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
+	import { motionOK } from '$lib/theme';
+
+	const ms = (n: number) => (motionOK() ? n : 0);
 
 	let { title, onclose, children }: { title: string; onclose: () => void; children: Snippet } = $props();
 	let panel: HTMLDivElement;
@@ -18,8 +22,8 @@
 <svelte:window onkeydown={key} />
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="scrim" onclick={onclose}>
-	<div class="panel" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" bind:this={panel} onclick={(e) => e.stopPropagation()}>
+<div class="scrim" onclick={onclose} transition:fade|global={{ duration: ms(180) }}>
+	<div class="panel" transition:fly|global={{ y: 28, duration: ms(240), opacity: 0.4 }} role="dialog" aria-modal="true" aria-label={title} tabindex="-1" bind:this={panel} onclick={(e) => e.stopPropagation()}>
 		<div class="head">
 			<h2>{title}</h2>
 			<button class="x" onclick={onclose} aria-label="Close">Close</button>
@@ -33,7 +37,7 @@
 		position: fixed;
 		inset: 0;
 		z-index: 20;
-		background: rgba(20, 33, 61, 0.28);
+		background: var(--scrim);
 		display: flex;
 		align-items: flex-end;
 		justify-content: center;
@@ -54,13 +58,17 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 16px 20px 8px;
+		padding: 14px 20px 10px;
+		border-bottom: 1px solid var(--line);
 	}
 	h2 {
 		margin: 0;
-		font-size: 18px;
-		font-weight: 600;
+		font-size: var(--t-lg);
+		font-weight: 500;
 		letter-spacing: -0.01em;
+	}
+	.x:hover {
+		background: var(--line);
 	}
 	.x {
 		min-height: 44px;
@@ -73,9 +81,13 @@
 		color: var(--ink);
 		cursor: pointer;
 	}
+	.body > :global(*) {
+		flex-shrink: 0;
+	}
 	.body {
 		overflow: auto;
-		padding: 4px 20px 20px;
+		overscroll-behavior: contain;
+		padding: 14px 20px 22px;
 		display: flex;
 		flex-direction: column;
 		gap: 10px;

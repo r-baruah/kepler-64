@@ -10,7 +10,7 @@
 	<button onclick={() => (game.sheet = 'new')}>New<span class="long">&nbsp;game</span></button>
 	<button onclick={() => game.undo()} disabled={!game.canUndo}>Undo</button>
 	<button class="wide" onclick={() => game.flip()}>Flip</button>
-	<button class="on field" onclick={() => game.cycleField()} aria-label="Field layer: {fieldLabel}. Tap to change.">
+	<button class="field" class:off={game.fieldMode === 'off'} onclick={() => game.cycleField()} aria-label="Field layer: {fieldLabel}. Press to change.">
 		<span class="desk">Field: {fieldLabel}</span>
 		<span class="phone"><small>Field</small>{fieldShort}</span>
 	</button>
@@ -34,28 +34,41 @@
 	button {
 		flex: 1 1 0;
 		min-width: 0;
-		min-height: var(--tap);
+		min-height: 48px;
 		padding: 0 6px;
 		border: none;
 		border-radius: var(--radius-pill);
 		background: none;
-		font-size: 12.5px;
+		font-size: 13px;
 		color: var(--ink);
 		white-space: nowrap;
+		transition: background-color 0.15s;
 	}
 	button:hover:not(:disabled) {
 		background: var(--soft);
 	}
+	button:focus-visible {
+		outline-offset: -2px;
+	}
 	button:disabled {
-		color: var(--line-strong);
+		color: var(--faint);
+		opacity: 0.55;
 		cursor: default;
 	}
-	button.on {
+	button.field {
 		background: var(--ink);
-		color: #fff;
+		color: var(--on-ink);
 	}
-	button.on:hover {
+	button.field:hover {
 		background: var(--ink-2) !important;
+	}
+	button.field.off {
+		background: none;
+		color: var(--ink);
+		box-shadow: inset 0 0 0 1px var(--line-strong);
+	}
+	button.field:focus-visible {
+		outline-offset: 2px;
 	}
 	.wide,
 	.long,
@@ -68,8 +81,8 @@
 		line-height: 1.15;
 	}
 	.phone small {
-		font-size: 9.5px;
-		opacity: 0.7;
+		font-size: 10px;
+		opacity: 0.75;
 	}
 	@media (min-width: 900px) {
 		.dock {
@@ -77,19 +90,15 @@
 		}
 		button {
 			flex: none;
+			min-height: 44px;
 			padding: 0 16px;
-			font-size: 13px;
 		}
-		.wide {
-			display: inline;
-		}
+		.wide,
 		.long,
 		.desk {
 			display: inline;
 		}
-		.phone {
-			display: none;
-		}
+		.phone,
 		.narrow {
 			display: none;
 		}

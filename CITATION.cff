@@ -4,15 +4,16 @@ authors:
   - family-names: Baruah
     given-names: Ripuranjan
     name: "Ripuranjan Baruah"
-title: "Kepler-64: Differentiable N-Body Gravitational Chess Engine"
-version: 0.1.0
-date-released: 2026-08-14
+title: "Kepler-64: a chess engine whose evaluation is a physics-style field learned by self-play"
+abstract: "A chess engine whose only evaluation is a field shaped by the rules of chess: pull travels along the lines pieces can legally move and stops at the first piece in the way. About a dozen constants (piece masses, a light speed in moves, and the weight of each law) are learned by self-play, and every law must pass an ablation test to stay in the evaluation."
 url: "https://github.com/r-baruah/kepler-64"
-license: "Apache-2.0"
+repository-code: "https://github.com/r-baruah/kepler-64"
+license: "MIT"
 keywords:
   - "chess engine"
-  - "differentiable physics"
-  - "jax"
-  - "astrophysics"
-  - "roche limit"
-  - "n-body gravitational field"
+  - "self-play"
+  - "interpretable evaluation"
+  - "physics-inspired evaluation"
+  - "ablation"
+  - "rust"
+  - "webassembly"

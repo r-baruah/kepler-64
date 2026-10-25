@@ -126,6 +126,20 @@ export class GameStore {
 		if (!p) return null;
 		return { origin: this.coneSq, hop1: p.hops[0].map(sqIndex), hop2: p.hops[1].map(sqIndex) };
 	}
+	/** The moved piece's hop-1 squares after the last move (its pull lines fade in once, Pull layer only). */
+	get pulse(): { key: string; origin: number; hop1: number[] } | null {
+		if (this.fieldMode !== 'pull' || !this.lastMove || !this.snap || this.history.length === 0) return null;
+		const name = sqName(this.lastMove.to);
+		const p = this.snap.breakdown.pieces.find((x) => x.square === name);
+		if (!p) return null;
+		return { key: `${this.history.length}:${name}`, origin: this.lastMove.to, hop1: p.hops[0].map(sqIndex) };
+	}
+	/** Square of the king in check, if the side to move is in check. */
+	get checkSquare(): number | null {
+		if (!this.snap?.state.inCheck) return null;
+		const k = this.snap.breakdown.kings[this.snap.state.turn === 'w' ? 0 : 1];
+		return k ? sqIndex(k.square) : null;
+	}
 	/** Kepler's view in ku, from Kepler's side: its search score from its last move (the same
 	 *  number the move list shows), or the static evaluation before Kepler has moved. */
 	get keplerView(): number | null {
@@ -249,6 +263,11 @@ export class GameStore {
 		const i = FIELD_ORDER.indexOf(this.fieldMode);
 		this.fieldMode = FIELD_ORDER[(i + 1) % FIELD_ORDER.length];
 		if (this.fieldMode !== 'cones') this.coneSq = null;
+	}
+
+	setField(mode: FieldMode) {
+		this.fieldMode = mode;
+		if (mode !== 'cones') this.coneSq = null;
 	}
 
 	flip() {

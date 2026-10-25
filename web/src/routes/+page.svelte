@@ -1,16 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import Board from '$lib/components/Board.svelte';
+	import ConstantsPlate from '$lib/components/ConstantsPlate.svelte';
 	import Dock from '$lib/components/Dock.svelte';
+	import FieldLegend from '$lib/components/FieldLegend.svelte';
 	import Header from '$lib/components/Header.svelte';
 	import Landing from '$lib/components/Landing.svelte';
 	import KingReadout from '$lib/components/KingReadout.svelte';
 	import MoveList from '$lib/components/MoveList.svelte';
 	import Sheet from '$lib/components/Sheet.svelte';
+	import UniverseSystem from '$lib/components/UniverseSystem.svelte';
 	import WeightsFigure from '$lib/components/WeightsFigure.svelte';
-	import { fieldDots, oneDecimal } from '$lib/field';
-	import { GameStore, resultText } from '$lib/game.svelte';
-	import type { PresetFacts, Side } from '$lib/types';
+	import { diffLines } from '$lib/constants';
+	import { GameStore, resultText, type FieldMode } from '$lib/game.svelte';
+	import { motionOK } from '$lib/theme';
+	import type { Side } from '$lib/types';
 
 	let { data } = $props();
 	// svelte-ignore state_referenced_locally
@@ -24,18 +28,31 @@
 	});
 
 	const play = $derived(game.mode === 'play');
-	const dots = $derived(game.fieldMode === 'pull' && game.snap ? fieldDots(game.snap.breakdown) : []);
-	const targets = $derived(game.targets);
-	const cones = $derived(game.cones);
+	const field = $derived(game.fieldMode === 'pull' && game.snap ? game.snap.breakdown.field : null);
 	const top = $derived<Side>(game.bottom === 'white' ? 'black' : 'white');
 	const whoIs = (s: Side) => (s === game.human ? 'You' : 'Kepler');
-	const gamesText = $derived(
-		game.preset.selfPlayGames > 0 ? `${game.preset.selfPlayGames.toLocaleString('en-US')} games of self-play` : 'No self-play yet'
-	);
+	const fmt = (n: number) => n.toLocaleString('en-US');
+	/** Variants are Home's constants with one law changed: never trained, so no game count. */
+	const gamesOf = (p: { variant: boolean; selfPlayGames: number }) =>
+		p.variant ? 'Variant of Home, not trained' : p.selfPlayGames > 0 ? `${fmt(p.selfPlayGames)} games of self-play` : 'No self-play yet';
+	const gamesText = $derived(gamesOf(game.preset));
+	let showConstants = $state(false);
 	const view = $derived(game.keplerView);
-	const viewText = $derived(view === null ? '—' : (view >= 0 ? '+' : '−') + Math.abs(view).toFixed(2));
+	// Rounded first, so a tiny negative score never shows as "−0.00".
+	const viewText = $derived.by(() => {
+		if (view === null) return '—';
+		const s = Math.abs(view).toFixed(2);
+		return s === '0.00' ? s : (view > 0 ? '+' : '−') + s;
+	});
 	const over = $derived(game.over);
 	const boardLabel = $derived(`Chess board. ${game.snap ? game.snap.state.fen : ''}`);
+	const moves = $derived(Math.ceil(game.history.length / 2));
+	const maxNodes = $derived(Math.max(...data.facts.levels.map((l) => l.nodes)));
+	const FIELD_MODES: [FieldMode, string][] = [
+		['pull', 'Pull'],
+		['cones', 'Light cones'],
+		['off', 'Off']
+	];
 
 	let now = $state(0);
 	$effect(() => {
@@ -44,16 +61,28 @@
 		const t = setInterval(() => (now = performance.now()), 100);
 		return () => clearInterval(t);
 	});
-	const elapsed = $derived(game.thinking ? Math.max(0, now - game.thinkStart) / 1000 : 0);
-
-	function diffChips(p: PresetFacts) {
-		const keys = Object.keys(p.diff);
-		const order = (k: string) => (k.startsWith('m_') ? 0 : 1);
-		keys.sort((a, b) => order(a) - order(b));
-		const fmt = (n: number) => (Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(Math.abs(n) < 1 ? 3 : 2).replace(/\.?0+$/, ''));
-		const chips = keys.map((k) => `${k} ${fmt(p.diff[k].champion)} → ${fmt(p.diff[k].preset)}`);
-		return { shown: chips.slice(0, 6), more: Math.max(0, chips.length - 6) };
+	/** Header nav: landing sections live below the hero, so go back to it first if a game is open. */
+	async function nav(id: string) {
+		if (game.mode === 'play') {
+			await game.goHome();
+			if (game.mode === 'play') return;
+			await tick();
+		}
+		document.getElementById(id)?.scrollIntoView({ behavior: motionOK() ? 'smooth' : 'auto', block: 'start' });
 	}
+	async function home() {
+		if (game.mode === 'play') await game.goHome();
+		else window.scrollTo({ top: 0, behavior: motionOK() ? 'smooth' : 'auto' });
+	}
+
+	/** From the landing: start a game in that universe, back at the top of the page. */
+	async function playUniverse(slug: string) {
+		await game.setPreset(slug);
+		window.scrollTo({ top: 0, behavior: 'auto' });
+		await game.start('white');
+	}
+
+	const elapsed = $derived(game.thinking ? Math.max(0, now - game.thinkStart) / 1000 : 0);
 </script>
 
 <svelte:head>
@@ -61,38 +90,28 @@
 	<meta name="description" content="A tiny universe that learned to play chess. Play against it in your browser." />
 </svelte:head>
 
-<Header onhome={() => game.goHome()} />
+<Header onhome={home} onnav={nav} playing={play} />
 
 <main class="stage" data-mode={game.mode}>
 	<!-- Hero text: the landing's first screen. Hidden once a game starts. -->
 	<h1 class="h1">A tiny universe that learned to play chess.</h1>
-	<p class="sub">
-		<span class="long">It knows no chess strategy. Pieces pull along the lines they can move, and it learned the rest by playing itself.</span>
-		<span class="short">It knows no chess strategy. It learned by playing itself.</span>
-	</p>
+	<p class="sub">We gave chess its own physics. Pieces have mass and pull along the lines they can move. It learned the rest by playing itself.</p>
 	<div class="cta">
 		<button class="primary" onclick={() => game.start('white')} disabled={game.status === 'nowasm'}>Play White</button>
 		<button class="secondary" onclick={() => game.start('black')} disabled={game.status === 'nowasm'}>Play Black</button>
-	</div>
-	<div class="chips">
-		<span>Runs in your browser</span>
-		<span>{gamesText}</span>
-		<span>Open source</span>
 	</div>
 
 	<!-- Left (desktop) / top (phone) while playing -->
 	<section class="view" aria-label="Kepler's evaluation">
 		<div class="viewnum">
-			<div class="cap mono">KEPLER'S VIEW</div>
-			<div class="num">{viewText}</div>
-			<div class="cap mono">KU &middot; PAWN WEIGHT = 1</div>
+			<div class="cap">Kepler's view</div>
+			<div class="num" class:pos={view !== null && view > 0}>{viewText}</div>
+			<div class="cap" title="Kepler units: one pawn's weight is 1">ku, pawn = 1</div>
 		</div>
-		<div class="meta mono">{game.preset.name.toUpperCase()}<br />{game.level.name.toUpperCase()} LEVEL</div>
-		<div class="legend">
-			<div class="cap mono">FIELD</div>
-			<div class="lg"><span class="sw solid"></span>White pulls harder</div>
-			<div class="lg"><span class="sw ring"></span>Black pulls harder</div>
-			<p>Bigger dot, stronger pull. Pull follows the lines a piece can move and stops at the first piece in the way.</p>
+		<button class="meta" onclick={() => (game.sheet = 'universe')}>{game.preset.name}<br />{game.level.name} level</button>
+		<div class="legendcol">
+			<div class="cap">Field</div>
+			<FieldLegend mode={game.fieldMode} c={game.preset.constants.c} />
 		</div>
 	</section>
 
@@ -107,7 +126,7 @@
 			<div class="row top" class:hide={!play}>
 				<span class="who"
 					>{whoIs(top)}
-					{#if game.thinking && top === game.keplerSide}<span class="status mono" role="status">thinking {elapsed.toFixed(1)} s</span>{/if}</span
+					{#if game.thinking && top === game.keplerSide}<span class="status" role="status"><span class="pip"></span>Thinking {elapsed.toFixed(1)} s</span>{/if}</span
 				>
 				<KingReadout king={game.king(top)} who={whoIs(top) === 'You' ? 'You' : 'Kepler'} />
 			</div>
@@ -116,11 +135,14 @@
 				<Board
 					placement={game.placement}
 					bottom={game.bottom}
-					{dots}
-					{cones}
+					{field}
+					cones={game.cones}
+					pulse={game.pulse}
 					lastMove={game.lastMove}
+					moveId={game.history.length}
 					selected={game.selected}
-					{targets}
+					targets={game.targets}
+					check={game.checkSquare}
 					label={boardLabel}
 					onselectown={(sq) => game.selectOwn(sq)}
 					ontap={(sq) => game.tap(sq)}
@@ -140,107 +162,141 @@
 			<div class="row bottom" class:hide={!play}>
 				<span class="who"
 					>{whoIs(game.bottom)}
-					{#if game.myTurn && game.bottom === game.human}<span class="status mono accent">YOUR MOVE</span
-						>{:else if game.thinking && game.bottom === game.keplerSide}<span class="status mono" role="status">thinking {elapsed.toFixed(1)} s</span
+					{#if game.myTurn && game.bottom === game.human}<span class="status accent">Your move</span
+						>{:else if game.thinking && game.bottom === game.keplerSide}<span class="status" role="status"
+							><span class="pip"></span>Thinking {elapsed.toFixed(1)} s</span
 						>{/if}</span
 				>
 				<KingReadout king={game.king(game.bottom)} who={whoIs(game.bottom) === 'You' ? 'You' : 'Kepler'} />
 			</div>
 
 			{#if !play}
+				<div class="restlegend"><FieldLegend mode="pull" c={game.preset.constants.c} compact /></div>
 				<div class="figure">
 					<WeightsFigure constants={game.preset.constants} universe={game.preset.name} onchange={() => (game.sheet = 'universe')} />
 				</div>
-				<div class="restlegend">
-					<span class="lg"><span class="sw solid"></span>White pulls harder</span>
-					<span class="lg"><span class="sw ring"></span>Black pulls harder</span>
-				</div>
 			{:else}
-				<div class="line" aria-live="polite">
+				<div class="line" class:isover={over} aria-live="polite">
 					{#if game.status === 'loading'}
 						<span class="muted">Kepler is waking up.</span>
 					{:else if game.status === 'error'}
 						<span>The engine stopped. Reload the page to start again.</span>
 					{:else if over && game.snap}
 						<div class="over">
-							<strong>{resultText(game.snap.state, game.human)}</strong>
-							<button class="primary sm" onclick={() => game.start(game.human)}>Play again</button>
+							<div class="res">
+								<strong>{resultText(game.snap.state, game.human)}</strong>
+								<span class="muted num">{moves} {moves === 1 ? 'move' : 'moves'} &middot; {game.preset.name}</span>
+							</div>
+							<div class="overbtns">
+								<button class="secondary sm" onclick={() => (game.sheet = 'universe')}>Universe</button>
+								<button class="primary sm" onclick={() => game.start(game.human)}>Play again</button>
+							</div>
 						</div>
 					{:else if game.thinking}
 						<span class="muted">Kepler is thinking.</span>
 						<button class="secondary sm" onclick={() => game.moveNow()}>Move now</button>
 					{:else if game.line}
-						<span class="meta2 mono">{game.lineMeta}</span> {game.line}
+						<span><span class="meta2 num">{game.lineMeta}</span> {game.line}</span>
 					{:else if game.snap?.state.inCheck}
 						<span class="muted">Check.</span>
 					{:else}
-						<span class="muted">{game.myTurn ? 'Your move.' : ''}</span>
+						<span class="muted">{game.myTurn ? 'Your move. Tap a piece, then a square.' : ''}</span>
 					{/if}
 				</div>
 				<div class="strip"><MoveList history={game.history} strip /></div>
-				<Dock {game} />
+				<div class="dockwrap"><Dock {game} /></div>
 			{/if}
 		{/if}
 	</section>
 
 	<aside class="side" aria-label="Game details">
-		<div class="cap mono">MOVES</div>
-		<MoveList history={game.history} />
-		<div class="cap mono spaced">UNIVERSE</div>
-		<div class="val">{game.preset.name}</div>
-		<div class="cap mono spaced">LEVEL</div>
-		<div class="val">{game.level.name} &middot; {game.level.nodes.toLocaleString('en-US')} positions per move</div>
-		<div class="strength">Strength at this level: not measured yet</div>
+		<div class="block">
+			<div class="cap">Moves</div>
+			{#if game.history.length}
+				<MoveList history={game.history} />
+			{:else}
+				<p class="empty">No moves yet.</p>
+			{/if}
+		</div>
+		<div class="block">
+			<div class="cap">Universe</div>
+			<button class="pick upick" onclick={() => (game.sheet = 'universe')}>
+				<span class="sidesys"><UniverseSystem constants={game.preset.constants} slug={game.preset.slug} name={game.preset.name} size="mini" /></span>
+				<span><span class="val">{game.preset.name}</span><span class="sm2">{gamesText}</span></span>
+			</button>
+		</div>
+		<div class="block">
+			<div class="cap">Level</div>
+			<button class="pick" onclick={() => (game.sheet = 'level')}>
+				<span><span class="val">{game.level.name}</span><span class="sm2">{fmt(game.level.nodes)} positions per move</span></span>
+			</button>
+			<div class="strength">Strength at this level: not measured yet</div>
+		</div>
 	</aside>
 </main>
 
 {#if !play}
-	<Landing
-		landing={data.facts.landing}
-		ready={game.status === 'ready'}
-		generationUrl={game.preset.file}
-		onplayrejected={() => (game.sheet = 'universe')}
-	/>
+	<Landing facts={data.facts} ready={game.status === 'ready'} generationUrl={data.facts.presets[0].file} onplay={playUniverse} />
 {/if}
 
 {#if game.sheet === 'new'}
 	<Sheet title="New game" onclose={() => (game.sheet = null)}>
-		<button class="primary big" onclick={() => game.start('white')}>Play White</button>
-		<button class="secondary big" onclick={() => game.start('black')}>Play Black</button>
-		<p class="fine">This starts from the beginning in the current universe: {game.preset.name}.</p>
+		<div class="two">
+			<button class="primary big" onclick={() => game.start('white')}>Play White</button>
+			<button class="secondary big" onclick={() => game.start('black')}>Play Black</button>
+		</div>
+		<p class="fine">Starts from the beginning in the current universe: {game.preset.name}, {game.level.name} level.</p>
 	</Sheet>
 {:else if game.sheet === 'universe'}
 	<Sheet title="Universe" onclose={() => (game.sheet = null)}>
-		<p class="fine">Switching universe starts a new game.</p>
+		<p class="fine">Each universe is one set of constants. Switching starts a new game.</p>
 		{#each data.facts.presets as p (p.slug)}
-			{@const chips = diffChips(p)}
-			<button class="opt" class:sel={p.slug === game.presetSlug} aria-pressed={p.slug === game.presetSlug} onclick={() => game.setPreset(p.slug)}>
-				<span class="optname">{p.name}</span>
-				<span class="optlabel">{p.label}</span>
-				{#if chips.shown.length}
-					<span class="chipsrow mono">
-						{#each chips.shown as c (c)}<span class="chip">{c}</span>{/each}
-						{#if chips.more}<span class="chip">+{chips.more} more</span>{/if}
-					</span>
-				{/if}
+			{@const d = diffLines(p)}
+			{@const sel = p.slug === game.presetSlug}
+			<button class="opt uopt" class:sel aria-pressed={sel} onclick={() => game.setPreset(p.slug)}>
+				<span class="usys"><UniverseSystem constants={p.constants} slug={p.slug} name={p.name} size="mini" /></span>
+				<span class="utext">
+					<span class="opthead"><span class="optname">{p.name}</span><span class="games num">{gamesOf(p)}</span></span>
+					<span class="optlabel">{p.label}</span>
+					{#if d.lines.length || d.more}
+						<span class="diffs">
+							{#each d.lines as l (l)}<span>{l}</span>{/each}
+							{#if d.more}<span class="more">{d.more} other {d.more === 1 ? 'constant differs' : 'constants differ'}</span>{/if}
+						</span>
+					{/if}
+				</span>
 			</button>
 		{/each}
+		<button class="disclose" aria-expanded={showConstants} onclick={() => (showConstants = !showConstants)}>
+			<span aria-hidden="true">{showConstants ? '−' : '+'}</span> Constants of {game.preset.name}
+		</button>
+		{#if showConstants}<ConstantsPlate preset={game.preset} />{/if}
 	</Sheet>
 {:else if game.sheet === 'level'}
 	<Sheet title="Level" onclose={() => (game.sheet = null)}>
+		<p class="fine">A level is a fixed number of positions Kepler looks at per move, so the same level gives the same move on every device.</p>
 		{#each data.facts.levels as l (l.id)}
 			<button class="opt" class:sel={l.id === game.levelId} aria-pressed={l.id === game.levelId} onclick={() => game.setLevel(l.id)}>
-				<span class="optname">{l.name}</span>
-				<span class="optlabel">{l.nodes.toLocaleString('en-US')} positions per move, about {l.about} on a phone.</span>
+				<span class="opthead"><span class="optname">{l.name}</span><span class="num nodes">{fmt(l.nodes)}</span></span>
+				<span class="scale" aria-hidden="true"><span style:width="{(l.nodes / maxNodes) * 100}%"></span></span>
+				<span class="optlabel">Positions per move, about {l.about} on a phone.</span>
 			</button>
 		{/each}
-		<p class="fine">Strength at this level: not measured yet. The same level gives the same move on every device.</p>
+		<p class="fine">Strength at this level: not measured yet.</p>
 	</Sheet>
 {:else if game.sheet === 'more'}
 	<Sheet title="More" onclose={() => (game.sheet = null)}>
-		<button class="secondary big" onclick={() => game.flip()}>Flip board</button>
-		<button class="secondary big" onclick={() => (game.sheet = 'level')}>Level: {game.level.name}</button>
-		<p class="fine">Field layer: tap the Field button to cycle Pull, Light cones, Off. Light cones: tap a piece.</p>
+		<div class="cap">Field layer</div>
+		<div class="seg" role="group" aria-label="Field layer">
+			{#each FIELD_MODES as [m, name] (m)}
+				<button class:on={game.fieldMode === m} aria-pressed={game.fieldMode === m} onclick={() => game.setField(m)}>{name}</button>
+			{/each}
+		</div>
+		<FieldLegend mode={game.fieldMode} c={game.preset.constants.c} />
+		<div class="two">
+			<button class="secondary big" onclick={() => game.flip()}>Flip board</button>
+			<button class="secondary big" onclick={() => (game.sheet = 'level')}>Level: {game.level.name}</button>
+		</div>
 	</Sheet>
 {/if}
 
@@ -249,72 +305,65 @@
 		display: flex;
 		flex-direction: column;
 		gap: 18px;
-		padding: 20px var(--gutter) 40px;
+		padding: 22px var(--gutter) 40px;
 		max-width: 1280px;
 		margin: 0 auto;
 	}
 
-	/* ---- hero text ---- */
+	/* ---- hero text (phone first) ---- */
 	.h1 {
 		order: 1;
 		margin: 0;
-		font-size: 42px;
+		font-size: clamp(34px, 10vw, 42px);
 		font-weight: 300;
 		letter-spacing: -0.045em;
-		line-height: 1.02;
+		line-height: 1.03;
+		text-wrap: balance;
 	}
 	.sub {
 		order: 2;
 		margin: 0;
-		font-size: 17px;
+		font-size: 16px;
 		line-height: 1.5;
 		color: var(--ink-2);
+		max-width: 34em;
 	}
-	.sub .long {
-		display: none;
-	}
-	.center {
-		order: 4;
-	}
-	/* phone: the buttons sit above the board so they are on the first screen */
 	.cta {
 		order: 3;
 		display: flex;
 		gap: 10px;
 	}
-	.chips {
-		order: 5;
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		font-size: 12px;
-		color: var(--muted);
-	}
-	.chips span {
-		padding: 6px 10px;
-		border-radius: var(--radius-pill);
-		background: var(--soft);
+	.center {
+		order: 4;
 	}
 	.view,
 	.side {
 		display: none;
 	}
 
+	/* ---- buttons ---- */
 	.primary,
 	.secondary {
-		min-height: 54px;
-		padding: 0 28px;
+		min-height: 52px;
+		padding: 0 26px;
 		font-size: 16px;
 		font-weight: 500;
 		border-radius: var(--radius-pill);
 		border: 1px solid var(--ink);
+		transition:
+			background-color 0.15s,
+			border-color 0.15s;
+	}
+	.primary:focus-visible,
+	.secondary:focus-visible {
+		outline-offset: 3px;
 	}
 	.cta button {
 		flex: 1 1 0;
 	}
 	.primary {
 		background: var(--ink);
-		color: #fff;
+		color: var(--on-ink);
 	}
 	.primary:hover:not(:disabled) {
 		background: var(--ink-2);
@@ -334,10 +383,18 @@
 	.sm {
 		min-height: var(--tap);
 		padding: 0 18px;
-		font-size: 14px;
+		font-size: 15px;
 	}
 	.big {
 		width: 100%;
+	}
+	.two {
+		display: flex;
+		gap: 10px;
+	}
+	.two > * {
+		flex: 1 1 0;
+		padding: 0 12px;
 	}
 
 	/* ---- the centre column ---- */
@@ -365,62 +422,59 @@
 		display: none;
 	}
 	.who {
-		font-weight: 600;
-		font-size: 14px;
+		display: flex;
+		align-items: baseline;
+		font-weight: 500;
+		font-size: var(--t-md);
 		white-space: nowrap;
 	}
 	.status {
-		margin-left: 8px;
-		font-size: 11px;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin-left: 10px;
+		font-size: var(--t-xs);
 		font-weight: 500;
 		color: var(--muted);
+		font-variant-numeric: tabular-nums;
 	}
 	.status.accent {
 		color: var(--accent);
 	}
-	.figure {
-		width: var(--board);
-		margin-top: 10px;
+	.pip {
+		width: 6px;
+		height: 6px;
+		background: var(--accent);
+		border-radius: 50%;
+		animation: breathe 1.2s ease-in-out infinite;
+	}
+	@keyframes breathe {
+		50% {
+			opacity: 0.25;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.pip {
+			animation: none;
+		}
 	}
 	.restlegend {
-		display: flex;
-		gap: 16px;
-		font-size: 12px;
-		color: var(--muted);
 		width: var(--board);
+		margin-top: 4px;
 	}
-	.lg {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		font-size: 13px;
-	}
-	.restlegend .lg {
-		font-size: 12px;
-	}
-	.sw {
-		width: 12px;
-		height: 12px;
-		border-radius: 50%;
-		display: inline-block;
-		flex: none;
-	}
-	.sw.solid {
-		background: var(--ink);
-		opacity: 0.5;
-	}
-	.sw.ring {
-		border: 1.5px solid var(--ink);
-		opacity: 0.6;
+	.figure {
+		width: var(--board);
+		margin-top: 8px;
+		padding-top: 8px;
+		border-top: 1px solid var(--line);
 	}
 	.line {
 		width: var(--board);
-		min-height: 52px;
-		margin-top: 2px;
+		min-height: 54px;
 		padding-top: 8px;
 		border-top: 1px solid var(--line);
-		font-size: 14px;
-		line-height: 1.5;
+		font-size: 15px;
+		line-height: 1.45;
 		color: var(--ink-2);
 		display: flex;
 		flex-wrap: wrap;
@@ -428,7 +482,8 @@
 		gap: 4px 12px;
 	}
 	.meta2 {
-		font-size: 11px;
+		margin-right: 6px;
+		font-weight: 500;
 		color: var(--accent);
 	}
 	.muted {
@@ -436,18 +491,36 @@
 	}
 	.over {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 12px;
+		gap: 10px 12px;
 		width: 100%;
-		font-size: 16px;
+		padding: 12px 14px;
+		border-radius: var(--radius-card-sm);
+		background: var(--card);
+		border: 1px solid var(--line);
 		color: var(--ink);
+	}
+	.res {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.res strong {
+		font-size: var(--t-lg);
+		font-weight: 500;
+	}
+	.res .num {
+		font-size: var(--t-xs);
+	}
+	.overbtns {
+		display: flex;
+		gap: 8px;
 	}
 	.strip {
 		width: var(--board);
-	}
-	.center :global(.dock) {
-		margin-top: 6px;
+		min-height: 26px;
 	}
 
 	.promo {
@@ -493,15 +566,16 @@
 
 	/* ---- sheets ---- */
 	.fine {
-		margin: 4px 0 0;
+		margin: 0;
 		font-size: 13px;
+		line-height: 1.5;
 		color: var(--muted);
 	}
 	.opt {
 		display: flex;
 		flex-direction: column;
-		align-items: flex-start;
-		gap: 4px;
+		align-items: stretch;
+		gap: 6px;
 		width: 100%;
 		min-height: var(--tap);
 		padding: 14px 16px;
@@ -509,6 +583,7 @@
 		background: var(--card);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-card-sm);
+		transition: border-color 0.15s;
 	}
 	.opt:hover {
 		border-color: var(--ink);
@@ -517,8 +592,14 @@
 		border-color: var(--accent);
 		box-shadow: inset 0 0 0 1px var(--accent);
 	}
+	.opthead {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
 	.optname {
-		font-weight: 600;
+		font-weight: 500;
 		font-size: 15px;
 	}
 	.optlabel {
@@ -526,62 +607,164 @@
 		color: var(--ink-2);
 		line-height: 1.45;
 	}
-	.chipsrow {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 4px;
-		margin-top: 4px;
+	.uopt {
+		flex-direction: row;
+		align-items: flex-start;
+		gap: 14px;
 	}
-	.chip {
-		padding: 2px 8px;
-		font-size: 11px;
-		background: var(--soft);
-		border-radius: var(--radius-pill);
+	.usys {
+		flex: none;
+		width: 120px;
+		padding-top: 2px;
+	}
+	.utext {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+		flex: 1 1 auto;
+	}
+	.uopt .opthead {
+		flex-wrap: wrap;
+		gap: 0 12px;
+	}
+	.games {
+		font-size: var(--t-xs);
+		color: var(--muted);
+		white-space: nowrap;
+	}
+	.diffs {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		margin-top: 4px;
+		padding-top: 6px;
+		border-top: 1px dashed var(--line-strong);
+		font-size: var(--t-xs);
+		line-height: 1.5;
+		color: var(--ink);
+		font-family: var(--font-mono);
+	}
+	.diffs .more {
+		color: var(--muted);
+	}
+	.disclose {
+		align-self: flex-start;
+		min-height: var(--tap);
+		padding: 0 4px;
+		border: none;
+		background: none;
+		font-size: var(--t-sm);
+		color: var(--accent);
+	}
+	.disclose span {
+		display: inline-block;
+		width: 1em;
+		font-family: var(--font-mono);
+	}
+	.nodes {
+		font-size: 13px;
 		color: var(--ink-2);
+	}
+	.scale {
+		display: block;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--soft);
+		overflow: hidden;
+	}
+	.scale span {
+		display: block;
+		height: 100%;
+		min-width: 3px;
+		background: var(--ink);
+	}
+	.opt.sel .scale span {
+		background: var(--accent);
+	}
+	.seg {
+		display: flex;
+		gap: 2px;
+		padding: 3px;
+		border-radius: var(--radius-pill);
+		background: var(--soft);
+	}
+	.seg button {
+		flex: 1 1 0;
+		min-height: 42px;
+		border: none;
+		border-radius: var(--radius-pill);
+		background: none;
+		font-size: 15px;
+	}
+	.seg button.on {
+		background: var(--card);
+		box-shadow: var(--shadow-soft);
+		font-weight: 500;
+	}
+
+	.cap {
+		font-size: var(--t-xs);
+		font-weight: 500;
+		color: var(--muted);
 	}
 
 	/* ---- play layout, phone ---- */
 	.stage[data-mode='play'] .h1,
 	.stage[data-mode='play'] .sub,
-	.stage[data-mode='play'] .cta,
-	.stage[data-mode='play'] .chips {
+	.stage[data-mode='play'] .cta {
 		display: none;
 	}
 	.stage[data-mode='play'] {
-		gap: 10px;
-		padding-top: 12px;
-		padding-bottom: 12px;
+		gap: 8px;
+		padding-top: 10px;
+		padding-bottom: calc(92px + env(safe-area-inset-bottom));
 	}
 	.stage[data-mode='play'] .view {
 		order: 0;
 		display: flex;
 		justify-content: space-between;
-		align-items: flex-end;
+		align-items: center;
 	}
 	.stage[data-mode='play'] .center {
-		--board: min(100%, max(260px, calc(100dvh - 400px)));
+		--board: min(100%, max(260px, calc(100dvh - 380px)));
 	}
-	.view .cap {
-		font-size: 10px;
-		color: var(--muted);
+	.view .viewnum {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
 	}
+
 	.view .num {
-		font-size: 36px;
+		font-size: 30px;
 		font-weight: 300;
+		transition: color 0.3s var(--ease);
 		letter-spacing: -0.04em;
 		line-height: 1;
+		font-variant-numeric: tabular-nums;
 	}
 	.view .meta {
 		text-align: right;
-		font-size: 10px;
+		font-size: var(--t-xs);
 		color: var(--muted);
 		line-height: 1.6;
+		background: none;
+		border: none;
+		padding: 4px 0;
+		min-height: var(--tap);
 	}
-	.view .legend {
+	.view .meta:hover {
+		color: var(--accent);
+	}
+	.view .legendcol {
 		display: none;
 	}
-	.spaced {
-		margin-top: 22px;
+	.dockwrap {
+		position: fixed;
+		left: var(--gutter);
+		right: var(--gutter);
+		bottom: max(12px, env(safe-area-inset-bottom));
+		z-index: 10;
 	}
 
 	/* ---- desktop ---- */
@@ -592,17 +775,17 @@
 		.stage[data-mode='rest'] {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) auto;
-			grid-template-areas: 'h1 center' 'sub center' 'cta center' 'chips center';
-			grid-template-rows: 1fr auto auto 1fr;
+			grid-template-areas: 'h1 center' 'sub center' 'cta center';
+			grid-template-rows: 1fr auto 1fr;
 			column-gap: 72px;
-			row-gap: 26px;
+			row-gap: 24px;
 			align-items: center;
-			min-height: calc(100dvh - 56px);
+			min-height: calc(100dvh - 57px);
 		}
 		.stage[data-mode='rest'] .h1 {
 			grid-area: h1;
 			align-self: end;
-			font-size: 72px;
+			font-size: clamp(56px, 5.6vw, 76px);
 			letter-spacing: -0.05em;
 			line-height: 1;
 		}
@@ -612,38 +795,27 @@
 			line-height: 1.55;
 			max-width: 470px;
 		}
-		.sub .long {
-			display: inline;
-		}
-		.sub .short {
-			display: none;
-		}
 		.stage[data-mode='rest'] .cta {
 			grid-area: cta;
+			align-self: start;
 		}
 		.stage[data-mode='rest'] .cta button {
 			flex: none;
-		}
-		.stage[data-mode='rest'] .chips {
-			grid-area: chips;
-			align-self: start;
-			font-size: 13px;
-		}
-		.stage[data-mode='rest'] .chips span {
-			padding: 6px 12px;
+			min-width: 160px;
 		}
 		.stage[data-mode='rest'] .center {
 			grid-area: center;
-			--board: min(500px, calc(100dvh - 240px));
+			--board: min(480px, calc(100dvh - 340px));
 		}
 
 		.stage[data-mode='play'] {
+			--bw: min(600px, max(320px, calc(100dvh - 300px)));
 			display: grid;
-			grid-template-columns: 240px auto 200px;
+			grid-template-columns: 236px var(--bw) 236px;
 			justify-content: center;
-			column-gap: 56px;
+			column-gap: 48px;
 			align-items: start;
-			padding: 14px 32px 16px;
+			padding: 18px 32px 24px;
 		}
 		.stage[data-mode='play'] .view {
 			order: 0;
@@ -654,13 +826,14 @@
 		}
 		.stage[data-mode='play'] .center {
 			order: 1;
-			--board: min(560px, max(300px, calc(100dvh - 350px)));
+			--board: 100%;
+			width: var(--bw);
 		}
 		.stage[data-mode='play'] .side {
 			order: 2;
 			display: flex;
 			flex-direction: column;
-			gap: 8px;
+			gap: 26px;
 			padding-top: 40px;
 			font-size: 13px;
 		}
@@ -668,37 +841,67 @@
 			display: none;
 		}
 		.view .num {
-			font-size: 64px;
-		}
-		.view .cap {
-			font-size: 11px;
+			font-size: 60px;
 		}
 		.view .viewnum {
+			gap: 8px;
+			padding-bottom: 22px;
+			border-bottom: 1px solid var(--line);
+			width: 100%;
+		}
+		.view .legendcol {
 			display: flex;
 			flex-direction: column;
-			gap: 6px;
+			gap: 10px;
+			margin-top: 16px;
 		}
-		.view .legend {
+		.side .block {
 			display: flex;
 			flex-direction: column;
+			gap: 8px;
+		}
+		.side .empty {
+			margin: 0;
+			color: var(--muted);
+		}
+		.pick {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			margin: 0 -10px;
+			padding: 8px 10px;
+			min-height: var(--tap);
+			border: 1px solid transparent;
+			border-radius: 12px;
+			background: none;
+			text-align: left;
+		}
+		.pick:hover {
+			border-color: var(--line-strong);
+			background: var(--card);
+		}
+		.pick > span {
+			display: flex;
+			flex-direction: column;
+		}
+		.upick {
+			flex-direction: column;
+			align-items: flex-start;
 			gap: 6px;
-			margin-top: 22px;
 		}
-		.view .legend p {
-			margin: 4px 0 0;
-			font-size: 12px;
-			line-height: 1.55;
-			color: var(--muted);
-		}
-		.side .cap {
-			font-size: 11px;
-			color: var(--muted);
+		.pick > .sidesys {
+			display: block;
+			width: 150px;
 		}
 		.side .val {
-			font-size: 14px;
+			font-size: 15px;
+			font-weight: 500;
+		}
+		.sm2 {
+			font-size: 12px;
+			color: var(--muted);
 		}
 		.side .strength {
-			margin-top: 6px;
 			font-size: 12px;
 			color: var(--muted);
 		}
@@ -708,12 +911,17 @@
 		.line {
 			justify-content: center;
 			text-align: center;
-			width: min(620px, 100%);
 			font-size: 15px;
 		}
-	}
-	.side .cap {
-		color: var(--muted);
-		font-size: 11px;
+		.over {
+			text-align: left;
+		}
+		.dockwrap {
+			position: static;
+			margin-top: 6px;
+		}
+		.stage[data-mode='play'] {
+			padding-bottom: 24px;
+		}
 	}
 </style>

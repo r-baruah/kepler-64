@@ -1,31 +1,124 @@
-/* Design tokens. "Mission": light, precise, navy ink, one electric-blue accent. */
+/* Design tokens. "Mission": precise, navy ink, one blue accent, low glare.
+ *
+ * data-theme = light | dark is set on <html> before first paint by the inline script in
+ * src/app.html (system preference, or the header toggle; remembered per browser). */
 :root {
 	color-scheme: light;
 
-	--bg: #f6f7f9;
+	/* Surfaces: off-white greys, never pure white. */
+	--bg: #e9ebef;
+	--bg-2: #e1e4e9;
+	--card: #f1f2f5;
+	--soft: #dde1e7;
+	--line: #d2d6de;
+	--line-strong: #bcc3ce;
+	--scrim: rgba(15, 22, 38, 0.32);
+	--band: #17223b;
+	--band-ink: #e6e9ef;
+	--band-muted: #b5bdcc;
+
+	/* Ink */
 	--ink: #14213d;
 	--ink-2: #2a3550;
-	--muted: #5b6478;
-	--line: #dce0e7;
-	--line-strong: #c9ced8;
-	--accent: #2f5bff;
-	--card: #ffffff;
-	--soft: #e9ecf2;
+	--muted: #4f586c;
+	--faint: #626b80;
+	--on-ink: #f1f2f5;
+	--accent: #2c52e0;
+	--accent-soft: rgba(44, 82, 224, 0.12);
+	--alert: #b4432f;
 
-	/* Board */
-	--sq-light: #ffffff;
-	--sq-dark: #e9ecf1;
-	--coord: #7a8499;
+	/* Board: low glare. Cool grey paper and slate. */
+	--sq-light: #dde1e7;
+	--sq-dark: #b2bbc8;
+	--board-edge: #8d97a8;
+	--coord-on-light: #586276;
+	--coord-on-dark: #2c364c;
+	--hint: #14213d;
+	--hint-alpha: 0.3;
+	--last: #2c52e0;
+	--last-alpha: 0.13;
+	--select: #2c52e0;
+
+	/* Field: one hue per side, both muted. White's pull is sand, Black's is slate. */
+	--pull-w: #c9962f;
+	--pull-w-line: #9c6f14;
+	--pull-b: #26346b;
+	--pull-w-max: 0.28;
+	--pull-b-max: 0.18;
+	--cone: #2c52e0;
+
+	/* Ornament ink (orbit lines, rules) and the faint coordinate grid behind diagrams */
+	--orn: #a3abb9;
+	--grid: rgba(20, 33, 61, 0.045);
 
 	--radius-pill: 999px;
-	--radius-card: 20px;
-	--radius-card-sm: 16px;
-	--shadow-card: 0 10px 40px rgba(20, 33, 61, 0.08);
-	--shadow-dock: 0 6px 24px rgba(20, 33, 61, 0.1);
+	--radius-card: 18px;
+	--radius-card-sm: 12px;
+	--shadow-card: 0 12px 40px rgba(20, 33, 61, 0.1);
+	--shadow-dock: 0 8px 28px rgba(20, 33, 61, 0.12);
+	--shadow-soft: 0 1px 2px rgba(20, 33, 61, 0.06);
 
 	--font-sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
+	/* Type scale (UI text uses weights 400 and 500 only; display headings use 300). */
+	--t-xs: 12px;
+	--t-sm: 13px;
+	--t-md: 15px;
+	--t-lg: 17px;
+
+	--ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 	--gutter: 16px;
 	--tap: 44px;
 }
+
+/* Dark: deep graphite navy, crisp and flat. No glow, no starfield. The board stays mid-grey so
+ * pieces read without glare. */
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--bg: #0f131a;
+	--bg-2: #141923;
+	--card: #171d27;
+	--soft: #212835;
+	--line: #262e3c;
+	--line-strong: #364052;
+	--scrim: rgba(3, 5, 9, 0.6);
+	--band: #171d27;
+	--band-ink: #e3e7ee;
+	--band-muted: #9ea7b8;
+
+	--ink: #e3e7ee;
+	--ink-2: #c4cbd7;
+	--muted: #9ba4b5;
+	--faint: #858fa2;
+	--on-ink: #0f131a;
+	--accent: #7d97ff;
+	--accent-soft: rgba(125, 151, 255, 0.16);
+	--alert: #e47e66;
+
+	--sq-light: #6f788c;
+	--sq-dark: #535c6f;
+	--board-edge: #2a3140;
+	--coord-on-light: #e6e9ef;
+	--coord-on-dark: #d4d9e2;
+	--hint: #0b0e14;
+	--hint-alpha: 0.42;
+	--last: #b6c4ff;
+	--last-alpha: 0.22;
+	--select: #9db0ff;
+
+	--pull-w: #e3b453;
+	--pull-w-line: #f0c770;
+	--pull-b: #070a14;
+	--pull-w-max: 0.3;
+	--pull-b-max: 0.24;
+	--cone: #9db0ff;
+
+	--orn: #465065;
+	--grid: rgba(227, 231, 238, 0.05);
+
+	--shadow-card: 0 16px 48px rgba(0, 0, 0, 0.45);
+	--shadow-dock: 0 10px 30px rgba(0, 0, 0, 0.45);
+	--shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+

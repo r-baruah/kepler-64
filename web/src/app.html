@@ -3,7 +3,22 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-		<meta name="theme-color" content="#F6F7F9" />
+		<meta name="theme-color" content="#E9EBEF" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#0F131A" media="(prefers-color-scheme: dark)" />
+		<script>
+			// Before first paint (no flash): the theme comes from the header toggle (remembered) or
+			// the system preference.
+			(function () {
+				var r = document.documentElement;
+				var theme = 'light';
+				try {
+					var t = localStorage.getItem('kepler-theme');
+					if (t === 'light' || t === 'dark') theme = t;
+					else if (window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
+				} catch (e) {}
+				r.setAttribute('data-theme', theme);
+			})();
+		</script>
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="preload" href="%sveltekit.assets%/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
 		%sveltekit.head%

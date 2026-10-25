@@ -1,28 +1,40 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import Board from '$lib/components/Board.svelte';
+	import PhysicsPlate from '$lib/components/PhysicsPlate.svelte';
+	import Sheet from '$lib/components/Sheet.svelte';
+	import UniverseSystem from '$lib/components/UniverseSystem.svelte';
 	import { parsePlacement, sqIndex } from '$lib/chess';
 	import { EngineClient } from '$lib/engine/client';
-	import type { LandingFacts, LedgerCard, Masses } from '$lib/types';
+	import { reveal } from '$lib/reveal';
+	import type { Breakdown, LedgerCard, SiteFacts } from '$lib/types';
 
 	interface Props {
-		landing: LandingFacts;
-		/** True once the page's own engine has loaded; the demo board then asks the engine for the rook's squares. */
+		facts: SiteFacts;
+		/** True once the page's own engine has loaded; the demo boards then ask the engine for their numbers. */
 		ready: boolean;
-		/** Generation file the demo engine loads (any generation works; the hop squares come from the rules). */
+		/** Home's generation file, loaded by the demo engine. */
 		generationUrl: string;
-		onplayrejected: () => void;
+		/** Start a game in this universe. */
+		onplay: (slug: string) => void;
 	}
-	let { landing, ready, generationUrl, onplayrejected }: Props = $props();
+	let { facts, ready, generationUrl, onplay }: Props = $props();
 
-	// ---- 1. the one law --------------------------------------------------------------
+	const landing = $derived(facts.landing);
+	const home = $derived(facts.presets[0]);
+	const fmt = (n: number) => n.toLocaleString('en-US');
+
+	// ---- 1. the worked example: a rook stops at its own pawn ------------------------------
 	// The board shows only the rook and the pawn. The engine needs both kings to accept a position, so
 	// they stand far from the rook's lines (a8, h8) and do not change its squares.
 	const SHOWN_FEN = '8/8/8/8/3P4/8/3R4/8 w - - 0 1';
 	const DEMO_FEN = 'K6k/8/8/8/3P4/8/3R4/8 w - - 0 1';
+	// The field example in the plate: a white knight on c3 and a black bishop on f5 (kings in far corners).
+	const FIELD_FEN = 'k7/8/8/8/5b2/2N5/8/7K w - - 0 1';
 	const ROOK_SQ = sqIndex('d2');
 	const demoPlacement = parsePlacement(SHOWN_FEN);
 	let hop1 = $state.raw<number[] | null>(null);
+	let plateField = $state.raw<Breakdown['field'] | null>(null);
 	const cones = $derived(hop1 ? { origin: ROOK_SQ, hop1, hop2: [] } : null);
 	let demoClient: EngineClient | null = null;
 	let demoStarted = false;
@@ -40,6 +52,7 @@
 				const snap = await client.reset(DEMO_FEN, []);
 				const rook = snap.breakdown.pieces.find((p) => p.square === 'd2');
 				if (rook) hop1 = rook.hops[0].map(sqIndex);
+				plateField = (await client.reset(FIELD_FEN, [])).breakdown.field;
 				client.stop();
 			} catch (e) {
 				console.warn('landing demo', e);
@@ -48,121 +61,163 @@
 	});
 	onDestroy(() => demoClient?.stop());
 
-	// ---- 2. the piece-weight chart ---------------------------------------------------
-	const W = 520;
-	const Y_TOP = 28;
-	const Y_BOTTOM = 237;
-	const chart = $derived(landing.chart);
-	const all = $derived([...chart.runs.a, ...chart.runs.b].flat());
-	const vmin = $derived(Math.min(...all));
-	const vmax = $derived(Math.max(...all));
-	const yOf = (v: number) => Y_BOTTOM - ((v - vmin) / (vmax - vmin)) * (Y_BOTTOM - Y_TOP);
-	const rounds = $derived(chart.runs.a.length - 1);
-	const points = (series: Masses[], i: number) => series.map((m, r) => `${((r / rounds) * W).toFixed(1)},${yOf(m[i]).toFixed(1)}`).join(' ');
-	// Draw order: queen last-but-one so the accent line sits on top; knight at 55%.
-	const LINES = [
-		{ name: 'Queen', short: 'Q', i: 3, color: 'var(--accent)', opacity: 1 },
-		{ name: 'Rook', short: 'R', i: 2, color: 'var(--ink)', opacity: 1 },
-		{ name: 'Bishop', short: 'B', i: 1, color: 'var(--ink)', opacity: 1 },
-		{ name: 'Knight', short: 'N', i: 0, color: 'var(--ink)', opacity: 0.55 }
-	];
-	const found = $derived(landing.found);
-	const games = $derived(chart.games.toLocaleString('en-US'));
-	const aria = $derived(
-		`Piece weights over ${games} games of self-play, in two runs, from all equal to queen ${found.q.toFixed(1)}, rook ${found.r.toFixed(1)}, bishop ${found.b.toFixed(1)}, knight ${found.n.toFixed(1)}`
-	);
+	// ---- 2. no chess knowledge inside ------------------------------------------------
+	const proof = $derived(landing.proof);
+	const ABSENT = ['Piece-square tables', 'King-safety rules', 'Pawn-structure rules', 'An opening book', 'A neural network trained on chess games'];
 
 	// ---- 3. the ledger ---------------------------------------------------------------
 	const BADGE: Record<LedgerCard['verdict'], string> = { kept: 'Kept', back: 'Came back', rejected: 'Rejected', 'rejected-twice': 'Rejected twice' };
+	const kept = $derived(landing.ledger.filter((c) => c.universes.length === 0));
+	const cut = $derived(landing.ledger.filter((c) => c.universes.length > 0));
+	const presetBy = $derived(Object.fromEntries(facts.presets.map((p) => [p.slug, p])));
+
+	// ---- 4. cite ---------------------------------------------------------------------
+	let citeOpen = $state(false);
+	let copied = $state(false);
+	async function copyCite() {
+		try {
+			await navigator.clipboard.writeText(facts.cite.bibtex);
+			copied = true;
+			setTimeout(() => (copied = false), 1800);
+		} catch {
+			copied = false;
+		}
+	}
 </script>
 
 <div class="landing">
-	<section class="sec split">
-		<div class="copy">
-			<div class="label">The one law</div>
-			<h2>Pull follows the moves.</h2>
-			<p>A piece pulls only where it could move, and stops at the first piece in its way. This rook stops at its own pawn.</p>
+	<section class="sec" id="how" use:reveal>
+		<header class="head">
+			<div class="eyebrow mono"><span class="dot"></span>01 &middot; How it works</div>
+			<h2>Physics, rebuilt for a chessboard.</h2>
+			<p class="lede">We wrote the laws. It found the constants itself, in {fmt(facts.selfPlayGames)} games of self-play.</p>
+		</header>
+		<div class="how">
+			<PhysicsPlate constants={home.constants} field={plateField} />
+			<figure class="example">
+				<div class="exboard">
+					<Board
+						placement={demoPlacement}
+						bottom="white"
+						field={null}
+						{cones}
+						lastMove={null}
+						selected={null}
+						targets={new Map()}
+						label="A white rook on d2 behind its own pawn on d4. The squares the rook pulls on are highlighted."
+						onselectown={() => false}
+						ontap={() => {}}
+						onmove={() => {}}
+					/>
+				</div>
+				<figcaption><span class="mono k">Worked example</span> The rook pulls up to its own pawn, and no further.</figcaption>
+			</figure>
 		</div>
-		<div class="plate board-plate">
-			<Board
-				placement={demoPlacement}
-				bottom="white"
-				dots={[]}
-				{cones}
-				lastMove={null}
-				selected={null}
-				targets={new Map()}
-				label="A white rook on d2 behind its own pawn on d4. The squares the rook pulls on are highlighted."
-				onselectown={() => false}
-				ontap={() => {}}
-				onmove={() => {}}
-			/>
-		</div>
+		<p class="namenote">Named after Johannes Kepler, who found the planets' laws in observations. Kepler-64 finds its constants in its own games.</p>
 	</section>
 
-	<section class="sec split">
-		<div class="copy">
-			<div class="label">Learned, not told</div>
-			<h2>It found the piece values by itself.</h2>
-			<p>Every piece started with the same weight. After {games} games against itself, it had ranked them. A second run found the same.</p>
-			<p class="strong">
-				Chess players say <b>3, 3, 5, 9</b>. This universe found <b>{found.n.toFixed(1)}, {found.b.toFixed(1)}, {found.r.toFixed(1)}, {found.q.toFixed(1)}</b>.
-			</p>
-		</div>
-		<figure class="plate chart">
-			<svg viewBox="-10 -10 640 300" role="img" aria-label={aria}>
-				{#each LINES as l (l.name)}
-					<polyline fill="none" stroke="#9aa1b0" stroke-width="1.2" stroke-dasharray="2 4" points={points(chart.runs.b, l.i)} />
-				{/each}
-				{#each LINES as l (l.name)}
-					<polyline fill="none" stroke={l.color} stroke-opacity={l.opacity} stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points={points(chart.runs.a, l.i)} />
-				{/each}
-				<circle cx="0" cy={yOf(chart.start[0])} r="5" fill="var(--ink)" />
-				<text class="axis" x="-6" y={yOf(chart.start[0]) - 22}>all equal</text>
-				{#each LINES as l (l.name)}
-					{@const y = yOf(chart.runs.a[rounds][l.i]) + 5}
-					<text class="end full" x="534" {y} fill={l.name === 'Queen' ? 'var(--accent)' : l.name === 'Knight' ? 'var(--muted)' : 'var(--ink)'}>{l.name}</text>
-					<text class="end abbr" x="534" y={y + 3} fill={l.name === 'Queen' ? 'var(--accent)' : l.name === 'Knight' ? 'var(--muted)' : 'var(--ink)'}>{l.short}</text>
-				{/each}
-			</svg>
-			<figcaption>Piece weight over {games} games. The second run, dotted, lies almost exactly underneath.</figcaption>
-		</figure>
-	</section>
-
-	<section class="sec stack">
-		<div class="ledger-head">
-			<div class="copy">
-				<div class="label">The Law Ledger</div>
-				<h2>Every law had to earn its place.</h2>
+	<section class="sec" id="inside" use:reveal>
+		<header class="head">
+			<div class="eyebrow mono"><span class="dot"></span>02 &middot; What's inside</div>
+			<h2>It knows space, not chess.</h2>
+		</header>
+		<div class="inside">
+			<div class="cols">
+				<div class="col">
+					<div class="colhead mono">Not inside</div>
+					<ul class="absent">
+						{#each ABSENT as a (a)}
+							<li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" /><path d="M3.2 10.8l7.6-7.6" /></svg>{a}</li>
+						{/each}
+					</ul>
+				</div>
+				<div class="col">
+					<div class="colhead mono">Inside</div>
+					<ul class="has">
+						<li>
+							<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"
+								><rect x="2" y="2" width="24" height="24" rx="2" class="g" /><path d="M2 10h24M2 18h24M10 2v24M18 2v24" class="g" /><rect x="10" y="10" width="8" height="8" class="o" /><path d="M14 14h12M14 14V2M14 14H2" class="r" /></svg
+							>One field
+						</li>
+						<li>
+							<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"
+								><ellipse cx="14" cy="15" rx="12" ry="5" class="g" /><circle cx="4" cy="16" r="1.5" class="b" /><circle cx="10" cy="19.6" r="2.3" class="b" /><circle cx="17" cy="19.8" r="2.6" class="b" /><circle cx="24.5" cy="16.5" r="3.4" class="q" /></svg
+							>About a dozen learned numbers
+						</li>
+					</ul>
+				</div>
 			</div>
-			<p>We switched each one off and let it play itself. Laws that helped stayed. The rest you can still play with.</p>
+			<div class="proof">
+				<div class="big">{proof.scorePercent}<span>%</span></div>
+				<div class="prooftext">
+					<p class="proofline">
+						Gen {proof.generation} scored {proof.scorePercent}% against {proof.opponent} limited to its {proof.setting} setting, at {proof.baseSeconds} seconds plus
+						{proof.incrementSeconds} per move, over {proof.games} games.
+					</p>
+					<div class="wdl" role="img" aria-label="{proof.w} wins, {proof.d} draws, {proof.l} losses">
+						<span class="w" style:flex-grow={proof.w}></span><span class="d" style:flex-grow={proof.d}></span><span class="l" style:flex-grow={proof.l}></span>
+					</div>
+					<div class="wdlkeys mono" aria-hidden="true"><span>{proof.w} won</span><span>{proof.d} drawn</span><span>{proof.l} lost</span></div>
+				</div>
+				<p class="fine">{proof.setting} is Stockfish's own setting, not a human rating. The opponent on this page plays a fixed search size; its strength isn't measured yet.</p>
+			</div>
+			<button class="try" onclick={() => onplay(home.slug)}>Try beating it <span aria-hidden="true">&rarr;</span></button>
 		</div>
-		<div class="cards">
-			{#each landing.ledger as c (c.id)}
-				<div class="lcard" class:cut={c.verdict === 'rejected' || c.verdict === 'rejected-twice'}>
+	</section>
+
+	<section class="sec" id="ledger" use:reveal>
+		<header class="head">
+			<div class="eyebrow mono"><span class="dot"></span>03 &middot; The Law Ledger</div>
+			<h2>Every law has to earn its place.</h2>
+			<p class="lede">Each law played against a copy of the engine without it. Laws that helped stayed. The rest became alternate universes.</p>
+		</header>
+		<div class="keptrow">
+			{#each kept as c (c.id)}
+				<div class="kcard">
 					<span class="badge {c.verdict}">{BADGE[c.verdict]}</span>
 					<div class="ct">{c.title}</div>
 					<div class="cn">{c.note}</div>
 				</div>
 			{/each}
-			<button class="lcard play" onclick={onplayrejected}>
-				<span class="ct">Play a rejected universe &rarr;</span>
-				<span class="cn">Switch a cut law back on and play that universe.</span>
-			</button>
+		</div>
+		<div class="cutrow">
+			{#each cut as c (c.id)}
+				<div class="ucard" class:wide={c.universes.length > 1}>
+					<div class="uhead">
+						<span class="badge {c.verdict}">{BADGE[c.verdict]}</span>
+						<div class="ct">{c.title}</div>
+						<div class="cn">{c.note}</div>
+					</div>
+					<div class="unis">
+						{#each c.universes as slug (slug)}
+							{@const p = presetBy[slug]}
+							<div class="uni">
+								<UniverseSystem constants={p.constants} slug={p.slug} name={p.name} />
+								<div class="unifoot">
+									<span class="uname">{p.name}</span>
+									<button class="play" onclick={() => onplay(p.slug)}>Play {p.name} <span aria-hidden="true">&rarr;</span></button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/each}
 		</div>
 	</section>
 
-	<section class="open">
+	<section class="open" use:reveal>
 		<div class="opentext">
 			<svg width="32" height="32" viewBox="0 0 20 20" aria-hidden="true"
 				><circle cx="10" cy="10" r="4" fill="currentColor" /><ellipse cx="10" cy="10" rx="9" ry="3.4" fill="none" stroke="currentColor" stroke-width="1.2" transform="rotate(-20 10 10)" /></svg
 			>
 			<h2>Open source, all of it.</h2>
 			<p>The engine, the training runs and every number on this page are on GitHub.</p>
+			<a class="problems" href="https://github.com/r-baruah/kepler-64/blob/v1/docs/v1/11_OPEN_PROBLEMS.md">Open problems <span aria-hidden="true">&rarr;</span></a>
 		</div>
 		<div class="openbtns">
 			<a class="b1" href="https://github.com/r-baruah/kepler-64">Star on GitHub</a>
 			<a class="b2" href="https://github.com/r-baruah/kepler-64">View the code</a>
+			<button class="b2" onclick={() => (citeOpen = true)}>Cite</button>
 		</div>
 	</section>
 
@@ -172,6 +227,13 @@
 	</footer>
 </div>
 
+{#if citeOpen}
+	<Sheet title="Cite Kepler-64" onclose={() => (citeOpen = false)}>
+		<pre class="bib mono">{facts.cite.bibtex}</pre>
+		<button class="copy" onclick={copyCite} aria-live="polite">{copied ? 'Copied' : 'Copy BibTeX'}</button>
+	</Sheet>
+{/if}
+
 <style>
 	.landing {
 		max-width: 1280px;
@@ -179,20 +241,41 @@
 		padding: 0 var(--gutter);
 	}
 	.sec {
+		scroll-margin-top: 64px;
 		padding: 40px 0;
 		display: flex;
 		flex-direction: column;
-		gap: 22px;
+		gap: 20px;
+		border-top: 1px solid var(--line);
 	}
-	.copy {
+	.head {
 		display: flex;
 		flex-direction: column;
-		gap: 14px;
+		gap: 12px;
 	}
-	.label {
-		font-size: 13px;
+	.eyebrow {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: var(--t-xs);
 		font-weight: 500;
 		color: var(--accent);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.dot {
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		border: 1.5px solid currentColor;
+		position: relative;
+	}
+	.dot::after {
+		content: '';
+		position: absolute;
+		inset: 1.5px;
+		border-radius: 50%;
+		background: currentColor;
 	}
 	h2 {
 		margin: 0;
@@ -200,6 +283,7 @@
 		font-weight: 300;
 		letter-spacing: -0.035em;
 		line-height: 1.08;
+		text-wrap: balance;
 	}
 	p {
 		margin: 0;
@@ -207,99 +291,241 @@
 		line-height: 1.5;
 		color: var(--ink-2);
 	}
-	p.strong {
-		color: var(--ink);
-	}
-	b {
-		font-weight: 600;
-	}
-	.plate {
-		margin: 0;
-		padding: 18px;
-		background: var(--card);
-		border-radius: 18px;
-		box-shadow: var(--shadow-card);
-	}
-	.board-plate {
-		align-self: center;
-		width: min(100%, 300px);
-	}
-	.chart svg {
-		display: block;
-		width: 100%;
-		height: auto;
-		font-family: var(--font-sans);
-	}
-	.chart figcaption {
-		margin-top: 8px;
-		font-size: 12px;
-		color: var(--muted);
-	}
-	.axis {
-		font-size: 13px;
-		fill: var(--muted);
-	}
-	.end {
-		font-size: 16px;
-	}
-	.abbr {
-		display: none;
-		font-size: 26px;
-	}
-	@media (max-width: 899px) {
-		.full {
-			display: none;
-		}
-		.abbr {
-			display: block;
-		}
-		.axis {
-			font-size: 20px;
-		}
+	.lede {
+		max-width: 34em;
 	}
 
-	/* ledger */
-	.ledger-head {
+	/* 1. how it works */
+	.how {
 		display: flex;
 		flex-direction: column;
-		gap: 14px;
+		gap: 18px;
 	}
-	.cards {
+	.example {
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 14px;
+		background: var(--card);
+		border-radius: var(--radius-card);
+		box-shadow: var(--shadow-soft);
+	}
+	.exboard {
+		width: min(100%, 260px);
+		align-self: center;
+	}
+	.example figcaption {
+		font-size: var(--t-sm);
+		color: var(--ink-2);
+		line-height: 1.45;
+		text-align: center;
+	}
+	.k {
+		display: block;
+		font-size: 11px;
+		color: var(--accent);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		margin-bottom: 2px;
+	}
+	.namenote {
+		font-size: var(--t-sm);
+		color: var(--muted);
+		max-width: 40em;
+	}
+
+	/* 2. inside */
+	.inside {
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+		padding: 20px;
+		background: var(--card);
+		border-radius: var(--radius-card);
+		box-shadow: var(--shadow-card);
+	}
+	.cols {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 20px;
+	}
+	.colhead {
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		margin-bottom: 10px;
+	}
+	ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 9px;
+	}
+	.absent li {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-size: var(--t-md);
+		color: var(--muted);
+	}
+	.absent svg {
+		flex: none;
+		fill: none;
+		stroke: var(--faint);
+		stroke-width: 1.3;
+	}
+	.has {
+		gap: 12px;
+	}
+	.has li {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		font-size: var(--t-lg);
+		color: var(--ink);
+	}
+	.has svg {
+		flex: none;
+	}
+	.has .g {
+		fill: none;
+		stroke: var(--orn);
+		stroke-width: 1;
+	}
+	.has .o {
+		fill: var(--pull-w);
+		opacity: 0.45;
+	}
+	.has .r {
+		stroke: var(--accent);
+		stroke-width: 1.4;
+		fill: none;
+	}
+	.has .b {
+		fill: var(--ink);
+	}
+	.has .q {
+		fill: var(--accent);
+	}
+	.proof {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		column-gap: 18px;
+		row-gap: 12px;
+		align-items: center;
+		padding-top: 18px;
+		border-top: 1px solid var(--line);
+	}
+	.big {
+		font-size: 56px;
+		font-weight: 300;
+		letter-spacing: -0.04em;
+		line-height: 1;
+		color: var(--ink);
+		font-variant-numeric: tabular-nums;
+	}
+	.big span {
+		font-size: 0.5em;
+		margin-left: 2px;
+		color: var(--ink-2);
+	}
+	.prooftext {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		min-width: 0;
+	}
+	.proofline {
+		font-size: var(--t-md);
+		line-height: 1.45;
+		color: var(--ink);
+	}
+	.wdl {
+		display: flex;
+		gap: 2px;
+		height: 6px;
+	}
+	.wdl span {
+		flex-basis: 0;
+		border-radius: 2px;
+		min-width: 3px;
+	}
+	.wdl .w {
+		background: var(--accent);
+	}
+	.wdl .d {
+		background: var(--orn);
+	}
+	.wdl .l {
+		background: var(--ink);
+		opacity: 0.8;
+	}
+	.wdlkeys {
+		display: flex;
+		justify-content: space-between;
+		font-size: 11px;
+		color: var(--muted);
+	}
+	.fine {
+		grid-column: 1 / -1;
+		font-size: var(--t-sm);
+		line-height: 1.5;
+		color: var(--muted);
+	}
+	.try {
+		align-self: flex-start;
+		min-height: 48px;
+		padding: 0 22px;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--ink);
+		background: var(--ink);
+		color: var(--on-ink);
+		font-size: 15px;
+		font-weight: 500;
+	}
+	.try:hover {
+		background: var(--ink-2);
+	}
+
+	/* 3. ledger */
+	.keptrow {
 		display: grid;
 		grid-template-columns: 1fr;
 		gap: 10px;
 	}
-	.lcard {
+	.kcard {
 		background: var(--card);
-		border-radius: 14px;
-		padding: 16px 18px;
+		border-radius: var(--radius-card-sm);
+		padding: 12px 16px;
 		display: flex;
 		flex-direction: column;
 		gap: 6px;
-		box-shadow: 0 6px 24px rgba(20, 33, 61, 0.06);
-		text-align: left;
-	}
-	.lcard.cut {
-		background: #eef0f4;
-		box-shadow: none;
-	}
-	.lcard.cut .ct {
-		color: var(--ink-2);
+		box-shadow: var(--shadow-soft);
 	}
 	.ct {
-		font-size: 17px;
+		font-size: var(--t-lg);
+		color: var(--ink);
+		line-height: 1.3;
 	}
 	.cn {
-		font-size: 13px;
+		font-size: var(--t-sm);
 		color: var(--muted);
 	}
 	.badge {
 		align-self: flex-start;
-		font-size: 12px;
+		font-family: var(--font-mono);
+		font-size: 11px;
 		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
 		border-radius: var(--radius-pill);
-		padding: 4px 10px;
-		color: #fff;
+		padding: 3px 9px;
+		color: var(--on-ink);
 		background: var(--ink);
 	}
 	.badge.back {
@@ -309,31 +535,73 @@
 	.badge.rejected-twice {
 		background: none;
 		color: var(--muted);
-		border: 1px solid var(--line-strong);
-		padding: 3px 10px;
+		border: 1px dashed var(--faint);
+		padding: 2px 8px;
 	}
-	.lcard.play {
-		background: none;
-		box-shadow: none;
-		border: 1px dashed #9aa1b0;
-		justify-content: center;
+	.cutrow {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 10px;
+	}
+	.ucard {
+		border: 1px dashed var(--line-strong);
+		border-radius: var(--radius-card);
+		padding: 16px 18px 14px;
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+	.uhead {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.unis {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+		gap: 10px;
+	}
+	.uni {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: 8px 10px 2px;
+		border-radius: var(--radius-card-sm);
+		background: var(--card);
+	}
+	.unifoot {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0 8px;
+		border-top: 1px solid var(--line);
+	}
+	.uname {
+		font-size: var(--t-md);
+		font-weight: 500;
+	}
+	.play {
 		min-height: var(--tap);
-		font: inherit;
-	}
-	.lcard.play .ct {
+		padding: 0 2px;
+		border: none;
+		background: none;
 		color: var(--accent);
+		font-size: var(--t-md);
+		font-weight: 500;
 	}
-	.lcard.play:hover {
-		border-color: var(--accent);
+	.play:hover {
+		text-decoration: underline;
 	}
 
-	/* open source band */
+	/* 4. open source */
 	.open {
 		margin: 16px 0;
 		padding: 28px 22px;
 		border-radius: 24px;
-		background: var(--ink);
-		color: var(--bg);
+		background: var(--band);
+		color: var(--band-ink);
+		box-shadow: inset 0 0 0 1px var(--line);
 		display: flex;
 		flex-direction: column;
 		gap: 18px;
@@ -348,16 +616,29 @@
 		letter-spacing: -0.03em;
 	}
 	.open p {
-		color: #c9d0dd;
+		color: var(--band-muted);
 		font-size: 16px;
 		max-width: 460px;
+	}
+	.problems {
+		align-self: flex-start;
+		color: var(--band-ink);
+		font-size: var(--t-md);
+		min-height: var(--tap);
+		display: inline-flex;
+		align-items: center;
+	}
+	.problems:hover {
+		color: var(--band-ink);
+		opacity: 0.8;
 	}
 	.openbtns {
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
 	}
-	.openbtns a {
+	.openbtns a,
+	.openbtns button {
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -365,23 +646,24 @@
 		font-size: 15px;
 		border-radius: var(--radius-pill);
 		min-height: 48px;
+		background: none;
 	}
 	.b1 {
-		background: var(--bg);
-		color: var(--ink);
+		background: var(--band-ink) !important;
+		color: var(--band);
 		min-height: 52px !important;
 	}
 	.b1:hover {
-		color: var(--ink);
-		background: #fff;
+		color: var(--band);
+		opacity: 0.9;
 	}
 	.b2 {
-		border: 1px solid rgba(246, 247, 249, 0.4);
-		color: var(--bg);
+		border: 1px solid color-mix(in srgb, var(--band-ink) 40%, transparent);
+		color: var(--band-ink);
 	}
 	.b2:hover {
-		color: #fff;
-		border-color: #fff;
+		color: var(--band-ink);
+		border-color: var(--band-ink);
 	}
 
 	.foot {
@@ -400,73 +682,127 @@
 		color: var(--accent);
 	}
 
+	.bib {
+		margin: 0;
+		padding: 14px;
+		border-radius: var(--radius-card-sm);
+		background: var(--bg-2);
+		border: 1px solid var(--line);
+		font-size: 12px;
+		line-height: 1.6;
+		white-space: pre-wrap;
+		word-break: break-word;
+		color: var(--ink);
+	}
+	.copy {
+		min-height: 48px;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--ink);
+		background: var(--ink);
+		color: var(--on-ink);
+		font-size: 15px;
+		font-weight: 500;
+	}
+
+	@media (min-width: 700px) {
+		.keptrow {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+		.unis {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+
 	@media (min-width: 900px) {
 		.landing {
 			padding: 0 48px;
 		}
 		.sec {
-			padding: 80px 0;
+			padding: 88px 0;
+			gap: 36px;
 		}
-		.split {
-			flex-direction: row;
-			align-items: center;
-			gap: 72px;
+		.head {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+			grid-template-areas: 'eyebrow eyebrow' 'h2 lede';
+			column-gap: 64px;
+			row-gap: 16px;
+			align-items: end;
 		}
-		.split .copy {
-			flex: 1 1 0;
-			gap: 18px;
+		.eyebrow {
+			grid-area: eyebrow;
 		}
-		.split p {
+		.head h2 {
+			grid-area: h2;
+		}
+		.lede {
+			grid-area: lede;
 			font-size: 18px;
 			line-height: 1.55;
-			max-width: 460px;
 		}
 		h2 {
 			font-size: 48px;
 			letter-spacing: -0.04em;
 			line-height: 1.05;
 		}
-		.plate {
-			padding: 24px;
-			border-radius: 20px;
+		.how {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 360px;
+			gap: 20px;
+			align-items: stretch;
 		}
-		.board-plate {
-			width: 408px;
-			flex: none;
+		.exboard {
+			width: min(100%, 300px);
 		}
-		.chart {
-			width: 600px;
-			flex: none;
-			padding: 28px 28px 20px;
+		.example {
+			padding: 22px;
+			justify-content: center;
 		}
-		.ledger-head {
-			flex-direction: row;
-			justify-content: space-between;
-			align-items: flex-end;
-			gap: 48px;
+		.inside {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+			grid-template-areas: 'cols proof' 'try proof';
+			column-gap: 48px;
+			padding: 32px;
 		}
-		.ledger-head > p {
-			font-size: 18px;
-			line-height: 1.55;
-			max-width: 440px;
+		.cols {
+			grid-area: cols;
+			grid-template-columns: 1fr 1fr;
+			gap: 28px;
 		}
-		.ledger-head .copy {
-			gap: 18px;
+		.proof {
+			grid-area: proof;
+			align-self: start;
+			padding-top: 0;
+			padding-left: 40px;
+			border-top: none;
+			border-left: 1px solid var(--line);
 		}
-		.cards {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
+		.big {
+			font-size: 76px;
+		}
+		.try {
+			grid-area: try;
+			align-self: end;
+			justify-self: start;
+		}
+		.keptrow {
 			gap: 16px;
 		}
-		.lcard {
-			border-radius: 16px;
+		.kcard {
 			padding: 22px;
-			gap: 8px;
 		}
-		.ct {
-			font-size: 18px;
+		.cutrow {
+			grid-template-columns: 1fr 2fr;
+			gap: 16px;
+		}
+		.ucard {
+			padding: 22px;
+		}
+		.ucard:not(.wide) .unis {
+			grid-template-columns: 1fr;
 		}
 		.open {
-			margin: 16px 0;
 			padding: 56px;
 			border-radius: 28px;
 			flex-direction: row;

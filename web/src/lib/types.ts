@@ -97,6 +97,8 @@ export interface PresetFacts {
 	label: string;
 	file: string;
 	generation: number;
+	/** Home's constants with one law changed; never trained, so no game count is shown. */
+	variant: boolean;
 	selfPlayGames: number;
 	constants: Constants;
 	diff: Record<string, { champion: number; preset: number }>;
@@ -114,21 +116,43 @@ export interface LedgerCard {
 	verdict: 'kept' | 'back' | 'rejected' | 'rejected-twice';
 	title: string;
 	note: string;
+	/** Preset slugs of the alternate universes this law lives on in (empty for kept laws). */
+	universes: string[];
 	evidence: string[];
 }
 
-/** Piece weights in the order n, b, r, q. */
-export type Masses = [number, number, number, number];
+/** The proof line: one ladder rung, read from engine/results by scripts/sync-data.mjs. */
+export interface ProofFacts {
+	generation: number;
+	opponent: string;
+	/** Stockfish's own strength setting (UCI_Elo), not a human rating. */
+	setting: number;
+	baseSeconds: number;
+	incrementSeconds: number;
+	games: number;
+	w: number;
+	d: number;
+	l: number;
+	scorePercent: number;
+	source: string;
+}
 
 export interface LandingFacts {
-	chart: { pieces: ['n', 'b', 'r', 'q']; start: Masses; runs: { a: Masses[]; b: Masses[] }; games: number };
-	/** Run a's final weights rounded to one decimal. */
-	found: { n: number; b: number; r: number; q: number };
+	proof: ProofFacts;
 	ledger: LedgerCard[];
+}
+
+/** Built from CITATION.cff by scripts/sync-data.mjs: title, authors and url only. */
+export interface CiteFacts {
+	title: string;
+	authors: string[];
+	url: string;
+	bibtex: string;
 }
 
 export interface SiteFacts {
 	landing: LandingFacts;
+	cite: CiteFacts;
 	championId: string;
 	selfPlayGames: number;
 	lineage: { generation: number; games: number; source: string | null }[];

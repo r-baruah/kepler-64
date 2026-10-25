@@ -106,14 +106,14 @@ Every preset is a committed generation file. Labels are fixed text from this tab
 
 | slug | name | file | label shown |
 |---|---|---|---|
-| `champion` | Champion (Gen 4) | `generations/gen-004.json` | "The current strongest universe." |
-| `equal-start` | Equal start | `ablations/control-equal-masses-a-candidate.json` | "Every piece started with the same weight. It found these values by playing itself. Trained with accretion on." |
-| `gen-0` | Gen 0 | `generations/gen-000.json` | "Before any self-play: human piece values, hand-set laws." |
-| `accretion` | Accretion | gen-004 with `f_acc = 0.8` | "Captures absorb weight. Rejected by the Ledger at Gen 1 (+103 for switching it off). Untrained variant of Gen 4." |
-| `strong-roche` | Strong Roche limit | gen-004 with `beta = 10` | "A king can be torn apart. Two versions were tried; neither made the engine stronger. Untrained variant of Gen 4." |
-| `tidal-load` | Tidal load | gen-004 with `lambda_tide = 0.1` | "Enemy pull on the king's body costs points. Lost 77 Elo at Gen 3. Untrained variant of Gen 4." |
+| `champion` | Home | `generations/gen-004.json` | "Our universe. The strongest so far (Gen 4)." |
+| `equal-start` | Genesis | `ablations/control-equal-masses-a-candidate.json` | "Every piece was born the same weight. It found its own values by playing itself, with accretion on." |
+| `gen-0` | First Light | `generations/gen-000.json` | "Before it learned anything: human piece values, laws set by hand." |
+| `accretion` | Hunger | gen-004 with `f_acc = 0.8` | "Captures absorb weight: a piece grows by eating. Rejected, it played better without. Home's constants with this law switched on." |
+| `strong-roche` | Roche | gen-004 with `beta = 10` | "A king can be torn apart by enemy pull, like a moon too close to its planet. Two versions were tried; neither made the engine stronger. Home's constants with this law turned up." |
+| `tidal-load` | Undertow | gen-004 with `lambda_tide = 0.1` | "Enemy pull drags on the king's whole body. Rejected, it made the engine weaker. Home's constants with this law switched on." |
 
-The picker shows the name, the label, and the constants that differ from the champion. The website's generation selector (all of Gen 0–4) lives in Lab, not in Play.
+The picker shows the name, the label, and the universe drawn as its own system (piece weights as bodies), with differences from Home in plain words. Names were given 2026-10-25 so each universe reads as a place with its own rule; files and slugs are unchanged. The website's generation selector (all of Gen 0–4) lives in Lab, not in Play.
 
 ### 5d. Levels (node budgets)
 | level | nodes per move | about, on a phone (F34) |

@@ -28,49 +28,79 @@ export const LINEAGE_RESULTS = {
 
 /** Law Ledger cards on the landing. Each names the committed result files that back its verdict. */
 export const LEDGER_CARDS = [
-	{ id: 'field', verdict: 'kept', title: 'Pull follows the moves', note: 'Beats counting pieces alone, by far', evidence: ['results/ledger-gen001', 'results/ledger-gen001.md'] },
-	{ id: 'space', verdict: 'kept', title: 'Squares belong to the stronger pull', note: 'Control of space', evidence: ['results/ledger-gen001.md'] },
-	{ id: 'binding', verdict: 'back', title: 'Defenders hold pieces together', note: 'Cut at first, useful later', evidence: ['results/ledger-gen003-bind0.json'] },
-	{ id: 'accretion', verdict: 'rejected', title: 'Captures absorb weight', note: 'Better switched off', evidence: ['results/ledger-gen001.md'] },
-	{ id: 'king', verdict: 'rejected-twice', title: 'A king torn apart by pull', note: 'Two designs, neither helped', evidence: ['results/ledger-gen003-roche0.json', 'results/ledger-gen004tide-tide0.json'] }
+	{ id: 'field', verdict: 'kept', title: 'Pull follows the moves', note: 'Beats counting pieces alone, by far', universes: [], evidence: ['results/ledger-gen001', 'results/ledger-gen001.md'] },
+	{ id: 'space', verdict: 'kept', title: 'Squares belong to the stronger pull', note: 'Control of space', universes: [], evidence: ['results/ledger-gen001.md'] },
+	{ id: 'binding', verdict: 'back', title: 'Defenders hold pieces together', note: 'Cut at first, useful later', universes: [], evidence: ['results/ledger-gen003-bind0.json'] },
+	{ id: 'accretion', verdict: 'rejected', title: 'Captures absorb weight', note: 'Better switched off', universes: ['accretion'], evidence: ['results/ledger-gen001.md'] },
+	{ id: 'king', verdict: 'rejected-twice', title: 'A king torn apart by pull', note: 'Two designs, neither helped', universes: ['strong-roche', 'tidal-load'], evidence: ['results/ledger-gen003-roche0.json', 'results/ledger-gen004tide-tide0.json'] }
 ];
 
-/** The piece-weight chart: the equal-masses start, then 30 rounds of two independent runs. */
-const CHART_RUNS = { a: 'results/control-equal-masses-a', b: 'results/control-equal-masses-b' };
-const CHART_START = 'data/ablations/start-equal-masses.json';
-const CHART_ROUNDS = 30;
-const PIECES = ['n', 'b', 'r', 'q'];
+/** The proof line on the landing: Gen 3 against Stockfish 19 at its 2100 setting, 30+0.3. */
+const PROOF_FILE = 'results/ladder-gen003.json';
+const PROOF_RUNG = 2100;
 
-function pieceMasses(c) {
-	return PIECES.map((k) => {
-		if (!Number.isFinite(c?.[`m_${k}`])) throw new Error(`sync-data: constant m_${k} missing`);
-		return c[`m_${k}`];
-	});
+function computeProof(engineRoot) {
+	const doc = readJson(join(engineRoot, PROOF_FILE));
+	if (!/gen-003\.json$/.test(doc.gen ?? '')) throw new Error(`sync-data: ${PROOF_FILE} is not a Gen 3 ladder`);
+	if (!/^sf_19\b/.test(doc.stockfish ?? '')) throw new Error(`sync-data: ${PROOF_FILE} is not against Stockfish 19`);
+	const m = /^(\d+)\+([\d.]+)$/.exec(doc.tc ?? '');
+	if (!m) throw new Error(`sync-data: ${PROOF_FILE} has no time control`);
+	const rung = (doc.rungs ?? []).find((r) => r.stockfish_elo === PROOF_RUNG);
+	if (!rung) throw new Error(`sync-data: ${PROOF_FILE} has no ${PROOF_RUNG} rung`);
+	if (rung.w + rung.d + rung.l !== rung.games) throw new Error(`sync-data: ${PROOF_FILE} rung ${PROOF_RUNG} does not add up`);
+	const score = (rung.w + rung.d / 2) / rung.games;
+	if (Math.abs(score - rung.score) > 1e-9) throw new Error(`sync-data: ${PROOF_FILE} score mismatch`);
+	return {
+		generation: 3,
+		opponent: 'Stockfish 19',
+		setting: PROOF_RUNG,
+		baseSeconds: Number(m[1]),
+		incrementSeconds: Number(m[2]),
+		games: rung.games,
+		w: rung.w,
+		d: rung.d,
+		l: rung.l,
+		scorePercent: Math.round(score * 100),
+		source: PROOF_FILE
+	};
 }
 
 function computeLanding(engineRoot) {
-	const start = pieceMasses(readJson(join(engineRoot, CHART_START)).constants);
-	const runs = {};
-	let games = 0;
-	for (const [name, dir] of Object.entries(CHART_RUNS)) {
-		const series = [start];
-		for (let r = 1; r <= CHART_ROUNDS; r++) {
-			const doc = readJson(join(engineRoot, dir, `round-${String(r).padStart(3, '0')}.json`));
-			series.push(pieceMasses(doc.constants));
-			if (name === 'a') {
-				if (!Number.isFinite(doc.games)) throw new Error(`sync-data: round ${r} has no games`);
-				games += doc.games;
-			}
-		}
-		runs[name] = series;
-	}
-	const last = runs.a[CHART_ROUNDS];
-	const found = Object.fromEntries(PIECES.map((k, i) => [k, Math.round(last[i] * 10) / 10]));
 	const cards = LEDGER_CARDS.map((c) => {
 		for (const e of c.evidence) need(join(engineRoot, e));
+		for (const u of c.universes) if (!(u in PRESET_FILES)) throw new Error(`sync-data: ledger card ${c.id} names unknown universe ${u}`);
 		return { ...c };
 	});
-	return { chart: { pieces: PIECES, start, runs, games }, found, ledger: cards };
+	return { proof: computeProof(engineRoot), ledger: cards };
+}
+
+/**
+ * BibTeX for the Cite button, built from CITATION.cff so the two never drift. Only title, authors
+ * and url are used: no version, no DOI, no year (the repository is cited as it stands).
+ * CITATION.cff is simple YAML; the few fields needed are read with patterns, no YAML dependency.
+ */
+export function bibtexFromCff(cffText) {
+	const field = (re, what) => {
+		const m = re.exec(cffText);
+		if (!m) throw new Error(`sync-data: CITATION.cff has no ${what}`);
+		return m[1].trim().replace(/^"(.*)"$/, '$1');
+	};
+	const title = field(/^title:\s*(.+)$/m, 'title');
+	const url = field(/^url:\s*(.+)$/m, 'url');
+	const authorsBlock = /^authors:\n((?:[ \t]+.*\n?)+)/m.exec(cffText);
+	if (!authorsBlock) throw new Error('sync-data: CITATION.cff has no authors');
+	const authors = authorsBlock[1]
+		.split(/\n\s*-\s+/)
+		.map((chunk) => {
+			const fam = /family-names:\s*"?([^"\n]+)"?/.exec(chunk)?.[1]?.trim();
+			const giv = /given-names:\s*"?([^"\n]+)"?/.exec(chunk)?.[1]?.trim();
+			return fam ? (giv ? `${fam}, ${giv}` : fam) : null;
+		})
+		.filter(Boolean);
+	if (!authors.length) throw new Error('sync-data: CITATION.cff authors have no family-names');
+	const key = (authors[0].split(',')[0] + '-kepler64').toLowerCase().replace(/[^a-z0-9-]/g, '');
+	const bib = `@software{${key},\n  title  = {${title}},\n  author = {${authors.join(' and ')}},\n  url    = {${url}}\n}`;
+	return { title, authors, url, bibtex: bib };
 }
 
 const CHAMPION_FILE = 'generations/gen-004.json';
@@ -116,7 +146,11 @@ export function constantsDiff(base, other) {
 	return out;
 }
 
-export function computeFacts(engineRoot = join(REPO_ROOT, 'engine'), planPath = join(REPO_ROOT, 'docs/v1/06_WEB_PLAN.md')) {
+export function computeFacts(
+	engineRoot = join(REPO_ROOT, 'engine'),
+	planPath = join(REPO_ROOT, 'docs/v1/06_WEB_PLAN.md'),
+	cffPath = join(REPO_ROOT, 'CITATION.cff')
+) {
 	const data = join(engineRoot, 'data');
 	const genDir = join(data, 'generations');
 	const index = readJson(join(genDir, 'index.json'));
@@ -170,6 +204,8 @@ export function computeFacts(engineRoot = join(REPO_ROOT, 'engine'), planPath = 
 			label: stripQuotes(row[3]),
 			file: `/data/${file}`,
 			generation: doc.generation,
+			/** Home's constants with one law changed, never trained itself: the site shows no game count for it. */
+			variant: isVariant && slug !== 'champion',
 			selfPlayGames,
 			constants,
 			diff: constantsDiff(championConstants, constants)
@@ -191,6 +227,7 @@ export function computeFacts(engineRoot = join(REPO_ROOT, 'engine'), planPath = 
 		presets,
 		levels,
 		landing: computeLanding(engineRoot),
+		cite: bibtexFromCff(readFileSync(need(cffPath), 'utf8')),
 		defaultLevel: 'default'
 	};
 }
