@@ -27,5 +27,10 @@ Propose a law of your own. It might be borrowed from real physics or invented fo
 
 **Solved when:** an explanation makes a prediction that a run or measurement confirms.
 
+## 5. Make the universe visible
+On the board, Kepler plays like an ordinary, fairly weak engine, and players judge it as one: one strong player said it "doesn't feel that different from playing a low intermediate human". What is unusual (a universe with no chess knowledge finding its own piece values, and rejecting the most literal astrophysics) lives in the docs, not in the experience of playing. Making it stronger is not the answer.
+
+**Solved when:** someone who has never read the docs plays or watches one game and can say, in their own words, what the universe was doing.
+
 ## Taking one on
 Open an issue on GitHub naming the problem number. The commands for training and testing are in `04_TRAINING_AND_GATES.md`. Heavy runs can go to remote compute as work units (`08_DISTRIBUTED_COMPUTE.md`).

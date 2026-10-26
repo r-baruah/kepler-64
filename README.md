@@ -8,6 +8,8 @@
 
 </div>
 
+> **An open problem I haven't solved yet.** On the board, Kepler plays like an ordinary, fairly weak engine, so people judge it as one. What's unusual is what the universe worked out by itself, and right now you can't feel that while playing. I'm working on making the physics visible in play. If you have an idea, [open an issue](https://github.com/r-baruah/kepler-64/issues) or see [open problem 5](docs/v1/11_OPEN_PROBLEMS.md#5-make-the-universe-visible).
+
 Richard Feynman once compared physics to watching a game of chess without knowing the rules: you watch long enough and slowly work out the laws underneath.
 
 Kepler-64 runs that the other way round. It already knows the rules of chess. What it doesn't know is how to play, so it was given a universe instead: pieces with mass, a pull that travels across the board, a speed limit, laws. Then the universe was left to work out the rest by playing against itself.
@@ -36,11 +38,11 @@ This is physics built natively for a chessboard, modelled on the real thing. It'
 
 **It worked out sensible piece values by itself.** Started with every piece at the same weight, it settled near knight 2.6, bishop 3.3, rook 4.4, queen 8.2 (pawn = 1). A second run with different games landed in the same place. ([control run A](engine/results/control-equal-masses-a/), [control run B](engine/results/control-equal-masses-b/))
 
-**It holds its own.** Gen 3 scored 53% against Stockfish 19 limited to its 2100 setting, at 30 seconds plus 0.3 per move, over 200 games. That's Stockfish's own strength scale, not a human rating. [The full ladder is below.](#against-stockfish)
-
 **The universe rejected the most literal astrophysics.** The laws taken most directly from space, like a Roche limit that tears a king apart the way a planet tears apart a moon that comes too close, made the engine weaker. Two designs were tried. The universe threw both out. ([the Law Ledger](#the-law-ledger))
 
 **It learned from nothing but itself.** 85,500 games of self-play across four generations, each accepted only after beating its parent in a statistical test. No human games, no engine to copy from. Stockfish is the examiner, never the teacher.
+
+**It holds its own.** Gen 3 scored 53% against Stockfish 19 limited to its 2100 setting, at 30 seconds plus 0.3 per move, over 200 games. That's Stockfish's own strength scale, not a human rating. [The full ladder is below.](#against-stockfish)
 
 ## The universes
 

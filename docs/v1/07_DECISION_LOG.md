@@ -65,3 +65,8 @@ Newest first. Each entry: date, decision, why, and what it affects. Product and 
 - Three landing concepts (Orbital, Plate, Editorial; `docs/v1/wireframes/pass4/`) were compared. The maintainer keeps the current design and takes one idea only: a real space photograph turned into a framed, two-tone banner (from concept B), without its scan line, cross grid or drift.
 - It goes in the closing open-source band. The photo is NASA AS17-152-23272 (Earth rising over the Moon, Apollo 17, 1972), which is public domain, with credit in `web/static/images/CREDITS.md`.
 - Also adopted: the slimmer icon dock on phone, and a small PGN export button in the phone Play screen's top row.
+
+## 2026-10-26 · Kepler is presented as an experiment, not an opponent
+- **Why:** feedback from players and engine developers: in play it feels like an ordinary weak engine, so it gets judged against other engines, on strength. The unusual part (self-found piece values, the Ledger rejecting literal astrophysics) is not felt while playing.
+- **Decision (maintainer):** strength stays a non-goal. The README opens with this as an open problem and invites ideas (open problem 5). The Stockfish result moves to the end of "What happened" so it is not the first thing judged.
+- **Next:** make the physics visible in play (a plain reason for each engine move, universes that play noticeably differently), then rework the landing to lead with findings. Wireframes first.
