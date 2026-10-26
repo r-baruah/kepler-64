@@ -74,7 +74,9 @@ The lesson was that raw formulas don't fit a chessboard: straight-line distance 
 
 ## How this was built
 
-Kepler-64 is a solo project by someone whose world is space and astronomy, not machine learning or engine development. Much of the code was written with AI assistance. The concept, the laws, the experiments and every decision about what stays, what gets cut and what may be claimed are the author's. Every number on this page comes from a committed result file that you can rerun.
+Kepler-64 is a solo project by someone whose world is space and astronomy, not machine learning or engine development. It was built with AI as a core tool, openly: most of the code was written with Claude (Anthropic) as the coding assistant, the way a growing share of software and research is written today. The concept, the laws, the experiments, and every decision about what stays, what gets cut and what may be claimed are the author's.
+
+That's also why everything here is checkable rather than taken on trust. Every number on this page comes from a committed result file, the laws are written out in full in the spec, and the experiments can be rerun.
 
 ## The details
 
@@ -260,3 +262,4 @@ Made by Ripuranjan Baruah, released under the [MIT licence](LICENSE).
 - **Fonts:** Geist and Geist Mono, SIL Open Font License.
 - **Photograph:** Earthrise, NASA AS17-152-23272 (Apollo 17, 1972), public domain ([`web/static/images/CREDITS.md`](web/static/images/CREDITS.md)).
 - **Move generation:** [`cozy-chess`](https://crates.io/crates/cozy-chess) (MIT).
+- **Coding assistant:** Claude, by Anthropic.
