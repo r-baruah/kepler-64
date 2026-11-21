@@ -2,83 +2,150 @@
 
 # Kepler-64
 
-### A tiny universe that learned to play chess.
+### A chess engine whose entire brain is four physics equations and ten numbers.
 
-**[Play it in your browser](https://kepler.ripuranjan.com)** · [The idea](#the-idea-in-30-seconds) · [What happened](#what-happened) · [The universes](#the-universes) · [Open problems](docs/v1/11_OPEN_PROBLEMS.md)
+**[Play it in your browser](https://kepler.ripuranjan.com)** · [The equations](#the-equations) · [Not an ML engine](#not-an-ml-engine) · [What happened](#what-happened) · [The universes](#the-universes) · [Open problems](#open-problems)
 
 </div>
 
-> **An open problem I haven't solved yet.** On the board, Kepler plays like an ordinary, fairly weak engine, so people judge it as one. What's unusual is what the universe worked out by itself, and right now you can't feel that while playing. I'm working on making the physics visible in play. If you have an idea, [open an issue](https://github.com/r-baruah/kepler-64/issues) or see [open problem 5](docs/v1/11_OPEN_PROBLEMS.md#5-make-the-universe-visible).
+Richard Feynman once compared physics to watching a game of chess without knowing the rules: watch long enough and you slowly work out the laws underneath.
 
-Richard Feynman once compared physics to watching a game of chess without knowing the rules: you watch long enough and slowly work out the laws underneath.
+Kepler-64 runs that the other way round. It already knows the rules of chess. What it does not know is how to play. Instead of chess strategy or a neural network, it was given a tiny physical universe built for a 64-square board: pieces have weight, their pull travels along legal move lines, spreads thin over the squares it reaches, and stops at a speed limit.
 
-Kepler-64 runs that the other way round. It already knows the rules of chess. What it doesn't know is how to play, so it was given a universe instead: pieces with mass, a pull that travels across the board, a speed limit, laws. Then the universe was left to work out the rest by playing against itself.
+Every move the engine makes comes from two simple pieces working together:
+- **A standard lookahead search** that explores legal moves (it knows checkmate, stalemate, and draws — nothing about chess strategy).
+- **151 lines of Rust** ([`laws/mod.rs`](engine/crates/kepler-core/src/laws/mod.rs)) containing four short physics equations and **10 active numbers** that judge each position.
 
-There is no chess knowledge inside. No opening book, no "knights belong in the centre", no king-safety rules, no neural network trained on human games. Just a handful of physical laws, about a dozen constants it learned by itself, and the question of whether that is enough to play chess.
+There is no opening book, no piece-square table, no pawn-structure rule, no king-safety heuristic, and no neural network. Just those equations, ten numbers you could tune by hand, and the question of whether that is enough to play real chess.
 
 It is.
 
-## The idea in 30 seconds
+## The equations
 
-**1. Pieces have mass.** Every piece has a weight. Nobody told it what a knight or a queen is worth; it learned those weights by playing itself.
+This is physics built natively for a chessboard, inspired by real-world formulas rather than copying 3D gravity blindly. On a board, straight-line distance means nothing when a rook cannot see past a pawn — so here, **the rules of chess are the shape of space**. Distance is counted in moves, and pull stops at the first piece in the way.
 
-**2. Pull travels along the moves.** A piece pulls on the squares it could move to, and the pull stops at the first piece in the way. A rook pulls down its open file; a bishop behind its own pawn pulls on that pawn and no further. In this universe the rules of chess are the shape of space.
+Everything the evaluator computes fits on one screen (the full spec is in [`docs/v1/02_LAWS_SPEC.md`](docs/v1/02_LAWS_SPEC.md)):
 
-**3. Pull has a speed limit.** It reaches at most 2 moves ahead and fades with each extra move: this universe's speed of light.
+### 1. The field of a piece (Gauss's law + light speed)
 
-**4. Squares belong to whoever pulls harder.** That gives the board territory. A piece is in danger when the enemy pulls on it harder than its own side does.
+$$
+\varphi_p(s) = \begin{cases}
+\dfrac{E_p \cdot \alpha^{\,h_p(s)-1}}{n_{h_p(s)}(p)^{\,\sigma}} & \text{if } h_p(s) \le c \\[8pt]
+0 & \text{if } h_p(s) > c
+\end{cases}
+$$
 
-**5. Every law has to earn its place.** Each law is switched off and the universe plays thousands of games against a copy of itself without it. Laws that make it stronger stay. Laws that don't are thrown out, and live on as alternate universes you can still play.
+- **$E_p$** is the piece's weight (in pawns).
+- **$h_p(s)$** is the distance to square $s$ counted in moves along legal lines, stopping at the first blocker (no x-rays). Beyond the light-speed limit **$c = 2$ moves**, the pull never arrives.
+- **$\alpha$** is how much pull survives each extra move of travel.
+- **$n_h(p)$** is how many squares sit at move-distance $h$. Dividing by $n_h^\sigma$ is the board version of **Gauss's law**: just as gravity in 3D spreads thin over the surface of a sphere ($1/r^2$), a piece's pull spreads thin over the squares it reaches ($\sigma = 1$ conserves total flux; the engine settled near $0.58$).
 
-That's the whole judgement. A standard search looks ahead through the moves; the universe says which positions it likes.
+Each side's total field on square $s$ is simply the sum of its pieces:
 
-This is physics built natively for a chessboard, modelled on the real thing. It's not a claim that chess is astrophysics. The full laws, with every formula, are in [`docs/v1/02_LAWS_SPEC.md`](docs/v1/02_LAWS_SPEC.md).
+$$
+\Phi_W(s) = \sum_{p \in W} \varphi_p(s), \qquad \Phi_B(s) = \sum_{p \in B} \varphi_p(s)
+$$
+
+### 2. Rest mass
+
+$$
+T_{\text{mat}} = \sum_{p \in W,\, t \neq K} \mu(t_p) - \sum_{p \in B,\, t \neq K} \mu(t_p)
+$$
+
+Total weight on the board, in **Kepler units** (`1 ku` = one pawn). Kings have no material weight — they are bodies to protect or mate, not material.
+
+### 3. Binding energy
+
+$$
+e_q = M_q \cdot \big(\Phi_{\text{enemy}}(s_q) - \Phi_{\text{own}}(s_q)\big), \qquad T_{\text{bind}} = \lambda_{\text{bind}}\,(U_B - U_W)
+$$
+
+Mass times net field — the potential energy of a body sitting in an external field. When the enemy pulls on a piece harder than its own side supports it, $e_q$ turns positive: the piece is unbound and exposed. $U_W$ and $U_B$ sum $e_q$ over each side's non-king pieces.
+
+### 4. Held space
+
+$$
+T_{\text{space}} = \lambda_{\text{space}} \sum_{s=0}^{63} \tanh\!\big(\Phi_W(s) - \Phi_B(s)\big)
+$$
+
+Each of the 64 squares belongs softly to whichever side pulls harder on it.
+
+### Total score
+
+$$
+\text{Score} = T_{\text{mat}} + T_{\text{bind}} + T_{\text{space}} + T_{\text{roche}} + T_{\text{tide}}
+$$
+
+That is the entire evaluation. The last two terms — a **Roche limit** (enemy pull tearing apart a king's 3×3 body when stress $\tau_K$ overwhelms its own support $b_K$) and **tidal load**, along with **accretion** (captures absorbing a fraction of the victim's mass) — are real equations in the engine too. When tested, the universe played better without them, so they sit at zero or negligible effect in the champion and remain playable as alternate universes.
+
+## Not an ML engine
+
+Because Kepler uses self-play to tune its constants, it is easy to mistake it for a machine-learning chess engine. It is not one.
+
+A modern neural-network chess engine stores tens of millions of weights. Kepler-64's spec defines **15 constants** in total ([`params.rs`](engine/crates/kepler-core/src/params.rs)), and in the current champion (**Home**, Gen 4, [`gen-004.json`](engine/data/generations/gen-004.json)), **only 10 of them actually drive play** — nine decimals and one integer (`c = 2`), about **40 bytes** in total. You could tune the entire brain by hand with sliders.
+
+| Constant | Value in Home | Role | Status |
+|---|---|---|---|
+| `m_n`, `m_b`, `m_r`, `m_q` | `2.7`, `3.1`, `4.2`, `7.4` | piece weights (pawn = `1`, fixed) | Active |
+| `kappa` | `2.63` | how hard the king itself pulls | Active |
+| `alpha` | `0.54` | pull kept per extra move of travel | Active |
+| `sigma` | `0.58` | flux spreading over reached squares (0 = none, 1 = conserved) | Active |
+| `c` | `2` | light speed: max moves pull can travel | Active |
+| `lambda_space` | `0.126` | weight of held space | Active |
+| `lambda_bind` | `0.019` | weight of binding energy (exposure) | Active |
+| `beta`, `rho`, `k_roche` | `2.75`, `1.56`, `3.34` | Roche limit on the king | No measurable effect (−6 [−16, +4] Elo) |
+| `f_acc` | `0` | accretion (captures absorbing mass) | Off (rejected) |
+| `lambda_tide` | `0` | tidal load on the king | Off (rejected) |
+
+Self-play (`TDLeaf(λ)`) is only used for two things:
+1. To avoid hand-picking those ten constants — letting the universe measure its own values by playing itself.
+2. To test each law honestly: switch a law off, play thousands of games against a copy of the universe with it on, and keep only what earns its place.
+
+## How a move happens
+
+1. **Search explores legal moves.** A conventional alpha-beta search looks ahead through legal continuations. It contains zero chess-strategy heuristics.
+2. **The board becomes masses and light cones.** Each piece emits pull along its legal move lines up to `c = 2` moves out, blocked by pieces in the way.
+3. **The four equations score the position.** Rest mass, binding energy, and held space combine into a single score in Kepler units.
+4. **Search picks the move** that leads to the best future under those equations.
 
 ## What happened
 
-**It worked out sensible piece values by itself.** Started with every piece at the same weight, it settled near knight 2.6, bishop 3.3, rook 4.4, queen 8.2 (pawn = 1). A second run with different games landed in the same place. ([control run A](engine/results/control-equal-masses-a/), [control run B](engine/results/control-equal-masses-b/))
+**It worked out sensible piece values by itself.** Started with knight, bishop, rook, and queen all at the exact same weight, it settled near knight `2.6`, bishop `3.3`, rook `4.4`, queen `8.2` (pawn = `1`). A second run with different games landed in the same place. ([control run A](engine/results/control-equal-masses-a/), [control run B](engine/results/control-equal-masses-b/))
 
-**The universe rejected the most literal astrophysics.** The laws taken most directly from space, like a Roche limit that tears a king apart the way a planet tears apart a moon that comes too close, made the engine weaker. Two designs were tried. The universe threw both out. ([the Law Ledger](#the-law-ledger))
+**The field does real work.** Switching the field off and counting material alone loses **330 Elo** over 4,000 games at depth 4 ([`ledger-gen001.md`](engine/results/ledger-gen001.md)).
 
-**It learned from nothing but itself.** 85,500 games of self-play across four generations, each accepted only after beating its parent in a statistical test. No human games, no engine to copy from. Stockfish is the examiner, never the teacher.
+**The universe rejected the most literal astrophysics.** Accretion (pieces growing heavier when they capture), the Roche limit (tearing a king apart when enemy pull overwhelms it), and tidal load all made the engine weaker or had no measurable effect. Every law had to survive the [Law Ledger](#the-law-ledger).
 
-**It holds its own.** Gen 3 scored 53% against Stockfish 19 limited to its 2100 setting, at 30 seconds plus 0.3 per move, over 200 games. That's Stockfish's own strength scale, not a human rating. [The full ladder is below.](#against-stockfish)
+**Ten numbers go surprisingly far.** With no human games, no chess heuristics, and only these equations, Gen 3 scored **53%** against Stockfish 19 limited to its `UCI_Elo` 2100 setting at 30 seconds plus 0.3 per move, over 200 games. That is Stockfish's own strength scale, not a human rating. Stockfish is only ever the examiner, never the teacher. ([Full ladder below.](#against-stockfish))
 
 ## The universes
 
-Rejected laws aren't deleted. Every universe below is playable on the [website](https://kepler.ripuranjan.com).
+Rejected laws are not deleted. Every universe below is playable in the [browser](https://kepler.ripuranjan.com):
 
 | Universe | What's different there |
 |---|---|
 | **Home** | Ours. The strongest so far (Gen 4). |
 | **Genesis** | Every piece was born the same weight, and found its own value by playing itself. |
-| **First Light** | Before it learned anything: human piece values, laws set by hand. |
+| **First Light** | Before any self-play: human piece values, laws set by hand. |
 | **Hunger** | Captures absorb weight: a piece grows by eating. The universe played better without it. |
 | **Roche** | A king can be torn apart by enemy pull, like a moon too close to its planet. Neither version made it stronger. |
 | **Undertow** | Enemy pull drags on the king's whole body. It made the engine weaker. |
 
-Hunger, Roche and Undertow are Home with one law switched back on. They were never trained that way, so they show what the law does, not how strong a universe built around it could be.
-
-## How it works, the simple version
-
-1. **Board to masses.** Each piece becomes a body with its learned weight.
-2. **Masses to field.** Pull spreads out along each piece's legal moves, stopping at blockers and fading with distance in moves.
-3. **Field to judgement.** The position is scored from three things: the weights on the board, the squares each side holds, and how exposed each piece is to enemy pull.
-4. **Search picks the move.** A conventional alpha-beta search looks ahead and asks the universe which future it prefers.
-
-Training adjusts the dozen constants (the weights, how fast pull fades, how much each law counts) so the universe's judgement predicts how its own games turn out. Everything is in Kepler units, where one pawn weighs 1.
+Hunger, Roche, and Undertow are Home with one law switched back on. They were never re-trained that way, so they show what the law does, not how strong a universe built around it could be.
 
 ## Why there is a v1
 
-The first version (v0, Python and JAX, kept in [`kepler64/`](kepler64/)) used the real formulas of astrophysics almost literally: Newtonian gravity across the board, a tidal tensor, a Roche limit, even gravitational waves. When we measured what actually drove its moves, the headline physics changed the best move in 0% of 120 test positions. It was really playing on material and how close enemy pieces stood to the king ([`docs/v1/01_V0_AUDIT.md`](docs/v1/01_V0_AUDIT.md)).
+The first version (v0, Python and JAX, kept in [`kepler64/`](kepler64/)) used literal astrophysics equations directly on the board: Newtonian gravity by straight-line distance, a tidal tensor, a Roche limit, even gravitational waves. It was a wild idea, and people loved the concept — until we audited what actually drove its moves.
 
-The lesson was that raw formulas don't fit a chessboard: straight-line distance means nothing when a rook can't see past a pawn. So v1 was rebuilt from scratch in Rust, with physics native to the board: distance counted in moves, pull blocked by pieces, and every law made to prove itself. At equal depth, v1's untrained first universe beat v0 100 games to 0 ([`m1-v1gen000-vs-v0-d3.json`](engine/results/m1-v1gen000-vs-v0-d3.json)).
+The audit ([`docs/v1/01_V0_AUDIT.md`](docs/v1/01_V0_AUDIT.md)) showed that v0's headline astrophysics changed the best move in **0% of 120 test positions**. It was really playing on material and how close enemy pieces stood to the king in straight-line distance.
+
+The lesson was that raw 3D formulas do not fit a chessboard: straight-line distance ignores blocking pawns and piece movement. So v1 was rebuilt from scratch in Rust with physics derived for the board itself — distance in moves, pull blocked by pieces, Gauss-like flux spreading, and every law forced to prove itself. At equal depth, v1's untrained Gen 0 beat v0 **100 games to 0** ([`m1-v1gen000-vs-v0-d3.json`](engine/results/m1-v1gen000-vs-v0-d3.json)).
 
 ## How this was built
 
-Kepler-64 is a solo project by someone whose world is space and astronomy, not machine learning or engine development. It was built with AI as a core tool, openly: most of the code was written with Claude (Anthropic) as the coding assistant, the way a growing share of software and research is written today. The concept, the laws, the experiments, and every decision about what stays, what gets cut and what may be claimed are the author's.
+Kepler-64 is a solo project by someone whose world is space and astronomy, not machine learning or engine development. It was built with AI as a core tool, openly: most of the code was written with Claude (Anthropic) as the coding assistant, the way a growing share of software and research is written today. The concept, the laws, the experiments, and every decision about what stays, what gets cut, and what may be claimed are the author's.
 
-That's also why everything here is checkable rather than taken on trust. Every number on this page comes from a committed result file, the laws are written out in full in the spec, and the experiments can be rerun.
+That is also why everything here is checkable rather than taken on trust. Every number on this page comes from a committed result file, the laws are written out in full in [`docs/v1/02_LAWS_SPEC.md`](docs/v1/02_LAWS_SPEC.md), and every experiment can be rerun.
 
 ## The details
 
@@ -104,33 +171,9 @@ Gen 3 against Stockfish 19 with `UCI_LimitStrength` at each `UCI_Elo` setting, 3
 </details>
 
 <details>
-<summary><b>The learned constants of Home (Gen 4)</b></summary>
-
-From [`engine/data/generations/gen-004.json`](engine/data/generations/gen-004.json):
-
-| Constant | Value | What it means |
-|---|---|---|
-| pawn | 1 | the unit (fixed) |
-| knight `m_n` | 2.7 | knight weight, in pawns |
-| bishop `m_b` | 3.1 | bishop weight |
-| rook `m_r` | 4.2 | rook weight |
-| queen `m_q` | 7.4 | queen weight |
-| `kappa` | 2.63 | how hard the king itself pulls |
-| `alpha` | 0.54 | share of pull kept for each extra move of travel |
-| `sigma` | 0.58 | how much a piece's pull spreads thin over the squares it reaches (0 = none, 1 = conserved flux) |
-| `c` | 2 | light speed: the most moves pull can travel |
-| `lambda_space` | 0.126 | weight of held space (squares owned by the stronger pull) |
-| `lambda_bind` | 0.019 | weight of exposure (enemy pull on a piece against its defenders') |
-| `beta`, `rho`, `k_roche` | 2.75, 1.56, 3.34 | the spec-1 Roche limit: weight, breaking point and sharpness. Training grew the weight, but switching it off makes no measurable difference (see the Ledger) |
-| `f_acc` | 0 | accretion (captures absorbing weight): off |
-| `lambda_tide` | 0 | tidal load on the king (spec-2): off |
-
-</details>
-
-<details>
 <summary><b>Generations</b></summary>
 
-Training is TDLeaf(λ), the method from KnightCap (Baxter, Tridgell and Weaver, 1998), run here in self-play only. A candidate is accepted only by a sequential test (SPRT: elo0 = 0, elo1 = 10, α = β = 0.05, pentanomial model, up to 4,000 games) against the generation it came from. Gains are engine against engine at fixed depth, with 95% intervals, from [`engine/data/generations/index.json`](engine/data/generations/index.json). They are not ratings.
+Constants are tuned by TDLeaf(λ), the method from KnightCap (Baxter, Tridgell and Weaver, 1998), run here in self-play only using exact forward-mode derivatives (`Dual` numbers). A candidate is accepted only by a sequential test (SPRT: elo0 = 0, elo1 = 10, α = β = 0.05, pentanomial model, up to 4,000 games) against the generation it came from. Gains are engine against engine at fixed depth, with 95% intervals, from [`engine/data/generations/index.json`](engine/data/generations/index.json). They are not ratings.
 
 | Gen | What changed | Self-play games | Gain over parent | Evidence |
 |---|---|---|---|---|
@@ -236,6 +279,7 @@ Kepler-64 is a small universe with open questions, each with a test for when it'
 2. **Make accretion work.** Find a version of mass transfer on capture that passes the Ledger, or show why none can.
 3. **Any new law.** Borrowed from real physics or invented for this board, judged against the champion.
 4. **Explain a result, no code needed.** Why a fixed temperature beats a learned one, and why the self-found piece values land where they do.
+5. **Make the universe visible.** On the board, Kepler plays like a regular engine, so you can't easily feel what the physics is doing while playing. Find a way to make the universe legible in a single game without reading the docs.
 
 The one rule: a new law has to be physics from the field (pull, mass, exposure, held squares), never a chess heuristic ([`02_LAWS_SPEC.md`](docs/v1/02_LAWS_SPEC.md) §9). To take one on, open an issue naming the problem number.
 
