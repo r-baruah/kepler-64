@@ -1,0 +1,224 @@
+name: Release
+
+# Pushing a tag `v*` verifies the engine, builds kepler-uci for three platforms and
+# publishes a GitHub Release (marked pre-release when the tag has a `-`, e.g. v1.0.0-beta.1).
+# A manual run (workflow_dispatch) is a dry run: it verifies, builds and uploads the
+# archives as workflow artifacts, and never publishes a release.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Dry-run build label (does not publish a GitHub Release)'
+        required: false
+        default: 'v1.0.0-beta.1-dryrun'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches the versions and the changelog
+        if: github.event_name == 'push'
+        working-directory: .
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          CARGO_VER=$(sed -n 's/^version = "\(.*\)"$/\1/p' engine/Cargo.toml | head -n 1)
+          WEB_VER=$(python3 -c 'import json; print(json.load(open("web/package.json"))["version"])')
+          echo "tag ${VER}, engine/Cargo.toml ${CARGO_VER}, web/package.json ${WEB_VER}"
+          [[ "$CARGO_VER" == "$VER" ]] || { echo "::error::engine/Cargo.toml version ${CARGO_VER} does not match tag ${VER}"; exit 1; }
+          [[ "$WEB_VER" == "$VER" ]] || { echo "::error::web/package.json version ${WEB_VER} does not match tag ${VER}"; exit 1; }
+          grep -qF "## [${VER}]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## [${VER}]' section"; exit 1; }
+      - name: Pinned toolchain (engine/rust-toolchain.toml)
+        run: rustup toolchain install && rustc --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --release --locked
+      - name: Determinism reference check (docs/v1/08 rule D8)
+        run: cargo run --release --locked -p kepler-train -- determinism-check --reference data/determinism/reference.json
+
+  build:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04 rather than ubuntu-latest: the binary links against the runner's glibc,
+          # so building on the older image lets it run on more distributions (glibc 2.35+).
+          - os: ubuntu-22.04
+            target: linux-x86_64
+            bin: kepler
+            ext: tar.gz
+            rustflags: ''
+          # Static C runtime, so kepler.exe does not need the Visual C++ redistributable.
+          - os: windows-latest
+            target: windows-x86_64
+            bin: kepler.exe
+            ext: zip
+            rustflags: '-C target-feature=+crt-static'
+          - os: macos-latest
+            target: macos-arm64
+            bin: kepler
+            ext: tar.gz
+            rustflags: ''
+    runs-on: ${{ matrix.os }}
+    env:
+      # Push: the tag name. Manual run: the dry-run label, passed through env, never inlined into scripts.
+      LABEL: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pinned toolchain (engine/rust-toolchain.toml)
+        working-directory: engine
+        run: rustup toolchain install && rustc --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+          key: ${{ matrix.target }}
+      - name: Build kepler-uci
+        working-directory: engine
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+          CARGO_PROFILE_RELEASE_STRIP: debuginfo
+        run: cargo build --release --locked -p kepler-uci
+
+      - name: Smoke test UCI binary with Home (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          out=$(printf 'uci\nsetoption name Generation value engine/data/generations/gen-004.json\nisready\nposition startpos\ngo depth 3\nquit\n' | ./engine/target/release/kepler)
+          echo "$out" | tail -n 4
+          if grep -q 'cannot load generation' <<<"$out"; then echo "::error::gen-004.json did not load"; exit 1; fi
+          grep -q '^bestmove ' <<<"$out" || { echo "::error::UCI smoke test failed"; exit 1; }
+
+      - name: Smoke test UCI binary with Home (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = "uci`nsetoption name Generation value engine/data/generations/gen-004.json`nisready`nposition startpos`ngo depth 3`nquit`n" | .\engine\target\release\kepler.exe
+          $out | Select-Object -Last 4
+          if ($LASTEXITCODE -ne 0) { throw "kepler.exe exited with $LASTEXITCODE" }
+          if ($out -match 'cannot load generation') { throw "gen-004.json did not load" }
+          if (-not ($out -match '^bestmove ')) { throw "UCI smoke test failed" }
+
+      - name: Write USAGE.txt
+        shell: bash
+        run: |
+          mkdir -p dist
+          cat <<'EOF' > dist/USAGE.txt
+          Kepler-64 UCI engine
+          ====================
+
+          This archive holds:
+            kepler (kepler.exe on Windows)  the engine; it speaks UCI on stdin/stdout
+            gen-004.json                    Home, the Gen 4 champion's constants
+            LICENSE                         MIT
+
+          In a chess GUI (Cute Chess, Arena, BanksiaGUI and others), add the kepler
+          binary as a UCI engine, then set its option "Generation" to the full path
+          of gen-004.json. Without that option the engine plays with its built-in
+          provisional constants, which are not Home.
+
+          Quick check from a terminal: start the binary, then type
+            uci
+            setoption name Generation value /full/path/to/gen-004.json
+            position startpos
+            go depth 6
+            quit
+
+          Other options: Hash (MB), Depth (fixed depth limit), UCI_ShowBreakdown
+          (prints every term of the evaluation). The "cp" score it prints is
+          round(100 x ku), a unit conversion for GUIs.
+
+          macOS: the binary is not signed. If macOS refuses to run it, clear the
+          download quarantine once:  xattr -d com.apple.quarantine ./kepler
+
+          Source, laws and results: https://github.com/r-baruah/kepler-64
+          EOF
+
+      - name: Package archive (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          DIR="kepler-${LABEL}-${{ matrix.target }}"
+          mkdir -p "dist/${DIR}"
+          cp "engine/target/release/${{ matrix.bin }}" "dist/${DIR}/"
+          cp engine/data/generations/gen-004.json LICENSE dist/USAGE.txt "dist/${DIR}/"
+          tar -C dist -czf "dist/${DIR}.tar.gz" "${DIR}"
+
+      - name: Package archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = "kepler-$env:LABEL-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path "dist/$dir" | Out-Null
+          Copy-Item "engine/target/release/${{ matrix.bin }}" "dist/$dir/"
+          Copy-Item "engine/data/generations/gen-004.json", "LICENSE" -Destination "dist/$dir/"
+          # USAGE.txt with Windows line endings so Notepad shows it properly.
+          (Get-Content "dist/USAGE.txt") -join "`r`n" | Set-Content -NoNewline -Encoding utf8NoBOM "dist/$dir/USAGE.txt"
+          Compress-Archive -Path "dist/$dir" -DestinationPath "dist/$dir.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kepler-${{ matrix.target }}
+          path: dist/kepler-*.${{ matrix.ext }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    # Only a real tag push publishes. A manual run started on a tag ref stays a dry run.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: dist
+        run: |
+          sha256sum kepler-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Extract changelog notes
+        shell: bash
+        run: |
+          python3 - "${GITHUB_REF_NAME#v}" <<'PY' > release-notes.md
+          import re, sys, pathlib
+          ver = sys.argv[1]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          m = re.search(rf"^## \[{re.escape(ver)}\][^\n]*\n(.*?)(?=^## \[|\Z)", text, re.M | re.S)
+          if not m or not m.group(1).strip():
+              sys.exit(f"CHANGELOG.md has no notes for {ver}")
+          print(m.group(1).strip())
+          PY
+          cat release-notes.md
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          FLAGS=()
+          if [[ "$TAG" == *-* ]]; then
+            FLAGS+=(--prerelease)
+          fi
+          gh release create "$TAG" dist/* \
+            --verify-tag \
+            --title "Kepler-64 ${TAG}" \
+            --notes-file release-notes.md \
+            "${FLAGS[@]}"
