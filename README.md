@@ -359,7 +359,12 @@ The metadata is in [`CITATION.cff`](CITATION.cff); GitHub's "Cite this repositor
 
 ## Credits and licence
 
-Made by Ripuranjan Baruah, released under the [MIT licence](LICENSE).
+Made by Ripuranjan Baruah. Two licences, split by what the work is:
+
+- **Code** is under the [MIT licence](LICENSE). That covers everything in the repository not listed in the next point, including the generation files in `engine/data/` that ship with the engine.
+- **Writing, figures and results** are under [CC BY 4.0](LICENSE-DOCS): the documentation in `docs/`, the text and figures of this README, and the result files in `engine/results/`. You can reuse them for any purpose, commercial included, as long as you credit Kepler-64 and link back here.
+
+Third-party work keeps its own licence:
 
 - **Stockfish 19** is the examiner only (the ladder, suite checks, the opening-balance filter), never the teacher.
 - **Chess pieces:** the "cburnett" set by Colin M. L. Burnett, BSD 3-clause licence ([`web/static/pieces/LICENSE.md`](web/static/pieces/LICENSE.md)).
