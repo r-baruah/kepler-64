@@ -5,7 +5,7 @@ authors:
     given-names: Ripuranjan
     name: "Ripuranjan Baruah"
 title: "Kepler-64: an experiment in playing chess using four 2D physics equations and ten numbers"
-abstract: "An experiment in playing chess using newly derived physics formulas built for a 2D board: pieces carry weight, pull travels along legal move lines, spreads thin over the squares it reaches, and stops at a speed limit of two moves. Ten active constants (40 bytes) control the evaluation, and every law is tested by ablation in a public Law Ledger."
+abstract: "An experiment in playing chess with a standard lookahead search and an evaluation made only of physics formulas built for a 2D board: pieces carry weight, pull travels along legal move lines, spreads thin over the squares it reaches, and stops at a speed limit of two moves. Ten constants (about 40 bytes), tuned by self-play, carry the measured effect of the evaluation, and every law is tested by ablation in a public Law Ledger."
 url: "https://github.com/r-baruah/kepler-64"
 repository-code: "https://github.com/r-baruah/kepler-64"
 license: "MIT"
