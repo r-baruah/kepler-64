@@ -12,13 +12,21 @@ Richard Feynman once compared physics to watching a game of chess without knowin
 
 Kepler-64 runs that the other way round. It already knows the rules of chess. What it does not know is how to play. Instead of chess strategy or a neural network, it was given a tiny physical universe built for a 64-square board: pieces have weight, their pull travels along legal move lines, spreads thin over the squares it reaches, and stops at a speed limit.
 
-Every move the engine makes comes from two simple pieces working together:
-- **A standard lookahead search** that explores legal moves (it knows checkmate, stalemate, and draws — nothing about chess strategy).
+Every move the engine makes comes from two simple parts working together:
+- **A standard lookahead search** that checks legal moves ahead (it knows checkmate, stalemate, and draws — nothing about chess strategy).
 - **151 lines of Rust** ([`laws/mod.rs`](engine/crates/kepler-core/src/laws/mod.rs)) containing four short physics equations and **10 active numbers** that judge each position.
 
-There is no opening book, no piece-square table, no pawn-structure rule, no king-safety heuristic, and no neural network. Just those equations, ten numbers you could tune by hand, and the question of whether that is enough to play real chess.
+There is no opening book, no piece-square table, no pawn-structure rule, no king-safety rule, and no neural network. Just those equations, ten numbers you could tune by hand, and the question of whether that is enough to play real chess.
 
 It is.
+
+```mermaid
+flowchart LR
+    A["1. Board\n(piece weights)"] --> B["2. Field\n(legal moves, max 2)"]
+    B --> C["3. Four equations\n(151 lines of Rust)"]
+    C --> D["4. Search\n(picks best move)"]
+    E["10 numbers · 40 bytes\n(no neural network)"] -. "self-play" .-> C
+```
 
 ## The equations
 
@@ -103,9 +111,9 @@ Self-play (`TDLeaf(λ)`) is only used for two things:
 
 ## How a move happens
 
-1. **Search explores legal moves.** A conventional alpha-beta search looks ahead through legal continuations. It contains zero chess-strategy heuristics.
-2. **The board becomes masses and light cones.** Each piece emits pull along its legal move lines up to `c = 2` moves out, blocked by pieces in the way.
-3. **The four equations score the position.** Rest mass, binding energy, and held space combine into a single score in Kepler units.
+1. **Search checks legal moves ahead.** A standard lookahead search explores legal future positions. It has no built-in chess strategy.
+2. **The board becomes weights and pull.** Each piece sends pull along its legal move lines up to `c = 2` moves out, stopping at the first piece in the way.
+3. **The four equations score the board.** Weight, exposure, and held squares combine into a single score in Kepler units.
 4. **Search picks the move** that leads to the best future under those equations.
 
 ## What happened
