@@ -9,7 +9,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const WEB_ROOT = resolve(HERE, '..');
 export const REPO_ROOT = resolve(WEB_ROOT, '..');
 
-/** Preset slug -> source file under engine/data (web plan 5c). */
+/** Preset slug -> source file under engine/data (web/content/universes.md). */
 export const PRESET_FILES = {
 	champion: 'generations/gen-004.json',
 	'equal-start': 'ablations/control-equal-masses-a-candidate.json',
@@ -117,7 +117,7 @@ function readJson(path) {
 /** Parse a markdown table that follows `heading`; returns rows as arrays of trimmed cells. */
 function tableAfter(md, heading) {
 	const at = md.indexOf(heading);
-	if (at < 0) throw new Error(`sync-data: heading not found in web plan: ${heading}`);
+	if (at < 0) throw new Error(`sync-data: heading not found in universes.md: ${heading}`);
 	const lines = md.slice(at).split('\n').slice(1);
 	const rows = [];
 	let started = false;
@@ -148,7 +148,7 @@ export function constantsDiff(base, other) {
 
 export function computeFacts(
 	engineRoot = join(REPO_ROOT, 'engine'),
-	planPath = join(REPO_ROOT, 'docs/v1/06_WEB_PLAN.md'),
+	planPath = join(REPO_ROOT, 'web/content/universes.md'),
 	cffPath = join(REPO_ROOT, 'CITATION.cff')
 ) {
 	const data = join(engineRoot, 'data');
@@ -183,15 +183,15 @@ export function computeFacts(
 	}
 	const championGames = lineage.reduce((s, l) => s + l.games, 0);
 
-	// Preset labels and levels come from the web plan tables, so the copy is never retyped.
+	// Preset labels and levels come from the tables in web/content/universes.md, so the copy is never retyped.
 	const plan = readFileSync(need(planPath), 'utf8');
-	const presetRows = tableAfter(plan, '### 5c. Universe presets');
-	const levelRows = tableAfter(plan, '### 5d. Levels');
+	const presetRows = tableAfter(plan, '## Universe presets');
+	const levelRows = tableAfter(plan, '## Levels');
 	const championConstants = normConstants(champion.constants);
 
 	const presets = Object.entries(PRESET_FILES).map(([slug, file]) => {
 		const row = presetRows.find((r) => stripTicks(r[0]) === slug);
-		if (!row) throw new Error(`sync-data: preset ${slug} missing from web plan 5c`);
+		if (!row) throw new Error(`sync-data: preset ${slug} missing from web/content/universes.md`);
 		const doc = readJson(join(data, file));
 		const constants = normConstants(doc.constants);
 		const own = doc.training?.games ?? 0;
@@ -218,7 +218,7 @@ export function computeFacts(
 		nodes: Number(r[1].replace(/,/g, '')),
 		about: r[2]
 	}));
-	if (levels.length !== 3 || levels.some((l) => !Number.isFinite(l.nodes))) throw new Error('sync-data: could not read levels from web plan 5d');
+	if (levels.length !== 3 || levels.some((l) => !Number.isFinite(l.nodes))) throw new Error('sync-data: could not read levels from web/content/universes.md');
 
 	return {
 		championId: index.champion,

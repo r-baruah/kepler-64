@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { bibtexFromCff, computeFacts, PRESET_FILES, REPO_ROOT } from './sync-data.mjs';
 
-const plan = join(REPO_ROOT, 'docs/v1/06_WEB_PLAN.md');
+const plan = join(REPO_ROOT, 'web/content/universes.md');
 const engine = join(REPO_ROOT, 'engine');
 
 describe('site facts', () => {
@@ -19,7 +19,7 @@ describe('site facts', () => {
 		]);
 	});
 
-	it('reads the six presets with their fixed labels from the web plan', () => {
+	it('reads the six presets with their fixed labels from web/content/universes.md', () => {
 		expect(facts.presets.map((p) => p.slug)).toEqual(Object.keys(PRESET_FILES));
 		const by = Object.fromEntries(facts.presets.map((p) => [p.slug, p]));
 		expect(facts.presets.map((p) => p.name)).toEqual(['Home', 'Genesis', 'First Light', 'Hunger', 'Roche', 'Undertow']);

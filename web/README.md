@@ -1,6 +1,6 @@
 # Kepler-64 web
 
-SvelteKit + TypeScript site, prerendered, deployed with `@sveltejs/adapter-vercel`. This pass: design tokens and the Play screen (the landing hero is Play at rest). Specs: `docs/v1/06_WEB_PLAN.md` and the 2026-10-25 entries of `docs/v1/07_DECISION_LOG.md`.
+SvelteKit + TypeScript site, prerendered, deployed with `@sveltejs/adapter-vercel`. This pass: design tokens and the Play screen (the landing hero is Play at rest). Universe presets and levels come from `web/content/universes.md`, read at build time by `scripts/sync-data.mjs`.
 
 ## Run
 
