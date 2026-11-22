@@ -155,7 +155,7 @@ dependencies = [
 
 [[package]]
 name = "kepler-core"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "cozy-chess",
  "libm",
@@ -165,7 +165,7 @@ dependencies = [
 
 [[package]]
 name = "kepler-train"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "clap",
  "cozy-chess",
@@ -177,7 +177,7 @@ dependencies = [
 
 [[package]]
 name = "kepler-uci"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "kepler-core",
  "serde",
@@ -186,7 +186,7 @@ dependencies = [
 
 [[package]]
 name = "kepler-wasm"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 dependencies = [
  "cozy-chess",
  "kepler-core",
