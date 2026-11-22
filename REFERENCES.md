@@ -1,5 +1,7 @@
 # Scientific References & Theoretical Foundations
 
+> **This is the v0 reading list** (the frozen Python and JAX prototype in `kepler64/`, once called "The Roche Engine"). v0 applied these laws in straight-line space; v1 re-derived its laws for a board where distance is counted in moves, and they are specified in [`docs/v1/02_LAWS_SPEC.md`](docs/v1/02_LAWS_SPEC.md). Kept for the record.
+
 This document catalogs the academic literature, astrophysical foundations, computational mechanics, and chess programming references foundational to the **Kepler-64 (The Roche Engine)** project.
 
 ---
