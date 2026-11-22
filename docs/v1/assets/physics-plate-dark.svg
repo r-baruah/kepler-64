@@ -1,0 +1,312 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 456" width="880" height="456" role="img" aria-labelledby="pp-t-dark pp-d-dark">
+  <title id="pp-t-dark">Kepler-64: Real-world physics rebuilt for a 2D chessboard</title>
+  <desc id="pp-d-dark">Four pairings showing how Kepler-64 translates real physics onto a chessboard: Mass to piece weight, Gravity to pull along legal moves stopping at blockers, Light speed to a 2-move limit, and Field to square ownership.</desc>
+  <defs>
+    <pattern id="grid-dark" width="16" height="16" patternUnits="userSpaceOnUse">
+      <path d="M 16 0 L 0 0 0 16" fill="none" stroke="rgba(227, 231, 238, 0.05)" stroke-width="1"/>
+    </pattern>
+    <symbol id="p-wP" viewBox="0 0 45 45">
+      <path d="m 22.5,9 c -2.21,0 -4,1.79 -4,4 0,0.89 0.29,1.71 0.78,2.38 C 17.33,16.5 16,18.59 16,21 c 0,2.03 0.94,3.84 2.41,5.03 C 15.41,27.09 11,31.58 11,39.5 H 34 C 34,31.58 29.59,27.09 26.59,26.03 28.06,24.84 29,23.03 29,21 29,18.59 27.67,16.5 25.72,15.38 26.21,14.71 26.5,13.89 26.5,13 c 0,-2.21 -1.79,-4 -4,-4 z" style="opacity:1; fill:#ffffff; fill-opacity:1; fill-rule:nonzero; stroke:#000000; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:miter; stroke-miterlimit:4; stroke-dasharray:none; stroke-opacity:1;"/>
+    </symbol>
+    <symbol id="p-wQ" viewBox="0 0 45 45">
+      <g style="fill:#ffffff;stroke:#000000;stroke-width:1.5;stroke-linejoin:round">
+    <path d="M 9,26 C 17.5,24.5 30,24.5 36,26 L 38.5,13.5 L 31,25 L 30.7,10.9 L 25.5,24.5 L 22.5,10 L 19.5,24.5 L 14.3,10.9 L 14,25 L 6.5,13.5 L 9,26 z"/>
+    <path d="M 9,26 C 9,28 10.5,28 11.5,30 C 12.5,31.5 12.5,31 12,33.5 C 10.5,34.5 11,36 11,36 C 9.5,37.5 11,38.5 11,38.5 C 17.5,39.5 27.5,39.5 34,38.5 C 34,38.5 35.5,37.5 34,36 C 34,36 34.5,34.5 33,33.5 C 32.5,31 32.5,31.5 33.5,30 C 34.5,28 36,28 36,26 C 27.5,24.5 17.5,24.5 9,26 z"/>
+    <path d="M 11.5,30 C 15,29 30,29 33.5,30" style="fill:none"/>
+    <path d="M 12,33.5 C 18,32.5 27,32.5 33,33.5" style="fill:none"/>
+    <circle cx="6" cy="12" r="2" />
+    <circle cx="14" cy="9" r="2" />
+    <circle cx="22.5" cy="8" r="2" />
+    <circle cx="31" cy="9" r="2" />
+    <circle cx="39" cy="12" r="2" />
+  </g>
+    </symbol>
+    <symbol id="p-wR" viewBox="0 0 45 45">
+      <g style="opacity:1; fill:#ffffff; fill-opacity:1; fill-rule:evenodd; stroke:#000000; stroke-width:1.5; stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4; stroke-dasharray:none; stroke-opacity:1;" transform="translate(0,0.3)">
+    <path
+      d="M 9,39 L 36,39 L 36,36 L 9,36 L 9,39 z "
+      style="stroke-linecap:butt;" />
+    <path
+      d="M 12,36 L 12,32 L 33,32 L 33,36 L 12,36 z "
+      style="stroke-linecap:butt;" />
+    <path
+      d="M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14"
+      style="stroke-linecap:butt;" />
+    <path
+      d="M 34,14 L 31,17 L 14,17 L 11,14" />
+    <path
+      d="M 31,17 L 31,29.5 L 14,29.5 L 14,17"
+      style="stroke-linecap:butt; stroke-linejoin:miter;" />
+    <path
+      d="M 31,29.5 L 32.5,32 L 12.5,32 L 14,29.5" />
+    <path
+      d="M 11,14 L 34,14"
+      style="fill:none; stroke:#000000; stroke-linejoin:miter;" />
+  </g>
+    </symbol>
+    <symbol id="p-wK" viewBox="0 0 45 45">
+      <g fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+    <path stroke-linejoin="miter" d="M22.5 11.63V6M20 8h5"/>
+    <path fill="#fff" stroke-linecap="butt" stroke-linejoin="miter" d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/>
+    <path fill="#fff" d="M12.5 37c5.5 3.5 14.5 3.5 20 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-2.5-7.5-12-10.5-16-4-3 6 6 10.5 6 10.5v7"/>
+    <path d="M12.5 30c5.5-3 14.5-3 20 0m-20 3.5c5.5-3 14.5-3 20 0m-20 3.5c5.5-3 14.5-3 20 0"/>
+  </g>
+    </symbol>
+    <symbol id="p-wN" viewBox="0 0 45 45">
+      <g style="opacity:1; fill:none; fill-opacity:1; fill-rule:evenodd; stroke:#000000; stroke-width:1.5; stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4; stroke-dasharray:none; stroke-opacity:1;" transform="translate(0,0.3)">
+    <path
+      d="M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18"
+      style="fill:#ffffff; stroke:#000000;" />
+    <path
+      d="M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10"
+      style="fill:#ffffff; stroke:#000000;" />
+    <path
+      d="M 9.5 25.5 A 0.5 0.5 0 1 1 8.5,25.5 A 0.5 0.5 0 1 1 9.5 25.5 z"
+      style="fill:#000000; stroke:#000000;" />
+    <path
+      d="M 15 15.5 A 0.5 1.5 0 1 1  14,15.5 A 0.5 1.5 0 1 1  15 15.5 z"
+      transform="matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)"
+      style="fill:#000000; stroke:#000000;" />
+  </g>
+    </symbol>
+    <symbol id="p-bB" viewBox="0 0 45 45">
+      <g style="opacity:1; fill:none; fill-rule:evenodd; fill-opacity:1; stroke:#000000; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; stroke-miterlimit:4; stroke-dasharray:none; stroke-opacity:1;" transform="translate(0,0.6)">
+    <g style="fill:#000000; stroke:#000000; stroke-linecap:butt;">
+      <path d="M 9,36 C 12.39,35.03 19.11,36.43 22.5,34 C 25.89,36.43 32.61,35.03 36,36 C 36,36 37.65,36.54 39,38 C 38.32,38.97 37.35,38.99 36,38.5 C 32.61,37.53 25.89,38.96 22.5,37.5 C 19.11,38.96 12.39,37.53 9,38.5 C 7.65,38.99 6.68,38.97 6,38 C 7.35,36.54 9,36 9,36 z"/>
+      <path d="M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30.5,30.5 30,30 30,30 C 30,27.5 27.5,26 27.5,26 C 33,24.5 33.5,14.5 22.5,10.5 C 11.5,14.5 12,24.5 17.5,26 C 17.5,26 15,27.5 15,30 C 15,30 14.5,30.5 15,32 z"/>
+      <path d="M 25 8 A 2.5 2.5 0 1 1  20,8 A 2.5 2.5 0 1 1  25 8 z"/>
+    </g>
+    <path d="M 17.5,26 L 27.5,26 M 15,30 L 30,30 M 22.5,15.5 L 22.5,20.5 M 20,18 L 25,18" style="fill:none; stroke:#ffffff; stroke-linejoin:miter;"/>
+  </g>
+    </symbol>
+  </defs>
+
+  <rect x="0" y="0" width="880" height="456" rx="16" fill="#0f131a"/>
+
+  <g>
+    <rect x="14" y="14" width="419.0" height="207.0" rx="12" fill="#171d27" stroke="#262e3c" stroke-width="1"/>
+    <rect x="14" y="14" width="419.0" height="207.0" rx="12" fill="url(#grid-dark)"/>
+
+    <!-- Left half -->
+    <g transform="translate(40.0, 28.0) scale(1.35)">
+      
+      <ellipse cx="44" cy="38" rx="36" ry="12" transform="rotate(-10 44 38)" fill="none" stroke="#465065" stroke-width="1"/>
+      <circle cx="44" cy="38" r="12" fill="#e3e7ee"/>
+      <circle cx="79" cy="31.5" r="3.6" fill="#e3e7ee"/>
+    </g>
+    <text x="104.8" y="143.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">Mass</text>
+
+    <!-- Arrow -->
+    <line x1="185.6" y1="76.6" x2="261.4" y2="76.6" stroke="#465065" stroke-width="1.3"/>
+    <polygon points="261.4,72.6 267.4,76.6 261.4,80.6" fill="#465065"/>
+
+    <!-- Right half -->
+    <g transform="translate(277.4, 28.0) scale(1.35)">
+      
+      <circle cx="22" cy="40" r="6.2" fill="#141923" stroke="#465065" stroke-width="1"/>
+      <use href="#p-wP" x="15" y="33" width="14" height="14"/>
+      <circle cx="64" cy="36" r="16.85" fill="#141923" stroke="#465065" stroke-width="1"/>
+      <use href="#p-wQ" x="53" y="25" width="22" height="22"/>
+      <text x="22" y="66" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="9" font-weight="500" fill="#e3e7ee">1</text>
+      <text x="64" y="66" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="9" font-weight="500" fill="#e3e7ee">7.4</text>
+    </g>
+    <text x="342.2" y="143.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">Piece weight</text>
+
+    <!-- Footer rule + formula + caption -->
+    <line x1="30" y1="169.0" x2="417.0" y2="169.0" stroke="#262e3c" stroke-width="1"/>
+    <text x="223.5" y="189.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">T<tspan dy="2.5" font-size="8.5">mat</tspan><tspan dy="-2.5"> = Σ μ</tspan><tspan dy="2.5" font-size="8.5">W</tspan><tspan dy="-2.5"> − Σ μ</tspan><tspan dy="2.5" font-size="8.5">B</tspan></text>
+    <text x="223.5" y="207.0" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#9ba4b5">Tuned via self-play. Pawn = 1.</text>
+  </g>
+  <g>
+    <rect x="447.0" y="14" width="419.0" height="207.0" rx="12" fill="#171d27" stroke="#262e3c" stroke-width="1"/>
+    <rect x="447.0" y="14" width="419.0" height="207.0" rx="12" fill="url(#grid-dark)"/>
+
+    <!-- Left half -->
+    <g transform="translate(473.0, 28.0) scale(1.35)">
+      
+      <line x1="58.00" y1="36.00" x2="78.00" y2="36.00" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="56.66" y1="41.00" x2="73.98" y2="51.00" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="53.00" y1="44.66" x2="63.00" y2="61.98" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="48.00" y1="46.00" x2="48.00" y2="66.00" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="43.00" y1="44.66" x2="33.00" y2="61.98" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="39.34" y1="41.00" x2="22.02" y2="51.00" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="38.00" y1="36.00" x2="18.00" y2="36.00" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="39.34" y1="31.00" x2="22.02" y2="21.00" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="43.00" y1="27.34" x2="33.00" y2="10.02" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="48.00" y1="26.00" x2="48.00" y2="6.00" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="53.00" y1="27.34" x2="63.00" y2="10.02" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <line x1="56.66" y1="31.00" x2="73.98" y2="21.00" stroke="#465065" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+      <circle cx="48" cy="36" r="6" fill="#e3e7ee"/>
+    </g>
+    <text x="537.8" y="143.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">Gravity</text>
+
+    <!-- Arrow -->
+    <line x1="618.6" y1="76.6" x2="694.4" y2="76.6" stroke="#465065" stroke-width="1.3"/>
+    <polygon points="694.4,72.6 700.4,76.6 694.4,80.6" fill="#465065"/>
+
+    <!-- Right half -->
+    <g transform="translate(710.4, 28.0) scale(1.35)">
+      
+      <rect x="16.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="54.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="54.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="16.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="29.25" y="41.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="41.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="54.25" y="41.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="66.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="16.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="29.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="29.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="16.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="29.25" y="16.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="41.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="54.25" y="16.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="66.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="16.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="4.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="4.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+      <rect x="16.75" y="41.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/>
+      <rect x="29.25" y="41.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/>
+      <rect x="54.25" y="41.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/>
+      <rect x="66.75" y="41.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/>
+      <rect x="41.75" y="54.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/>
+      <rect x="41.75" y="29.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/>
+      <rect x="41.75" y="16.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/>
+      <line x1="48.0" y1="47.75" x2="23.0" y2="47.75" stroke="#9db0ff" stroke-width="1.1" stroke-opacity="0.85"/>
+      <line x1="48.0" y1="47.75" x2="73.0" y2="47.75" stroke="#9db0ff" stroke-width="1.1" stroke-opacity="0.85"/>
+      <line x1="48.0" y1="47.75" x2="48.0" y2="60.25" stroke="#9db0ff" stroke-width="1.1" stroke-opacity="0.85"/>
+      <line x1="48.0" y1="47.75" x2="48.0" y2="22.75" stroke="#9db0ff" stroke-width="1.1" stroke-opacity="0.85"/>
+      <use href="#p-wR" x="41.75" y="41.5" width="12.5" height="12.5"/>
+      <use href="#p-wP" x="41.75" y="16.5" width="12.5" height="12.5"/>
+    </g>
+    <text x="775.2" y="143.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">Pull along its moves</text>
+
+    <!-- Footer rule + formula + caption -->
+    <line x1="463.0" y1="169.0" x2="850.0" y2="169.0" stroke="#262e3c" stroke-width="1"/>
+    <text x="656.5" y="189.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">φ = E · α<tspan dy="-3.5" font-size="8.5">h−1</tspan><tspan dy="3.5"> / n</tspan><tspan dy="2.5" font-size="8.5">h</tspan><tspan dy="-6" font-size="8.5">σ</tspan></text>
+    <text x="656.5" y="207.0" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#9ba4b5">2D Gauss law: stops at blockers.</text>
+  </g>
+  <g>
+    <rect x="14" y="235.0" width="419.0" height="207.0" rx="12" fill="#171d27" stroke="#262e3c" stroke-width="1"/>
+    <rect x="14" y="235.0" width="419.0" height="207.0" rx="12" fill="url(#grid-dark)"/>
+
+    <!-- Left half -->
+    <g transform="translate(40.0, 249.0) scale(1.35)">
+      
+      <circle cx="48" cy="36" r="14" fill="none" stroke="#7d97ff" stroke-width="1"/>
+      <circle cx="48" cy="36" r="27" fill="none" stroke="#7d97ff" stroke-width="1" stroke-dasharray="3 3" stroke-opacity="0.7"/>
+      <circle cx="48" cy="36" r="3" fill="#7d97ff"/>
+    </g>
+    <text x="104.8" y="364.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">Light speed</text>
+
+    <!-- Arrow -->
+    <line x1="185.6" y1="297.6" x2="261.4" y2="297.6" stroke="#465065" stroke-width="1.3"/>
+    <polygon points="261.4,293.6 267.4,297.6 261.4,301.6" fill="#465065"/>
+
+    <!-- Right half -->
+    <g transform="translate(277.4, 249.0) scale(1.35)">
+      
+      <rect x="16.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="54.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="54.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="16.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="29.25" y="41.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="41.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="54.25" y="41.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="66.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="16.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="29.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="29.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="16.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="29.25" y="16.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="41.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="54.25" y="16.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="66.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="16.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="4.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="4.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+      <rect x="16.75" y="54.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/> <rect x="29.25" y="54.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/> <rect x="41.75" y="54.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/> <rect x="54.25" y="54.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.09"/> <rect x="16.75" y="41.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/> <rect x="41.75" y="41.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/> <rect x="54.25" y="41.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.09"/> <rect x="16.75" y="29.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/> <rect x="29.25" y="29.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/> <rect x="41.75" y="29.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.24"/> <rect x="54.25" y="29.0" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.09"/> <rect x="16.75" y="16.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.09"/> <rect x="29.25" y="16.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.09"/> <rect x="41.75" y="16.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.09"/> <rect x="54.25" y="16.5" width="12.5" height="12.5" fill="#9db0ff" fill-opacity="0.09"/>
+      <use href="#p-wK" x="29.25" y="41.5" width="12.5" height="12.5"/>
+      <text x="48.0" y="50.35" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="7" font-weight="500" fill="#e3e7ee">1</text>
+      <text x="60.5" y="50.35" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="7" font-weight="500" fill="#e3e7ee">2</text>
+      <text x="73.0" y="50.35" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="7" font-weight="500" fill="#9ba4b5" fill-opacity="0.75">0</text>
+    </g>
+    <text x="342.2" y="364.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">2 moves</text>
+
+    <!-- Footer rule + formula + caption -->
+    <line x1="30" y1="390.0" x2="417.0" y2="390.0" stroke="#262e3c" stroke-width="1"/>
+    <text x="223.5" y="410.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">φ = 0  for h &gt; c = 2</text>
+    <text x="223.5" y="428.0" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#9ba4b5">Stops past 2 moves.</text>
+  </g>
+  <g>
+    <rect x="447.0" y="235.0" width="419.0" height="207.0" rx="12" fill="#171d27" stroke="#262e3c" stroke-width="1"/>
+    <rect x="447.0" y="235.0" width="419.0" height="207.0" rx="12" fill="url(#grid-dark)"/>
+
+    <!-- Left half -->
+    <g transform="translate(473.0, 249.0) scale(1.35)">
+      
+      <path d="M4 6 H60 Q53 36 60 66 H4 Z" fill="#e3b453" fill-opacity="0.225"/>
+      <path d="M60 6 H92 V66 H60 Q53 36 60 6 Z" fill="#070a14" fill-opacity="0.204"/>
+      <path d="M60 6 Q53 36 60 66" fill="none" stroke="#c4cbd7" stroke-width="1" stroke-dasharray="3 2.5"/>
+      <circle cx="28" cy="36" r="9" fill="#e3e7ee"/>
+      <circle cx="76" cy="36" r="5" fill="#e3e7ee"/>
+    </g>
+    <text x="537.8" y="364.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">Field</text>
+
+    <!-- Arrow -->
+    <line x1="618.6" y1="297.6" x2="694.4" y2="297.6" stroke="#465065" stroke-width="1.3"/>
+    <polygon points="694.4,293.6 700.4,297.6 694.4,301.6" fill="#465065"/>
+
+    <!-- Right half -->
+    <g transform="translate(710.4, 249.0) scale(1.35)">
+      
+      <rect x="16.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="54.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="54.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="54.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="16.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="29.25" y="41.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="41.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="54.25" y="41.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="66.75" y="41.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="16.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="29.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="29.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="29.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="16.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="29.25" y="16.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="41.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="54.25" y="16.5" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="66.75" y="16.5" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="16.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="29.25" y="4.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="41.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+        <rect x="54.25" y="4.0" width="12.5" height="12.5" fill="#6f788c"/>
+        <rect x="66.75" y="4.0" width="12.5" height="12.5" fill="#535c6f"/>
+      <rect x="16.75" y="54.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/> <rect x="29.25" y="54.0" width="12.5" height="12.5" fill="#070a14" fill-opacity="0.428"/> <rect x="41.75" y="54.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/> <rect x="54.25" y="54.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.355"/> <rect x="66.75" y="54.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.505"/> <rect x="16.75" y="41.5" width="12.5" height="12.5" fill="#070a14" fill-opacity="0.225"/> <rect x="41.75" y="41.5" width="12.5" height="12.5" fill="#070a14" fill-opacity="0.428"/> <rect x="54.25" y="41.5" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/> <rect x="66.75" y="41.5" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.227"/> <rect x="16.75" y="29.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/> <rect x="29.25" y="29.0" width="12.5" height="12.5" fill="#070a14" fill-opacity="0.225"/> <rect x="41.75" y="29.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/> <rect x="54.25" y="29.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.118"/> <rect x="66.75" y="29.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/> <rect x="16.75" y="16.5" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.355"/> <rect x="29.25" y="16.5" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/> <rect x="41.75" y="16.5" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.355"/> <rect x="16.75" y="4.0" width="12.5" height="12.5" fill="#070a14" fill-opacity="0.222"/> <rect x="29.25" y="4.0" width="12.5" height="12.5" fill="#070a14" fill-opacity="0.460"/> <rect x="41.75" y="4.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/> <rect x="54.25" y="4.0" width="12.5" height="12.5" fill="#070a14" fill-opacity="0.428"/> <rect x="66.75" y="4.0" width="12.5" height="12.5" fill="#e3b453" fill-opacity="0.231"/>
+      <use href="#p-wN" x="29.25" y="41.5" width="12.5" height="12.5"/>
+      <use href="#p-bB" x="66.75" y="16.5" width="12.5" height="12.5"/>
+    </g>
+    <text x="775.2" y="364.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">Who owns a square</text>
+
+    <!-- Footer rule + formula + caption -->
+    <line x1="463.0" y1="390.0" x2="850.0" y2="390.0" stroke="#262e3c" stroke-width="1"/>
+    <text x="656.5" y="410.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">T<tspan dy="2.5" font-size="8.5">space</tspan><tspan dy="-2.5"> = λ Σ tanh(Φ</tspan><tspan dy="2.5" font-size="8.5">W</tspan><tspan dy="-2.5"> − Φ</tspan><tspan dy="2.5" font-size="8.5">B</tspan><tspan dy="-2.5">)</tspan></text>
+    <text x="656.5" y="428.0" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#9ba4b5">Whoever pulls harder owns the square.</text>
+  </g>
+</svg>

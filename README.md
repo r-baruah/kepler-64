@@ -32,6 +32,12 @@ flowchart LR
 
 Copying 3D space equations straight onto a chessboard does not work — straight-line distance ignores blocking pawns and how each piece moves (that is why v0 failed). Instead, Kepler-64 uses **new formulas derived directly from real-world physics, rebuilt for a 2D chess grid** so they work the same way in board space:
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/v1/assets/physics-plate-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/v1/assets/physics-plate-light.svg" />
+  <img src="docs/v1/assets/physics-plate-light.svg" alt="Four pairings showing how real physics maps onto a 2D chessboard: Mass to piece weight, Gravity to pull along legal moves stopping at blockers, Light speed to a 2-move limit, and Field to square ownership." width="100%" />
+</picture>
+
 | Real-world law (3D space) | Why it breaks on a board | New formula built for a 2D board |
 |---|---|---|
 | **Gauss's law** ($1 / 4\pi r^2$ over a sphere) | Straight lines ignore piece movement and blockers | Divide pull by shell size $n_h^\sigma$ along legal move lines |
