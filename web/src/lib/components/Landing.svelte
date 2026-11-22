@@ -63,9 +63,14 @@
 	});
 	onDestroy(() => demoClient?.stop());
 
-	// ---- 2. no chess knowledge inside ------------------------------------------------
+	// ---- 2. what nobody wrote down -------------------------------------------------------
 	const proof = $derived(landing.proof);
-	const ABSENT = ['Piece-square tables', 'King-safety rules', 'Pawn-structure rules', 'An opening book', 'A neural network or ML model'];
+	// Piece values from the equal-start control run (the Genesis universe), as multiples of the knight.
+	const genesis = $derived(facts.presets.find((p) => p.slug === 'equal-start'));
+	const learned = $derived(genesis ? [1, genesis.constants.m_b / genesis.constants.m_n, genesis.constants.m_r / genesis.constants.m_n, genesis.constants.m_q / genesis.constants.m_n] : null);
+	const TRADITIONAL = [1, 1, 5 / 3, 3];
+	const ratio = (xs: number[]) => xs.map((x) => x.toFixed(2).replace(/\.?0+$/, '')).join(' : ');
+	const BAR_MAX = 3.2;
 
 	// ---- 3. the ledger ---------------------------------------------------------------
 	const BADGE: Record<LedgerCard['verdict'], string> = { kept: 'Kept', back: 'Came back', rejected: 'Rejected', 'rejected-twice': 'Rejected twice' };
@@ -95,8 +100,8 @@
 			<div class="pinbox" data-pin-box>
 				<header class="head">
 					<div class="eyebrow mono"><span class="dot"></span>01 &middot; How it works</div>
-					<h2>New physics formulas, built for a 2D board.</h2>
-					<p class="lede">Four equations derived from real-world physics and controlled by 10 active numbers (40 bytes). Self-play only tuned those ten constants instead of picking them by hand.</p>
+					<h2>Distance is counted in moves.</h2>
+					<p class="lede">The rules of chess decide the shape of space. Pull travels only along the lines a piece can move, stops at the first piece in the way, and never arrives past two moves. Four laws of physics, re-derived for that space, read the board from that one field.</p>
 				</header>
 				<PhysicsPlate constants={home.constants} field={plateField} />
 			</div>
@@ -124,35 +129,61 @@
 
 	<section class="sec" id="inside" use:reveal>
 		<header class="head">
-			<div class="eyebrow mono"><span class="dot"></span>02 &middot; What's inside</div>
-			<h2>It knows space, not chess.</h2>
+			<div class="eyebrow mono"><span class="dot"></span>02 &middot; What nobody wrote down</div>
+			<h2>Chess ideas nobody wrote in.</h2>
+			<p class="lede">The evaluation is four equations and nothing more. Yet several ideas of chess strategy turn up by themselves, as quantities of the one field.</p>
 		</header>
 		<div class="inside">
-			<div class="cols">
-				<div class="col">
-					<div class="colhead mono">Not inside</div>
-					<ul class="absent">
-						{#each ABSENT as a (a)}
-							<li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" /><path d="M3.2 10.8l7.6-7.6" /></svg>{a}</li>
-						{/each}
-					</ul>
-				</div>
-				<div class="col">
-					<div class="colhead mono">Inside</div>
-					<ul class="has">
-						<li>
-							<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"
-								><rect x="2" y="2" width="24" height="24" rx="2" class="g" /><path d="M2 10h24M2 18h24M10 2v24M18 2v24" class="g" /><rect x="10" y="10" width="8" height="8" class="o" /><path d="M14 14h12M14 14V2M14 14H2" class="r" /></svg
-							>Four 2D physics equations (151 lines of Rust)
-						</li>
-						<li>
-							<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"
-								><ellipse cx="14" cy="15" rx="12" ry="5" class="g" /><circle cx="4" cy="16" r="1.5" class="b" /><circle cx="10" cy="19.6" r="2.3" class="b" /><circle cx="17" cy="19.8" r="2.6" class="b" /><circle cx="24.5" cy="16.5" r="3.4" class="q" /></svg
-							>10 active numbers (40 bytes)
-						</li>
-					</ul>
-				</div>
-			</div>
+			<ul class="map">
+				<li>
+					<span class="idea">Mobility</span>
+					<svg class="fig" width="40" height="40" viewBox="0 0 28 28" aria-hidden="true"
+						><rect x="2" y="2" width="24" height="24" rx="2" class="g" /><path d="M2 10h24M2 18h24M10 2v24M18 2v24" class="g" /><rect x="10" y="10" width="8" height="8" class="o" /><path d="M14 14h12M14 14V2M14 14H2M14 14v12" class="r" /></svg
+					>
+					<span class="phys">A piece with open lines reaches more squares, so it pulls on more of the board.</span>
+				</li>
+				<li>
+					<span class="idea">Control of space and the centre</span>
+					<svg class="fig" width="40" height="40" viewBox="0 0 28 28" aria-hidden="true"
+						><rect x="2" y="15" width="24" height="11" class="w" /><rect x="2" y="2" width="24" height="13" class="k" /><rect x="2" y="2" width="24" height="24" rx="2" class="g" /><path d="M2 10h24M2 18h24M10 2v24M18 2v24" class="g" /></svg
+					>
+					<span class="phys">Held space: each square belongs softly to whichever side pulls harder on it.</span>
+				</li>
+				<li>
+					<span class="idea">Defended and hanging pieces</span>
+					<svg class="fig" width="40" height="40" viewBox="0 0 28 28" aria-hidden="true"
+						><circle cx="14" cy="14" r="4" class="b" /><path d="M2 14h6M5 11l3 3-3 3" class="r" /><path d="M26 6l-7 5M22 12l-3-1 1-3M26 22l-7-5M22 16l-3 1 1 3" class="e" /></svg
+					>
+					<span class="phys">Binding energy: a piece with more enemy pull on it than friendly support is exposed.</span>
+				</li>
+				<li>
+					<span class="idea">Bad bishops, closed positions</span>
+					<svg class="fig" width="40" height="40" viewBox="0 0 28 28" aria-hidden="true"
+						><rect x="2" y="2" width="24" height="24" rx="2" class="g" /><path d="M6 22l6-6" class="r" /><path d="M12 16l10-10" class="r dim" /><circle cx="6" cy="22" r="2.6" class="b" /><rect x="11" y="12" width="5" height="5" rx="1" class="blk" /></svg
+					>
+					<span class="phys">Pull stops at the first piece in its way, so a piece boxed in by its own pawns pulls on very little.</span>
+				</li>
+				<li>
+					<span class="idea">Piece values</span>
+					{#if learned}
+						<svg class="fig bars" width="64" height="40" viewBox="0 0 64 40" role="img" aria-label="Learned ratios {ratio(learned)} beside the traditional {ratio(TRADITIONAL)}">
+							{#each learned as r, i (i)}<rect x={i * 7} y={38 - (r / BAR_MAX) * 36} width="5" height={(r / BAR_MAX) * 36} class="lb" />{/each}
+							{#each TRADITIONAL as r, i (i)}<rect x={34 + i * 7} y={38 - (r / BAR_MAX) * 36} width="5" height={(r / BAR_MAX) * 36} class="tb" />{/each}
+						</svg>
+						<span class="phys"
+							>Masses are tuned by self-play. Started all equal, they sorted themselves to <span class="mono">{ratio(learned)}</span> (knight = 1); the traditional values are
+							<span class="mono">{ratio(TRADITIONAL)}</span>. A second run with another seed landed in the same place.</span
+						>
+					{/if}
+				</li>
+				<li class="open">
+					<span class="idea">King safety</span>
+					<svg class="fig" width="40" height="40" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="9" class="g" stroke-dasharray="2 2" /><text x="14" y="18" text-anchor="middle" class="qm">?</text></svg>
+					<span class="phys"
+						>Still open. Two king laws were tried and the Ledger cut both. <a href="https://github.com/r-baruah/kepler-64/blob/v1/docs/v1/11_OPEN_PROBLEMS.md">Open problem 1</a></span
+					>
+				</li>
+			</ul>
 			<div class="proof">
 				<div class="big">{proof.scorePercent}<span>%</span></div>
 				<div class="prooftext">
@@ -175,7 +206,7 @@
 		<header class="head">
 			<div class="eyebrow mono"><span class="dot"></span>03 &middot; The Law Ledger</div>
 			<h2>Every law has to earn its place.</h2>
-			<p class="lede">Each formula was tested against a copy of the universe without it. Laws that helped stayed. The rest became alternate universes.</p>
+			<p class="lede">Each law played thousands of games against a copy of the engine without it. Laws that helped stayed. The rest are kept as alternate universes: Home with one law switched back on, playable below.</p>
 		</header>
 		<div class="keptrow">
 			{#each kept as c (c.id)}
@@ -390,72 +421,96 @@
 		border-radius: var(--radius-card);
 		box-shadow: var(--shadow-card);
 	}
-	.cols {
+	.map {
+		gap: 0;
+	}
+	.map li {
 		display: grid;
-		grid-template-columns: 1fr;
-		gap: 20px;
-	}
-	.colhead {
-		font-size: 11px;
-		font-weight: 500;
-		color: var(--muted);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		margin-bottom: 10px;
-	}
-	ul {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-		display: flex;
-		flex-direction: column;
-		gap: 9px;
-	}
-	.absent li {
-		display: flex;
+		grid-template-columns: 64px minmax(0, 1fr);
+		grid-template-areas: 'fig idea' 'fig phys';
+		column-gap: 14px;
+		row-gap: 2px;
 		align-items: center;
-		gap: 10px;
-		font-size: var(--t-md);
-		color: var(--muted);
+		padding: 14px 0;
+		border-top: 1px solid var(--line);
 	}
-	.absent svg {
-		flex: none;
-		fill: none;
-		stroke: var(--faint);
-		stroke-width: 1.3;
+	.map li:first-child {
+		border-top: none;
+		padding-top: 0;
 	}
-	.has {
-		gap: 12px;
-	}
-	.has li {
-		display: flex;
-		align-items: center;
-		gap: 12px;
+	.idea {
+		grid-area: idea;
 		font-size: var(--t-lg);
 		color: var(--ink);
 	}
-	.has svg {
-		flex: none;
+	.phys {
+		grid-area: phys;
+		font-size: var(--t-sm);
+		line-height: 1.5;
+		color: var(--muted);
 	}
-	.has .g {
+	.phys a {
+		color: var(--accent);
+	}
+	.phys .mono {
+		white-space: nowrap;
+	}
+	.fig {
+		grid-area: fig;
+		justify-self: start;
+	}
+	.map .open .idea,
+	.map .open .phys {
+		color: var(--faint);
+	}
+	.fig .g {
 		fill: none;
 		stroke: var(--orn);
 		stroke-width: 1;
 	}
-	.has .o {
+	.fig .o {
 		fill: var(--pull-w);
 		opacity: 0.45;
 	}
-	.has .r {
+	.fig .w {
+		fill: var(--pull-w);
+		opacity: 0.35;
+	}
+	.fig .k {
+		fill: var(--pull-b);
+		opacity: 0.22;
+	}
+	.fig .r {
 		stroke: var(--accent);
 		stroke-width: 1.4;
 		fill: none;
 	}
-	.has .b {
+	.fig .r.dim {
+		stroke: var(--orn);
+		stroke-dasharray: 1.5 1.5;
+	}
+	.fig .e {
+		stroke: var(--pull-w-line);
+		stroke-width: 1.4;
+		fill: none;
+	}
+	.fig .b {
 		fill: var(--ink);
 	}
-	.has .q {
+	.fig .blk {
+		fill: var(--card);
+		stroke: var(--ink);
+		stroke-width: 1.2;
+	}
+	.fig .qm {
+		font-size: 11px;
+		fill: var(--faint);
+	}
+	.bars .lb {
 		fill: var(--accent);
+	}
+	.bars .tb {
+		fill: var(--orn);
 	}
 	.proof {
 		display: grid;
@@ -945,23 +1000,22 @@
 		}
 		.inside {
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-			grid-template-areas: 'cols proof' 'try proof';
+			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-areas: 'map map' 'proof try';
 			column-gap: 48px;
+			row-gap: 8px;
 			padding: 32px;
 		}
-		.cols {
-			grid-area: cols;
-			grid-template-columns: 1fr 1fr;
-			gap: 28px;
+		.map {
+			grid-area: map;
+		}
+		.map li {
+			grid-template-columns: minmax(0, 0.8fr) 72px minmax(0, 1.4fr);
+			grid-template-areas: 'idea fig phys';
+			column-gap: 24px;
 		}
 		.proof {
 			grid-area: proof;
-			align-self: start;
-			padding-top: 0;
-			padding-left: 40px;
-			border-top: none;
-			border-left: 1px solid var(--line);
 		}
 		.big {
 			font-size: 76px;

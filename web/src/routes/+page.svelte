@@ -118,7 +118,7 @@
 		<p class="eyebrow mono"><span class="dot"></span>Physics experiment</p>
 		<h1 class="h1">Chess played by four physics equations.</h1>
 	</div>
-	<p class="sub">Not a machine-learning engine. Pieces carry weight, pull travels along legal moves, and ten numbers control the whole evaluation.</p>
+	<p class="sub">Pieces have mass, and their pull travels only along the lines they can legally move. Every position is judged by that field and ten tuned numbers.</p>
 	<div class="cta">
 		<button class="primary" onclick={() => game.start('white')} disabled={game.status === 'nowasm'}>Play White</button>
 		<button class="secondary" onclick={() => game.start('black')} disabled={game.status === 'nowasm'}>Play Black</button>
