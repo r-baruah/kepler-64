@@ -163,6 +163,7 @@
 				<image href="/pieces/wK.svg" x={sq(KING.f, KING.r).x} y={sq(KING.f, KING.r).y} width={S} height={S} />
 				<text class="tag" x={sq(2, 1).x + S / 2} y={sq(2, 1).y + S / 2 + 2.6} text-anchor="middle">1</text>
 				<text class="tag" x={sq(3, 1).x + S / 2} y={sq(3, 1).y + S / 2 + 2.6} text-anchor="middle">2</text>
+				<path class="cone-edge" d="M{X0 + 4 * S} {Y0 + 5 * S}V{Y0 + S}H{X0}" />
 				<text class="tag zero" x={sq(4, 1).x + S / 2} y={sq(4, 1).y + S / 2 + 2.6} text-anchor="middle">0</text>
 			</svg>
 			<div class="term">{constants.c} moves</div>
@@ -415,6 +416,13 @@
 		font-size: 7px;
 		font-weight: 500;
 		fill: var(--ink);
+	}
+	/* Edge of the c = 2 light cone: past it, pull never arrives. */
+	.cone-edge {
+		fill: none;
+		stroke: var(--cone);
+		stroke-width: 0.9;
+		stroke-dasharray: 2 1.6;
 	}
 	.tag.zero {
 		fill: var(--muted);

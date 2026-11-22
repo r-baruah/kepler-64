@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 456" width="880" height="456" role="img" aria-labelledby="pp-t-dark pp-d-dark">
   <title id="pp-t-dark">Kepler-64: Real-world physics rebuilt for a 2D chessboard</title>
   <desc id="pp-d-dark">Four pairings showing how Kepler-64 translates real physics onto a chessboard: Mass to piece weight, Gravity to pull along legal moves stopping at blockers, Light speed to a 2-move limit, and Field to square ownership.</desc>
+  <!-- Chess pieces: the "cburnett" set by Colin M. L. Burnett, BSD 3-clause licence. See web/static/pieces/LICENSE.md in https://github.com/r-baruah/kepler-64 -->
   <defs>
     <pattern id="grid-dark" width="16" height="16" patternUnits="userSpaceOnUse">
       <path d="M 16 0 L 0 0 0 16" fill="none" stroke="rgba(227, 231, 238, 0.05)" stroke-width="1"/>
@@ -114,7 +115,7 @@
 
     <!-- Footer rule + formula + caption -->
     <line x1="30" y1="169.0" x2="417.0" y2="169.0" stroke="#262e3c" stroke-width="1"/>
-    <text x="223.5" y="189.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">T<tspan dy="2.5" font-size="8.5">mat</tspan><tspan dy="-2.5"> = Σ μ</tspan><tspan dy="2.5" font-size="8.5">W</tspan><tspan dy="-2.5"> − Σ μ</tspan><tspan dy="2.5" font-size="8.5">B</tspan></text>
+    <text x="223.5" y="189.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">T<tspan dy="2.5" font-size="8.5">mat</tspan><tspan dy="-2.5">&#160;= Σ μ</tspan><tspan dy="2.5" font-size="8.5">W</tspan><tspan dy="-2.5">&#160;− Σ μ</tspan><tspan dy="2.5" font-size="8.5">B</tspan></text>
     <text x="223.5" y="207.0" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#9ba4b5">Tuned via self-play. Pawn = 1.</text>
   </g>
   <g>
@@ -190,7 +191,7 @@
 
     <!-- Footer rule + formula + caption -->
     <line x1="463.0" y1="169.0" x2="850.0" y2="169.0" stroke="#262e3c" stroke-width="1"/>
-    <text x="656.5" y="189.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">φ = E · α<tspan dy="-3.5" font-size="8.5">h−1</tspan><tspan dy="3.5"> / n</tspan><tspan dy="2.5" font-size="8.5">h</tspan><tspan dy="-6" font-size="8.5">σ</tspan></text>
+    <text x="656.5" y="189.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">φ = E · α<tspan dy="-3.5" font-size="8.5">h−1</tspan><tspan dy="3.5">&#160;/ n</tspan><tspan dy="2.5" font-size="8.5">h</tspan><tspan dy="-6" font-size="8.5">σ</tspan></text>
     <text x="656.5" y="207.0" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#9ba4b5">2D Gauss law: stops at blockers.</text>
   </g>
   <g>
@@ -242,7 +243,8 @@
       <use href="#p-wK" x="29.25" y="41.5" width="12.5" height="12.5"/>
       <text x="48.0" y="50.35" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="7" font-weight="500" fill="#e3e7ee">1</text>
       <text x="60.5" y="50.35" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="7" font-weight="500" fill="#e3e7ee">2</text>
-      <text x="73.0" y="50.35" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="7" font-weight="500" fill="#9ba4b5" fill-opacity="0.75">0</text>
+      <path d="M66.75 66.5V16.5H16.75" fill="none" stroke="#9db0ff" stroke-width="0.9" stroke-dasharray="2 1.6"/>
+      <text x="73.0" y="50.35" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="7" font-weight="500" fill="#9ba4b5">0</text>
     </g>
     <text x="342.2" y="364.2" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="500" fill="#e3e7ee">2 moves</text>
 
@@ -306,7 +308,7 @@
 
     <!-- Footer rule + formula + caption -->
     <line x1="463.0" y1="390.0" x2="850.0" y2="390.0" stroke="#262e3c" stroke-width="1"/>
-    <text x="656.5" y="410.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">T<tspan dy="2.5" font-size="8.5">space</tspan><tspan dy="-2.5"> = λ Σ tanh(Φ</tspan><tspan dy="2.5" font-size="8.5">W</tspan><tspan dy="-2.5"> − Φ</tspan><tspan dy="2.5" font-size="8.5">B</tspan><tspan dy="-2.5">)</tspan></text>
+    <text x="656.5" y="410.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#e3e7ee">T<tspan dy="2.5" font-size="8.5">space</tspan><tspan dy="-2.5">&#160;= λ Σ tanh(Φ</tspan><tspan dy="2.5" font-size="8.5">W</tspan><tspan dy="-2.5">&#160;− Φ</tspan><tspan dy="2.5" font-size="8.5">B</tspan><tspan dy="-2.5">)</tspan></text>
     <text x="656.5" y="428.0" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" fill="#9ba4b5">Whoever pulls harder owns the square.</text>
   </g>
 </svg>
