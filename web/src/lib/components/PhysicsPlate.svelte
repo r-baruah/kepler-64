@@ -37,8 +37,9 @@
 		{ f: 2, r: 3 }
 	];
 
-	// Light speed: a king in the middle; one move reaches the 8 squares around it, two moves the ring beyond.
-	const ring = (f: number, r: number) => Math.max(Math.abs(f - 2), Math.abs(r - 2));
+	// Light speed: a king at (1,1) on the 5x5 crop; ring 1 = 1 move, ring 2 = 2 moves, ring 3 = 0 (past c = 2).
+	const KING = { f: 1, r: 1 };
+	const ring = (f: number, r: number) => Math.max(Math.abs(f - KING.f), Math.abs(r - KING.r));
 
 	// Field: the engine's field on files b-f, ranks 2-6 of FIELD_FEN (white knight c3, black bishop f5).
 	const CROP_F0 = 1;
@@ -152,20 +153,21 @@
 		</div>
 		<span class="to" aria-hidden="true"></span>
 		<div class="half">
-			<svg viewBox="0 0 96 72" role="img" aria-label="A king's pull: one move to the squares around it, two moves to the ring beyond, nothing further">
+			<svg viewBox="0 0 96 72" role="img" aria-label="A king's pull: one move to the ring around it, two moves to the next ring, zero past {constants.c} moves">
 				{#each cells as c (c.f * 5 + c.r)}
 					{@const p = sq(c.f, c.r)}
 					<rect x={p.x} y={p.y} width={S} height={S} class={dark(c.f, c.r) ? 'sqd' : 'sql'} />
 					{#if ring(c.f, c.r) === 1}<rect x={p.x} y={p.y} width={S} height={S} class="reach1" />{/if}
 					{#if ring(c.f, c.r) === 2}<rect x={p.x} y={p.y} width={S} height={S} class="reach2" />{/if}
 				{/each}
-				<image href="/pieces/wK.svg" x={sq(2, 2).x} y={sq(2, 2).y} width={S} height={S} />
-				<text class="tag" x={sq(3, 2).x + S / 2} y={sq(3, 2).y + S / 2 + 2.6} text-anchor="middle">1</text>
-				<text class="tag" x={sq(4, 2).x + S / 2} y={sq(4, 2).y + S / 2 + 2.6} text-anchor="middle">2</text>
+				<image href="/pieces/wK.svg" x={sq(KING.f, KING.r).x} y={sq(KING.f, KING.r).y} width={S} height={S} />
+				<text class="tag" x={sq(2, 1).x + S / 2} y={sq(2, 1).y + S / 2 + 2.6} text-anchor="middle">1</text>
+				<text class="tag" x={sq(3, 1).x + S / 2} y={sq(3, 1).y + S / 2 + 2.6} text-anchor="middle">2</text>
+				<text class="tag zero" x={sq(4, 1).x + S / 2} y={sq(4, 1).y + S / 2 + 2.6} text-anchor="middle">0</text>
 			</svg>
 			<div class="term">{constants.c} moves</div>
 		</div>
-		<figcaption><span class="eqline mono">h<sub>p</sub>(s) &le; c = {constants.c}</span>Pull reaches at most {constants.c} moves.</figcaption>
+		<figcaption><span class="eqline mono">&phi; = 0 &nbsp;for h &gt; c = {constants.c}</span>Stops past {constants.c} moves.</figcaption>
 	</figure>
 
 	<!-- 4. Field -->
@@ -397,11 +399,11 @@
 	}
 	.reach1 {
 		fill: var(--cone);
-		opacity: var(--cone-1);
+		opacity: 0.24;
 	}
 	.reach2 {
 		fill: var(--cone);
-		opacity: var(--cone-2);
+		opacity: 0.09;
 	}
 	.ray {
 		stroke: var(--cone);
@@ -413,6 +415,10 @@
 		font-size: 7px;
 		font-weight: 500;
 		fill: var(--ink);
+	}
+	.tag.zero {
+		fill: var(--muted);
+		opacity: 0.75;
 	}
 	.tint.white {
 		fill: var(--pull-w);
