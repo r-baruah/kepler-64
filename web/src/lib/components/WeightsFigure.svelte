@@ -22,7 +22,7 @@
 
 <figure class="fig" bind:clientWidth={measured}>
 	<figcaption class="cap">
-		<span class="title mono">Learned piece weights</span>
+		<span class="title mono">Piece weights</span>
 		<button class="change" onclick={onchange}>{universe} <span aria-hidden="true">&rsaquo;</span></button>
 	</figcaption>
 	<svg {width} height={height + sag} viewBox="0 0 {width} {height + sag}" role="img" aria-label={label}>
