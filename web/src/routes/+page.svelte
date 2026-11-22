@@ -115,7 +115,7 @@
 <main class="stage" data-mode={game.mode}>
 	<!-- Hero text: the landing's first screen. Hidden once a game starts. -->
 	<div class="hero-head">
-		<p class="eyebrow mono"><span class="dot"></span>Physics experiment &middot; 4 equations &middot; 10 numbers (40 bytes)</p>
+		<p class="eyebrow mono"><span class="dot"></span>Physics experiment</p>
 		<h1 class="h1">Chess played by four physics equations.</h1>
 	</div>
 	<p class="sub">Not a machine-learning engine. Pieces carry weight, pull travels along legal moves, and ten numbers control the whole evaluation.</p>

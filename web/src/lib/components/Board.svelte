@@ -315,11 +315,11 @@
 	}
 	.cone1 {
 		fill: var(--cone);
-		opacity: 0.16;
+		opacity: 0.34;
 	}
 	.cone2 {
 		fill: var(--cone);
-		opacity: 0.06;
+		opacity: 0.16;
 	}
 	.rays line,
 	.pulse line {

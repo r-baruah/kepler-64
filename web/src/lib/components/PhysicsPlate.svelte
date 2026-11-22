@@ -399,16 +399,16 @@
 	}
 	.reach1 {
 		fill: var(--cone);
-		opacity: 0.24;
+		opacity: 0.42;
 	}
 	.reach2 {
 		fill: var(--cone);
-		opacity: 0.09;
+		opacity: 0.2;
 	}
 	.ray {
 		stroke: var(--cone);
-		stroke-width: 1.1;
-		opacity: 0.85;
+		stroke-width: 1.25;
+		opacity: 0.95;
 	}
 	.tag {
 		font-family: var(--font-mono);
