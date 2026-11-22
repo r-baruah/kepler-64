@@ -79,3 +79,11 @@ bench-results/
 /engine/target-wasm/
 /engine/crates/kepler-wasm/pkg/
 /engine/target-perf/
+
+# Internal planning docs, wireframes and v0-era notebooks (local only, maintainer's checkout)
+docs/v1/05_ROADMAP.md
+docs/v1/06_WEB_PLAN.md
+docs/v1/07_DECISION_LOG.md
+docs/v1/10_UNIVERSE_METHODS.md
+docs/v1/wireframes/
+notebooks/

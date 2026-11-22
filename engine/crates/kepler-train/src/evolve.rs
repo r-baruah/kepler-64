@@ -1,5 +1,5 @@
 //! `kepler-train evolve`, `evolve-shard`, `evolve-reduce`: cosmological natural selection
-//! (T3) with a cooling schedule (T4) (`docs/v1/10_UNIVERSE_METHODS.md`).
+//! (T3) with a cooling schedule (T4).
 //!
 //! Twin universes `theta+` and `theta-` around the current constants play each other; the
 //! winner pulls the constants towards itself. This is SPSA on playing strength.

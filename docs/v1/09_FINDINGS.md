@@ -275,7 +275,7 @@ Written before any result existed; left unchanged below.
   - On held-out games, adding that enemy pull to the score improves outcome prediction **about 5.6 times as much** as the spec-1 Roche term does.
 - **Evidence:** `engine/results/roche-probe-gen003.md`, scripts in `scripts/research/roche/`.
 - **Meaning:** "a king is in danger when enemy pull lands on its body" is right. Dividing by the king's own support and passing the result through a sigmoid threshold (spec-1) dilutes it and gives it shape constants that freeze at weight 0 (F30).
-- **Caveat:** prediction is not strength (F10). This motivates law candidate L11 (`10_UNIVERSE_METHODS.md`); only its Ledger SPRT decides.
+- **Caveat:** prediction is not strength (F10). This motivates a new law candidate (L11); only its Ledger SPRT decides.
 
 ### F32 · Gen 1's jump came from the training fixes, not from learning the temperature (2026-10-24) · confirmed
 - **What:** the pre-registered attribution test above. Three arms from gen-000 with identical seeds and settings (11 rounds × 500 games, depth 3, quiet leaves and capped games dropped in all three), each judged by SPRT (4,000 games, depth 4):

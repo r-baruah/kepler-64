@@ -9,6 +9,8 @@ Guidelines for any coding agent in this repo. Claude-specific details (model cho
 
 These win over the README, the Book and `kepler64/`, which describe the old v0 engine.
 
+Also local-only (gitignored, present only in the maintainer's checkout, never committed): `docs/v1/05_ROADMAP.md`, `docs/v1/06_WEB_PLAN.md`, `docs/v1/07_DECISION_LOG.md`, `docs/v1/10_UNIVERSE_METHODS.md`, `docs/v1/wireframes/` and `notebooks/`. Read and update them locally, but don't link to them from tracked files. The website's universe presets and levels live in the tracked `web/content/universes.md`.
+
 ## Rules
 - The evaluation is physics only: the quantities in the laws spec, nothing else. No piece-square tables, pawn-structure rules, opening books, tablebases or chess heuristics. Search techniques are fine.
 - Training uses self-play only. Stockfish is used to test, never to teach.

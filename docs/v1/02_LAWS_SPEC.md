@@ -1,6 +1,6 @@
 # 02 · The v1 laws (normative spec)
 
-Status: **draft v1.0-spec-2** (2026-10-24; spec-1 was 2026-10-23). spec-2 adds one term, L5b tidal load (§6b), with weight 0 by default, so every spec-1 universe is a spec-2 universe with `lambda_tide = 0` and plays identically (§12). This file is the single source of truth for what the v1 engine computes. Code that disagrees with it is a bug, unless this file is updated first and the change is logged in `07_DECISION_LOG.md`.
+Status: **draft v1.0-spec-2** (2026-10-24; spec-1 was 2026-10-23). spec-2 adds one term, L5b tidal load (§6b), with weight 0 by default, so every spec-1 universe is a spec-2 universe with `lambda_tide = 0` and plays identically (§12). This file is the single source of truth for what the v1 engine computes. Code that disagrees with it is a bug, unless this file is updated first and the change is recorded with its reason.
 
 The principle: **the rules of chess are the shape of space. A field is the only law. Learning tunes the constants.**
 
@@ -245,6 +245,6 @@ Every evaluation can return a full breakdown. It's used by tests, the trainer an
 
 ## 12. Versioning
 
-- Any change to a formula in §2–§7 bumps the spec id (`v1.0-spec-N`), is logged in `07_DECISION_LOG.md`, and invalidates previously learned generations until the Law Ledger is rerun.
+- Any change to a formula in §2–§7 bumps the spec id (`v1.0-spec-N`), is recorded with its reason, and invalidates previously learned generations until the Law Ledger is rerun.
 - Changing only constant values is a new generation, not a new spec.
 - **spec-2 (2026-10-24):** adds L5b (§6b) and constant 15, `lambda_tide`. A generation file that has no `lambda_tide` (every spec-1 file) loads with `lambda_tide = 0`, which is exactly the spec-1 universe, so spec-1 generations stay valid and need no Ledger rerun. Files written by spec-2 code that leave `lambda_tide` at 0 omit it and keep the id `v1.0-spec-1`, so their content and hashes match spec-1; a file with `lambda_tide > 0` carries `v1.0-spec-2`. Spec-1 code refuses spec-2 files, which is correct: it can't compute L5b.

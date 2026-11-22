@@ -6,7 +6,7 @@ Instructions for Claude when working in this repo. This file stands on its own. 
 1. Read `docs/v1/README.md`, then `docs/v1/05_ROADMAP.md` to see where things stand.
 2. Before touching any evaluation code, read `docs/v1/02_LAWS_SPEC.md`. It's normative: code that disagrees with it is a bug, unless the spec is changed first and the change logged in `docs/v1/07_DECISION_LOG.md`.
 3. For engine work, follow `docs/v1/03_ENGINE_ARCHITECTURE.md`. For training, matches and any number that may be published, follow `docs/v1/04_TRAINING_AND_GATES.md`. For website work, follow `docs/v1/06_WEB_PLAN.md` and its staged check-ins.
-4. Maintainer-only notes (narrative, claims register, launch, runbooks) live in `Planning/`. It's gitignored, exists only in the maintainer's checkout, and must never be committed or quoted in tracked files.
+4. Maintainer-only notes (narrative, claims register, launch, runbooks) live in `Planning/`. It's gitignored, exists only in the maintainer's checkout, and must never be committed or quoted in tracked files. Also local-only (gitignored, present only in the maintainer's checkout, never committed): `docs/v1/05_ROADMAP.md`, `docs/v1/06_WEB_PLAN.md`, `docs/v1/07_DECISION_LOG.md`, `docs/v1/10_UNIVERSE_METHODS.md`, `docs/v1/wireframes/` and `notebooks/`. Read and update them locally, but don't link to them from tracked files. The website's universe presets and levels live in the tracked `web/content/universes.md`.
 
 Don't redo the v0 audit. If a doc looks wrong, check the code or rerun the measurement, then fix the doc.
 
