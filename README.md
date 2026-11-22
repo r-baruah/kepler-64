@@ -30,7 +30,7 @@ Everything the evaluator computes fits on one screen (the full spec is in [`docs
 
 $$
 \varphi_p(s) = \begin{cases}
-\dfrac{E_p \cdot \alpha^{\,h_p(s)-1}}{n_{h_p(s)}(p)^{\,\sigma}} & \text{if } h_p(s) \le c \\[8pt]
+\dfrac{E_p \cdot \alpha^{h_p(s)-1}}{n_{h_p(s)}(p)^{\sigma}} & \text{if } h_p(s) \le c \cr
 0 & \text{if } h_p(s) > c
 \end{cases}
 $$
@@ -49,7 +49,7 @@ $$
 ### 2. Rest mass
 
 $$
-T_{\text{mat}} = \sum_{p \in W,\, t \neq K} \mu(t_p) - \sum_{p \in B,\, t \neq K} \mu(t_p)
+T_{\text{mat}} = \sum_{p \in W \text{, } t \neq K} \mu(t_p) - \sum_{p \in B \text{, } t \neq K} \mu(t_p)
 $$
 
 Total weight on the board, in **Kepler units** (`1 ku` = one pawn). Kings have no material weight — they are bodies to protect or mate, not material.
@@ -57,7 +57,7 @@ Total weight on the board, in **Kepler units** (`1 ku` = one pawn). Kings have n
 ### 3. Binding energy
 
 $$
-e_q = M_q \cdot \big(\Phi_{\text{enemy}}(s_q) - \Phi_{\text{own}}(s_q)\big), \qquad T_{\text{bind}} = \lambda_{\text{bind}}\,(U_B - U_W)
+e_q = M_q \cdot \big(\Phi_{\text{enemy}}(s_q) - \Phi_{\text{own}}(s_q)\big), \qquad T_{\text{bind}} = \lambda_{\text{bind}} (U_B - U_W)
 $$
 
 Mass times net field — the potential energy of a body sitting in an external field. When the enemy pulls on a piece harder than its own side supports it, $e_q$ turns positive: the piece is unbound and exposed. $U_W$ and $U_B$ sum $e_q$ over each side's non-king pieces.
@@ -65,7 +65,7 @@ Mass times net field — the potential energy of a body sitting in an external f
 ### 4. Held space
 
 $$
-T_{\text{space}} = \lambda_{\text{space}} \sum_{s=0}^{63} \tanh\!\big(\Phi_W(s) - \Phi_B(s)\big)
+T_{\text{space}} = \lambda_{\text{space}} \sum_{s=0}^{63} \tanh\big(\Phi_W(s) - \Phi_B(s)\big)
 $$
 
 Each of the 64 squares belongs softly to whichever side pulls harder on it.
