@@ -2,7 +2,7 @@
 
 # Kepler-64
 
-### A chess engine whose entire brain is four physics equations and ten numbers.
+### An experiment in playing chess using four physics equations built for a 2D board and ten numbers.
 
 **[Play it in your browser](https://kepler.ripuranjan.com)** · [The equations](#the-equations) · [Not an ML engine](#not-an-ml-engine) · [What happened](#what-happened) · [The universes](#the-universes) · [Open problems](#open-problems)
 
@@ -30,7 +30,14 @@ flowchart LR
 
 ## The equations
 
-This is physics built natively for a chessboard, inspired by real-world formulas rather than copying 3D gravity blindly. On a board, straight-line distance means nothing when a rook cannot see past a pawn — so here, **the rules of chess are the shape of space**. Distance is counted in moves, and pull stops at the first piece in the way.
+Copying 3D space equations straight onto a chessboard does not work — straight-line distance ignores blocking pawns and how each piece moves (that is why v0 failed). Instead, Kepler-64 uses **new formulas derived directly from real-world physics, rebuilt for a 2D chess grid** so they work the same way in board space:
+
+| Real-world law (3D space) | Why it breaks on a board | New formula built for a 2D board |
+|---|---|---|
+| **Gauss's law** ($1 / 4\pi r^2$ over a sphere) | Straight lines ignore piece movement and blockers | Divide pull by shell size $n_h^\sigma$ along legal move lines |
+| **Speed of light** ($d \le ct$) | Time on a board is counted in moves, not seconds | Pull stops past $c = 2$ moves ($h_p(s) \le c$) and stops at blockers |
+| **Potential energy** ($U = m\Phi$) | Every square feels pull from two opposing sides | $e_q = M_q (\Phi_{\text{enemy}} - \Phi_{\text{own}})$ (positive means exposed) |
+| **Roche limit** (tidal pull vs. self-gravity) | A king is a 3×3 neighbourhood, not a sphere of rock | Enemy pull divided by friendly support on the king's 3×3 body *(tested and cut)* |
 
 Everything the evaluator computes fits on one screen (the full spec is in [`docs/v1/02_LAWS_SPEC.md`](docs/v1/02_LAWS_SPEC.md)):
 
@@ -120,7 +127,7 @@ Self-play (`TDLeaf(λ)`) is only used for two things:
 
 **It worked out sensible piece values by itself.** Started with knight, bishop, rook, and queen all at the exact same weight, it settled near knight `2.6`, bishop `3.3`, rook `4.4`, queen `8.2` (pawn = `1`). A second run with different games landed in the same place. ([control run A](engine/results/control-equal-masses-a/), [control run B](engine/results/control-equal-masses-b/))
 
-**The field does real work.** Switching the field off and counting material alone loses **330 Elo** over 4,000 games at depth 4 ([`ledger-gen001.md`](engine/results/ledger-gen001.md)).
+**The equations do real work — it is not just search.** Against the *exact same* lookahead search counting material alone, the physics field wins **87% of games** (`3,313 W / 334 D / 353 L`, **+330 Elo** at depth 4 over 4,000 games; [`ledger-gen001.md`](engine/results/ledger-gen001.md)). Even at equal clock time (`100 ms/move`), where material-only searches deeper because it skips the field, untrained Gen 0 with the equations still wins **68.8%** (**+137 Elo**; [`m1-gate.md`](engine/results/m1-gate.md)). Search handles tactics; the physics handles strategy.
 
 **The universe rejected the most literal astrophysics.** Accretion (pieces growing heavier when they capture), the Roche limit (tearing a king apart when enemy pull overwhelms it), and tidal load all made the engine weaker or had no measurable effect. Every law had to survive the [Law Ledger](#the-law-ledger).
 
@@ -301,7 +308,7 @@ The metadata is in [`CITATION.cff`](CITATION.cff); GitHub's "Cite this repositor
 
 ```bibtex
 @software{baruah-kepler64,
-  title  = {Kepler-64: a chess engine whose evaluation is a physics-style field learned by self-play},
+  title  = {Kepler-64: an experiment in playing chess using four 2D physics equations and ten numbers},
   author = {Baruah, Ripuranjan},
   url    = {https://github.com/r-baruah/kepler-64}
 }
@@ -316,4 +323,3 @@ Made by Ripuranjan Baruah, released under the [MIT licence](LICENSE).
 - **Fonts:** Geist and Geist Mono, SIL Open Font License.
 - **Photograph:** Earthrise, NASA AS17-152-23272 (Apollo 17, 1972), public domain ([`web/static/images/CREDITS.md`](web/static/images/CREDITS.md)).
 - **Move generation:** [`cozy-chess`](https://crates.io/crates/cozy-chess) (MIT).
-- **Coding assistant:** Claude, by Anthropic.

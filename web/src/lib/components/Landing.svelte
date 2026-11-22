@@ -65,7 +65,7 @@
 
 	// ---- 2. no chess knowledge inside ------------------------------------------------
 	const proof = $derived(landing.proof);
-	const ABSENT = ['Piece-square tables', 'King-safety rules', 'Pawn-structure rules', 'An opening book', 'A neural network trained on chess games'];
+	const ABSENT = ['Piece-square tables', 'King-safety rules', 'Pawn-structure rules', 'An opening book', 'A neural network or ML model'];
 
 	// ---- 3. the ledger ---------------------------------------------------------------
 	const BADGE: Record<LedgerCard['verdict'], string> = { kept: 'Kept', back: 'Came back', rejected: 'Rejected', 'rejected-twice': 'Rejected twice' };
@@ -95,8 +95,8 @@
 			<div class="pinbox" data-pin-box>
 				<header class="head">
 					<div class="eyebrow mono"><span class="dot"></span>01 &middot; How it works</div>
-					<h2>Physics, rebuilt for a chessboard.</h2>
-					<p class="lede">We wrote the laws. It found the constants itself, in {fmt(facts.selfPlayGames)} games of self-play.</p>
+					<h2>New physics formulas, built for a 2D board.</h2>
+					<p class="lede">Four equations derived from real-world physics and controlled by 10 active numbers (40 bytes). Self-play only tuned those ten constants instead of picking them by hand.</p>
 				</header>
 				<PhysicsPlate constants={home.constants} field={plateField} />
 			</div>
@@ -119,7 +119,7 @@
 			</div>
 			<figcaption><span class="mono k">Worked example</span> The rook pulls up to its own pawn, and no further.</figcaption>
 		</figure>
-		<p class="namenote">Named after Johannes Kepler, who found the planets' laws in observations. Kepler-64 finds its constants in its own games.</p>
+		<p class="namenote">Named after Johannes Kepler, who found the planets' laws in observations. Kepler-64 measures its ten constants in its own games.</p>
 	</section>
 
 	<section class="sec" id="inside" use:reveal>
@@ -143,12 +143,12 @@
 						<li>
 							<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"
 								><rect x="2" y="2" width="24" height="24" rx="2" class="g" /><path d="M2 10h24M2 18h24M10 2v24M18 2v24" class="g" /><rect x="10" y="10" width="8" height="8" class="o" /><path d="M14 14h12M14 14V2M14 14H2" class="r" /></svg
-							>One field
+							>Four 2D physics equations (151 lines of Rust)
 						</li>
 						<li>
 							<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"
 								><ellipse cx="14" cy="15" rx="12" ry="5" class="g" /><circle cx="4" cy="16" r="1.5" class="b" /><circle cx="10" cy="19.6" r="2.3" class="b" /><circle cx="17" cy="19.8" r="2.6" class="b" /><circle cx="24.5" cy="16.5" r="3.4" class="q" /></svg
-							>About a dozen learned numbers
+							>10 active numbers (40 bytes)
 						</li>
 					</ul>
 				</div>
@@ -175,7 +175,7 @@
 		<header class="head">
 			<div class="eyebrow mono"><span class="dot"></span>03 &middot; The Law Ledger</div>
 			<h2>Every law has to earn its place.</h2>
-			<p class="lede">Each law played against a copy of the engine without it. Laws that helped stayed. The rest became alternate universes.</p>
+			<p class="lede">Each formula was tested against a copy of the universe without it. Laws that helped stayed. The rest became alternate universes.</p>
 		</header>
 		<div class="keptrow">
 			{#each kept as c (c.id)}
@@ -218,7 +218,7 @@
 					><circle cx="10" cy="10" r="4" fill="currentColor" /><ellipse cx="10" cy="10" rx="9" ry="3.4" fill="none" stroke="currentColor" stroke-width="1.2" transform="rotate(-20 10 10)" /></svg
 				>
 				<h2 id="open-h">Open source, all of it.</h2>
-				<p>The engine, the training runs and every number on this page are on GitHub.</p>
+				<p>The equations, every test run, and every number on this page are on GitHub.</p>
 				<a class="problems" href="https://github.com/r-baruah/kepler-64/blob/v1/docs/v1/11_OPEN_PROBLEMS.md">Open problems <span aria-hidden="true">&rarr;</span></a>
 				<div class="openbtns">
 					<a class="b1" href="https://github.com/r-baruah/kepler-64"><StarIcon size={17} /><span>Star on GitHub</span></a>

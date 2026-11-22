@@ -5,13 +5,13 @@
 :root {
 	color-scheme: light;
 
-	/* Surfaces: off-white greys, never pure white. */
-	--bg: #e9ebef;
-	--bg-2: #e1e4e9;
-	--card: #f1f2f5;
-	--soft: #dde1e7;
-	--line: #d2d6de;
-	--line-strong: #bcc3ce;
+	/* Surfaces: warm archival paper, never stark white. */
+	--bg: #f3f2ee;
+	--bg-2: #eae8e2;
+	--card: #fbfbf9;
+	--soft: #e4e2db;
+	--line: #dddad1;
+	--line-strong: #c7c3b8;
 	--scrim: rgba(15, 22, 38, 0.32);
 	--band: #17223b;
 	--band-ink: #e6e9ef;
@@ -37,10 +37,10 @@
 	--star-lt: #eaa922;
 	--star-lt-edge: #9a6a06;
 
-	/* Board: low glare. Cool grey paper and slate. */
-	--sq-light: #dde1e7;
-	--sq-dark: #b2bbc8;
-	--board-edge: #8d97a8;
+	/* Board: low glare. Warm stone and cool slate. */
+	--sq-light: #eceae2;
+	--sq-dark: #b6bfcc;
+	--board-edge: #98a2b2;
 	--coord-on-light: #586276;
 	--coord-on-dark: #2c364c;
 	--hint: #14213d;
@@ -49,13 +49,15 @@
 	--last-alpha: 0.13;
 	--select: #2c52e0;
 
-	/* Field: one hue per side, both muted. White's pull is sand, Black's is slate. */
-	--pull-w: #c9962f;
+	/* Field: two opposing poles — warm amber for White, cool indigo for Black; cyan for light cones. */
+	--pull-w: #c99026;
 	--pull-w-line: #9c6f14;
-	--pull-b: #26346b;
-	--pull-w-max: 0.28;
-	--pull-b-max: 0.18;
-	--cone: #2c52e0;
+	--pull-b: #2a49b8;
+	--pull-w-max: 0.3;
+	--pull-b-max: 0.24;
+	--cone: #0284c7;
+	--cone-1: 0.24;
+	--cone-2: 0.11;
 
 	/* Ornament ink (orbit lines, rules) and the faint coordinate grid behind diagrams */
 	--orn: #a3abb9;
@@ -121,12 +123,14 @@
 	--last-alpha: 0.22;
 	--select: #9db0ff;
 
-	--pull-w: #e3b453;
+	--pull-w: #e5b754;
 	--pull-w-line: #f0c770;
-	--pull-b: #070a14;
-	--pull-w-max: 0.3;
-	--pull-b-max: 0.24;
-	--cone: #9db0ff;
+	--pull-b: #5382ff;
+	--pull-w-max: 0.34;
+	--pull-b-max: 0.3;
+	--cone: #38bdf8;
+	--cone-1: 0.3;
+	--cone-2: 0.14;
 
 	--orn: #465065;
 	--grid: rgba(227, 231, 238, 0.05);

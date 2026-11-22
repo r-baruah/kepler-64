@@ -73,11 +73,11 @@
 	}
 	.c1 {
 		fill: var(--cone);
-		opacity: 0.22;
+		opacity: var(--cone-1);
 	}
 	.c2 {
 		fill: var(--cone);
-		opacity: 0.08;
+		opacity: var(--cone-2);
 	}
 	p {
 		margin: 0;

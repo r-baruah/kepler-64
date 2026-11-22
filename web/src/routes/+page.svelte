@@ -107,15 +107,18 @@
 
 <svelte:head>
 	<title>Kepler-64</title>
-	<meta name="description" content="A tiny universe that learned to play chess. Play against it in your browser." />
+	<meta name="description" content="An experiment in playing chess using four physics equations built for a 2D board and ten numbers. Play against it in your browser." />
 </svelte:head>
 
 <Header onhome={home} onnav={nav} playing={play} />
 
 <main class="stage" data-mode={game.mode}>
 	<!-- Hero text: the landing's first screen. Hidden once a game starts. -->
-	<h1 class="h1">A tiny universe that learned to play chess.</h1>
-	<p class="sub">We gave chess its own physics. Pieces have mass and pull along the lines they can move. It learned the rest by playing itself.</p>
+	<div class="hero-head">
+		<p class="eyebrow mono"><span class="dot"></span>Physics experiment &middot; 4 equations &middot; 10 numbers (40 bytes)</p>
+		<h1 class="h1">Chess played by four physics equations.</h1>
+	</div>
+	<p class="sub">Not a machine-learning engine. Pieces carry weight, pull travels along legal moves, and ten numbers control the whole evaluation.</p>
 	<div class="cta">
 		<button class="primary" onclick={() => game.start('white')} disabled={game.status === 'nowasm'}>Play White</button>
 		<button class="secondary" onclick={() => game.start('black')} disabled={game.status === 'nowasm'}>Play Black</button>
@@ -352,8 +355,39 @@
 	}
 
 	/* ---- hero text (phone first) ---- */
-	.h1 {
+	.hero-head {
 		order: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+	.eyebrow {
+		margin: 0;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: var(--t-xs);
+		font-weight: 500;
+		color: var(--accent);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.dot {
+		width: 9px;
+		height: 9px;
+		flex: none;
+		border-radius: 50%;
+		border: 1.5px solid currentColor;
+		position: relative;
+	}
+	.dot::after {
+		content: '';
+		position: absolute;
+		inset: 1.5px;
+		border-radius: 50%;
+		background: currentColor;
+	}
+	.h1 {
 		margin: 0;
 		font-size: clamp(34px, 10vw, 42px);
 		font-weight: 300;
@@ -450,6 +484,11 @@
 	.boardwrap {
 		position: relative;
 		width: var(--board);
+	}
+	.stage[data-mode='rest'] .boardwrap :global(.board) {
+		box-shadow:
+			0 0 0 1px var(--board-edge),
+			var(--shadow-card);
 	}
 	.row {
 		width: var(--board);
@@ -759,7 +798,7 @@
 	}
 
 	/* ---- play layout, phone ---- */
-	.stage[data-mode='play'] .h1,
+	.stage[data-mode='play'] .hero-head,
 	.stage[data-mode='play'] .sub,
 	.stage[data-mode='play'] .cta {
 		display: none;
@@ -910,9 +949,12 @@
 			align-items: center;
 			min-height: calc(100dvh - 57px);
 		}
-		.stage[data-mode='rest'] .h1 {
+		.stage[data-mode='rest'] .hero-head {
 			grid-area: h1;
 			align-self: end;
+			gap: 16px;
+		}
+		.stage[data-mode='rest'] .h1 {
 			font-size: clamp(56px, 5.6vw, 76px);
 			letter-spacing: -0.05em;
 			line-height: 1;

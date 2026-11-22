@@ -28,7 +28,7 @@ export const LINEAGE_RESULTS = {
 
 /** Law Ledger cards on the landing. Each names the committed result files that back its verdict. */
 export const LEDGER_CARDS = [
-	{ id: 'field', verdict: 'kept', title: 'Pull follows the moves', note: 'Beats counting pieces alone, by far', universes: [], evidence: ['results/ledger-gen001', 'results/ledger-gen001.md'] },
+	{ id: 'field', verdict: 'kept', title: 'Pull follows the moves', note: '+330 Elo over the exact same search counting pieces alone', universes: [], evidence: ['results/ledger-gen001', 'results/ledger-gen001.md'] },
 	{ id: 'space', verdict: 'kept', title: 'Squares belong to the stronger pull', note: 'Control of space', universes: [], evidence: ['results/ledger-gen001.md'] },
 	{ id: 'binding', verdict: 'back', title: 'Defenders hold pieces together', note: 'Cut at first, useful later', universes: [], evidence: ['results/ledger-gen003-bind0.json'] },
 	{ id: 'accretion', verdict: 'rejected', title: 'Captures absorb weight', note: 'Better switched off', universes: ['accretion'], evidence: ['results/ledger-gen001.md'] },

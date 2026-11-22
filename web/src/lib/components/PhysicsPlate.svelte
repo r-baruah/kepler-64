@@ -102,7 +102,7 @@
 			</svg>
 			<div class="term">Piece weight</div>
 		</div>
-		<figcaption>Learned by the engine. Pawn = 1.</figcaption>
+		<figcaption><span class="eqline mono">T<sub>mat</sub> = &Sigma; &mu;<sub>W</sub> &minus; &Sigma; &mu;<sub>B</sub></span>Tuned via self-play. Pawn = 1.</figcaption>
 	</figure>
 
 	<!-- 2. Gravity -->
@@ -137,7 +137,7 @@
 			</svg>
 			<div class="term">Pull along its moves</div>
 		</div>
-		<figcaption>Stops at the first piece in the way.</figcaption>
+		<figcaption><span class="eqline mono">&phi; = E &middot; &alpha;<sup>h&minus;1</sup> / n<sub>h</sub><sup>&sigma;</sup></span>2D Gauss law: stops at blockers.</figcaption>
 	</figure>
 
 	<!-- 3. Light speed -->
@@ -165,7 +165,7 @@
 			</svg>
 			<div class="term">{constants.c} moves</div>
 		</div>
-		<figcaption>Pull reaches at most {constants.c} moves.</figcaption>
+		<figcaption><span class="eqline mono">h<sub>p</sub>(s) &le; c = {constants.c}</span>Pull reaches at most {constants.c} moves.</figcaption>
 	</figure>
 
 	<!-- 4. Field -->
@@ -196,7 +196,7 @@
 			</svg>
 			<div class="term">Who owns a square</div>
 		</div>
-		<figcaption>Whoever pulls harder on it.</figcaption>
+		<figcaption><span class="eqline mono">T<sub>space</sub> = &lambda; &Sigma; tanh(&Phi;<sub>W</sub> &minus; &Phi;<sub>B</sub>)</span>Whoever pulls harder owns the square.</figcaption>
 	</figure>
 </div>
 <!-- Phone: where the row is (four cards). A CSS scroll timeline drives it where supported. -->
@@ -331,6 +331,13 @@
 		color: var(--muted);
 		text-align: center;
 	}
+	.eqline {
+		display: block;
+		font-size: 11.5px;
+		color: var(--ink);
+		margin-bottom: 3px;
+		letter-spacing: -0.01em;
+	}
 
 	.orbit {
 		fill: none;
@@ -390,11 +397,11 @@
 	}
 	.reach1 {
 		fill: var(--cone);
-		opacity: 0.24;
+		opacity: var(--cone-1);
 	}
 	.reach2 {
 		fill: var(--cone);
-		opacity: 0.09;
+		opacity: var(--cone-2);
 	}
 	.ray {
 		stroke: var(--cone);

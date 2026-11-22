@@ -315,11 +315,11 @@
 	}
 	.cone1 {
 		fill: var(--cone);
-		opacity: 0.16;
+		opacity: var(--cone-1);
 	}
 	.cone2 {
 		fill: var(--cone);
-		opacity: 0.06;
+		opacity: var(--cone-2);
 	}
 	.rays line,
 	.pulse line {
@@ -329,7 +329,7 @@
 	}
 	/* Dashed, like a drawn trajectory: the rays say where pull goes without competing with the pieces. */
 	.rays line {
-		opacity: 0.42;
+		opacity: 0.58;
 		stroke-width: 2.5;
 		stroke-dasharray: 9 9;
 	}
